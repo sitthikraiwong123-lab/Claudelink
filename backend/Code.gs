@@ -75,6 +75,9 @@ function handleRequest(e) {
       case 'uploadImage':   result = uploadImage(params); break;
       case 'setImageURL':   result = setImageURL(params); break;
       case 'deleteAlias':   result = deleteAlias(params); break;
+      case 'updatePart':    result = updatePart(params); break;
+      case 'getEditLog':    result = getEditLog(params); break;
+      case 'restorePart':   result = restorePart(params); break;
       case 'ping':          result = { success: true, time: Date.now() }; break;
       case 'debugHeaders':  result = debugHeaders(); break;
       default:              result = { success: false, error: 'Unknown action: ' + params.action };
@@ -536,4 +539,164 @@ function deleteAlias(params) {
     return { success: true, cleared: colName };
   }
   return { success: true, cleared: null };
+}
+
+// ============================================================
+// AUDITED PART EDIT — updatePart / getEditLog / restorePart
+// Every edit here (a) requires an editor name, (b) backs up the previous row
+// to the "EditLog" tab BEFORE changing, and (c) can be restored later.
+// ============================================================
+const EDITLOG_SHEET = 'EditLog';
+const EDITLOG_HEADERS = ['Timestamp', 'Editor', 'Action', 'ArticleNo', 'NewArticleNo', 'OldData', 'NewData'];
+
+function getEditLogSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(EDITLOG_SHEET);
+  if (!sh) { sh = ss.insertSheet(EDITLOG_SHEET); sh.appendRow(EDITLOG_HEADERS); }
+  return sh;
+}
+
+function safeParse_(s) { try { return JSON.parse(s); } catch (e) { return null; } }
+
+function partsSheetInfo_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.PARTS);
+  if (!sheet) throw new Error('Sheet not found: ' + SHEETS.PARTS);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  let realArticleNoHeader = 'Article No.';
+  Object.keys(PART_HEADER_MAP).forEach(function (rh) { if (PART_HEADER_MAP[rh] === 'ArticleNo') realArticleNoHeader = rh; });
+  return {
+    sheet: sheet, data: data, headers: headers,
+    articleNoCol: findColIdx(headers, realArticleNoHeader),
+    descCol: findColIdx(headers, 'Description'),
+    imageCol: findColIdx(headers, 'ImageURL'),
+    aliasCols: findAliasColumnIndexes(headers)
+  };
+}
+
+// Returns { rowIndex0, obj } for the row whose ArticleNo matches (case-insensitive), else null.
+function findPartRow_(info, articleNo) {
+  const key = String(articleNo || '').trim().toLowerCase();
+  if (!key) return null;
+  for (let r = 1; r < info.data.length; r++) {
+    if (String(info.data[r][info.articleNoCol]).trim().toLowerCase() === key) {
+      const obj = {};
+      info.headers.forEach(function (h, i) { obj[String(h).trim()] = info.data[r][i]; });
+      return { rowIndex0: r, obj: obj };
+    }
+  }
+  return null;
+}
+
+function updatePart(params) {
+  const editor = String(params.editor || '').trim();
+  if (!editor) return { success: false, error: 'ต้องระบุชื่อผู้แก้ไขก่อน (editor required)' };
+  const origArticleNo = String(params.origArticleNo || '').trim();
+  if (!origArticleNo) return { success: false, error: 'origArticleNo required' };
+
+  const info = partsSheetInfo_();
+  const found = findPartRow_(info, origArticleNo);
+  if (!found) return { success: false, error: 'ไม่พบอะไหล่รหัส ' + origArticleNo };
+  const rowNum = found.rowIndex0 + 1;
+  const oldData = found.obj;
+
+  const newArticleNo = (params.newArticleNo !== undefined) ? String(params.newArticleNo).trim() : origArticleNo;
+  const renaming = newArticleNo && newArticleNo.toLowerCase() !== origArticleNo.toLowerCase();
+  if (renaming && findPartRow_(info, newArticleNo)) {
+    return { success: false, error: 'รหัส ' + newArticleNo + ' มีอยู่แล้ว เปลี่ยนไม่ได้' };
+  }
+
+  // ----- back up BEFORE changing -----
+  const imgHeader = info.imageCol >= 0 ? String(info.headers[info.imageCol]).trim() : null;
+  const newDataPreview = {
+    ArticleNo: newArticleNo,
+    Description: (params.newDescription !== undefined) ? String(params.newDescription) : oldData['Description'],
+    ImageURL: (params.imageURL !== undefined) ? String(params.imageURL) : (imgHeader ? oldData[imgHeader] : ''),
+    aliases: (params.aliases !== undefined) ? params.aliases : undefined
+  };
+  getEditLogSheet_().appendRow([new Date(), editor, 'update', origArticleNo, newArticleNo, JSON.stringify(oldData), JSON.stringify(newDataPreview)]);
+
+  // ----- apply -----
+  if (params.newDescription !== undefined && info.descCol >= 0)
+    info.sheet.getRange(rowNum, info.descCol + 1).setValue(String(params.newDescription));
+
+  if (params.imageURL !== undefined) {
+    let imgCol = info.imageCol;
+    if (imgCol < 0) { imgCol = info.headers.length; info.sheet.getRange(1, imgCol + 1).setValue('ImageURL'); }
+    info.sheet.getRange(rowNum, imgCol + 1).setValue(String(params.imageURL));
+  }
+
+  if (params.aliases !== undefined) {
+    const aliases = (params.aliases || []).map(function (a) { return String(a || '').trim(); }).filter(function (a) { return a; });
+    info.aliasCols.forEach(function (ci) { info.sheet.getRange(rowNum, ci + 1).setValue(''); });
+    let headers = info.sheet.getRange(1, 1, 1, info.sheet.getLastColumn()).getValues()[0];
+    let aliasCols = findAliasColumnIndexes(headers);
+    for (let i = 0; i < aliases.length; i++) {
+      if (i < aliasCols.length) {
+        info.sheet.getRange(rowNum, aliasCols[i] + 1).setValue(aliases[i]);
+      } else {
+        const nextNum = getNextAliasColumnNumber(headers, aliasCols);
+        const newColIdx1 = info.sheet.getLastColumn() + 1;
+        info.sheet.getRange(1, newColIdx1).setValue('Suggestion word' + nextNum);
+        info.sheet.getRange(rowNum, newColIdx1).setValue(aliases[i]);
+        headers = info.sheet.getRange(1, 1, 1, info.sheet.getLastColumn()).getValues()[0];
+        aliasCols = findAliasColumnIndexes(headers);
+      }
+    }
+  }
+
+  // rename LAST, so all the lookups above matched on the original key
+  if (renaming) info.sheet.getRange(rowNum, info.articleNoCol + 1).setValue(newArticleNo);
+
+  return { success: true, articleNo: newArticleNo };
+}
+
+function getEditLog(params) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(EDITLOG_SHEET);
+  if (!sh) return { success: true, entries: [] };
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return { success: true, entries: [] };
+  const wantArticle = params && params.articleNo ? String(params.articleNo).trim().toLowerCase() : null;
+  const limit = Number(params && params.limit) || 100;
+  const out = [];
+  for (let r = data.length - 1; r >= 1 && out.length < limit; r--) {
+    const artA = String(data[r][3] || '').trim().toLowerCase();
+    const artB = String(data[r][4] || '').trim().toLowerCase();
+    if (wantArticle && artA !== wantArticle && artB !== wantArticle) continue;
+    out.push({
+      rowIndex: r + 1,
+      timestamp: data[r][0] ? new Date(data[r][0]).getTime() : null,
+      editor: data[r][1], action: data[r][2],
+      articleNo: data[r][3], newArticleNo: data[r][4],
+      oldData: safeParse_(data[r][5]), newData: safeParse_(data[r][6])
+    });
+  }
+  return { success: true, entries: out };
+}
+
+function restorePart(params) {
+  const editor = String(params.editor || '').trim();
+  if (!editor) return { success: false, error: 'ต้องระบุชื่อผู้แก้ไขก่อน (editor required)' };
+  const logRow = Number(params.rowIndex);
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(EDITLOG_SHEET);
+  if (!sh || !logRow) return { success: false, error: 'ไม่พบรายการสำรอง' };
+  const logVals = sh.getRange(logRow, 1, 1, EDITLOG_HEADERS.length).getValues()[0];
+  const oldData = safeParse_(logVals[5]);
+  const origArticleNo = String(logVals[3] || '').trim();
+  const newArticleNo = String(logVals[4] || '').trim() || origArticleNo;
+  if (!oldData) return { success: false, error: 'ข้อมูลสำรองเสียหาย' };
+
+  const info = partsSheetInfo_();
+  const found = findPartRow_(info, newArticleNo) || findPartRow_(info, origArticleNo);
+  if (!found) return { success: false, error: 'ไม่พบอะไหล่ที่จะกู้คืน' };
+  const rowNum = found.rowIndex0 + 1;
+  const curArticle = String(found.obj[String(info.headers[info.articleNoCol]).trim()] || '').trim();
+
+  getEditLogSheet_().appendRow([new Date(), editor, 'restore', curArticle, origArticleNo, JSON.stringify(found.obj), JSON.stringify(oldData)]);
+
+  info.headers.forEach(function (h, i) {
+    const key = String(h).trim();
+    if (Object.prototype.hasOwnProperty.call(oldData, key)) info.sheet.getRange(rowNum, i + 1).setValue(oldData[key]);
+  });
+  return { success: true, articleNo: origArticleNo };
 }

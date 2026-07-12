@@ -58,6 +58,49 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .db-img-upload-btn{background:var(--red);color:#fff;border-radius:8px;width:32px;height:32px;
   display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;
   flex-shrink:0;position:relative;cursor:pointer;}
+/* merged parts list (thumbnail + info + edit) */
+.db-part-list{display:flex;flex-direction:column;gap:8px;}
+.db-part-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:10px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04);}
+.db-part-thumb{width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#eee;cursor:zoom-in;border:1px solid var(--border);}
+.db-part-thumb.db-part-noimg{display:flex;align-items:center;justify-content:center;font-size:24px;background:#f0f0f2;color:#9ca3af;cursor:default;}
+.db-part-info{flex:1;min-width:0;}
+.db-edit-btn{flex-shrink:0;width:38px;height:38px;border-radius:9px;border:1px solid var(--border);
+  background:#fff;color:var(--dark);font-size:17px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:background .15s,border-color .15s;}
+.db-edit-btn:hover{background:#fff5f4;border-color:var(--red);color:var(--red);}
+.db-edit-btn:active{transform:scale(.95);}
+/* full-image lightbox */
+.img-lightbox{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.82);padding:20px;box-sizing:border-box;}
+.img-lightbox.open{display:flex;}
+.img-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.5);}
+.lightbox-close{position:fixed;top:14px;right:16px;width:40px;height:40px;border-radius:50%;border:none;
+  background:rgba(255,255,255,.15);color:#fff;font-size:20px;cursor:pointer;}
+.lightbox-close:hover{background:rgba(255,255,255,.28);}
+/* audited part-edit modal */
+.edit-part-modal{position:fixed;inset:0;z-index:110;display:none;align-items:flex-start;justify-content:center;
+  background:rgba(0,0,0,.55);padding:16px;box-sizing:border-box;overflow:auto;}
+.edit-part-modal.open{display:flex;}
+.edit-part-dialog{width:100%;max-width:460px;background:#fff;border-radius:14px;overflow:hidden;
+  box-shadow:0 12px 40px rgba(0,0,0,.35);margin:auto;}
+.epm-head{background:var(--red);color:#fff;font-weight:700;font-size:14px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;}
+.epm-head .epm-x{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;}
+.epm-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
+.epm-body label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--gray);font-weight:600;}
+.epm-note{font-size:11.5px;color:var(--gray);background:#f7f7f8;border-radius:8px;padding:8px 10px;line-height:1.45;}
+.epm-img-row{display:flex;align-items:center;gap:12px;}
+.epm-img-preview{width:72px;height:72px;object-fit:cover;border-radius:8px;background:#f0f0f2;flex-shrink:0;border:1px solid var(--border);}
+.epm-img-preview.noimg{display:flex;align-items:center;justify-content:center;font-size:26px;color:#9ca3af;}
+.epm-alias-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.epm-alias-add{display:flex;gap:6px;}
+.epm-alias-add input{flex:1;}
+.epm-actions{display:flex;gap:10px;padding:14px 16px;border-top:1px solid var(--border);}
+.epm-actions .btn{flex:1;}
+.epm-restore-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;}
+.epm-restore-card{border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:12.5px;}
+.epm-restore-card .rc-meta{color:var(--gray);font-size:11px;margin-bottom:4px;}
+.epm-restore-card .btn{margin-top:7px;padding:5px 10px;font-size:12px;}
 .db-section h4{margin:0 0 10px;font-size:12.5px;color:var(--gray);text-transform:uppercase;
   letter-spacing:.04em;font-weight:700;}
 .db-status-line{font-size:12.5px;color:var(--gray);margin-bottom:14px;line-height:1.5;
@@ -142,11 +185,29 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
 .btn{
   border:1px solid var(--border);background:#fff;color:var(--dark);
-  border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;
+  border-radius:9px;padding:9px 15px;font-size:13.5px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;line-height:1.2;
+  transition:background .15s,border-color .15s,box-shadow .15s,transform .05s;
+  -webkit-tap-highlight-color:transparent;
 }
+.btn:hover{border-color:#c7c7c7;background:#fafafa;}
 .btn:active{transform:scale(.97);}
-.btn-primary{background:var(--red);color:#fff;border-color:var(--red);}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none;}
+.btn-primary{background:var(--red);color:#fff;border-color:var(--red);box-shadow:0 2px 6px rgba(228,29,21,.28);}
+.btn-primary:hover{background:#cf160f;border-color:#cf160f;}
 .btn-outline{background:#fff;color:var(--red);border-color:var(--red);}
+.btn-outline:hover{background:#fff5f4;border-color:var(--red);}
+.btn-ico{font-size:15px;line-height:1;display:inline-block;}
+.topbar-actions .btn{padding:7px 11px;font-size:12.5px;}
+/* add-row: clear full-width dashed accent action */
+.btn-add-row{width:100%;justify-content:center;border:1.5px dashed var(--red);color:var(--red);
+  background:#fff;padding:11px 14px;border-radius:10px;font-weight:700;margin-top:4px;}
+.btn-add-row:hover{background:#fff5f4;border-color:var(--red);}
+/* per-item photo */
+.item-photo{margin-top:2px;}
+.item-photo .photo-canvas{max-width:300px;}
+.item-photo-actions{display:flex;gap:8px;align-items:center;margin-top:7px;}
+.item-photo-status{font-weight:600;font-size:11px;color:var(--gray);}
 
 .container{max-width:880px;margin:0 auto;padding:14px 12px 90px;}
 
@@ -171,6 +232,8 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 
 .select-custom{display:flex;flex-direction:column;gap:6px;}
 .select-custom .custom-input{margin-top:2px;}
+.combo-box{display:block;width:100%;}
+.combo-box input{width:100%;}
 
 .item-row{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;background:#fafafa;}
 .item-row-head{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--gray);font-weight:700;margin-bottom:8px;}
@@ -236,7 +299,9 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 .del-img-btn{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;
   background:var(--dark);color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer;}
 .pb-actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;}
-.btn-file{background:#fff;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:12.5px;font-weight:600;color:var(--dark);}
+.btn-file{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 13px;font-size:13px;font-weight:600;color:var(--dark);cursor:pointer;transition:background .15s,border-color .15s;-webkit-tap-highlight-color:transparent;}
+.btn-file:hover{background:#fafafa;border-color:#c7c7c7;}
+.btn-file:active{transform:scale(.97);}
 .btn-clear-box{background:none;border:none;color:var(--gray);font-size:12px;text-decoration:underline;}
 
 .action-bar{
@@ -461,12 +526,7 @@ table.pphoto td.pcol-comments{ border-right:none !important; border-bottom:none 
   <div class="card">
     <h2>รายการเครื่อง / อะไหล่ (สูงสุด 8 แถว)</h2>
     <div id="itemsList"></div>
-    <button class="btn btn-add-row" id="btnAddRow">+ เพิ่มแถว</button>
-  </div>
-
-  <div class="card">
-    <h2>รูปภาพ (4 กล่อง — ลากจัดวาง/ปรับขนาดได้)</h2>
-    <div class="photo-boxes-grid" id="photoBoxesGrid"></div>
+    <button class="btn btn-add-row" id="btnAddRow"><span class="btn-ico">＋</span> เพิ่มรายการเครื่อง / อะไหล่</button>
   </div>
 
   <div class="card">
@@ -487,8 +547,8 @@ table.pphoto td.pcol-comments{ border-right:none !important; border-bottom:none 
 </div>
 
 <div class="action-bar">
-  <button class="btn" id="btnSave">บันทึก</button>
-  <button class="btn btn-primary" id="btnExport">Export PDF</button>
+  <button class="btn btn-outline" id="btnSave">💾 Save</button>
+  <button class="btn btn-primary" id="btnExport">✉ Export PDF → Email</button>
 </div>
 
 <div class="status-msg" id="statusMsg"></div>
@@ -943,23 +1003,19 @@ function buildPrintHtml(ord){
     </tr>`);
   }
 
-  const itemArticle = (idx)=>{
-    if(idx===null||idx===undefined||idx===-1) return '-';
-    const it = items[idx];
-    return (it && it.articleNo) ? String(it.articleNo) : '-';
-  };
-  const boxes = ord.boxes || [];
-  function photoCell(boxIdx){
-    const box = boxes[boxIdx] || {images:[]};
-    const imgs = (box.images||[]).map(img=>{
-      const x=(img.x||0)*100, y=(img.y||0)*100, w=(img.w||0.5)*100, h=(img.h||0.5)*100;
-      const ox = img.objX!==undefined ? img.objX : 50, oy = img.objY!==undefined ? img.objY : 50;
-      return `<img src="${img.src}" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:cover;object-position:${ox}% ${oy}%;">`;
-    }).join('');
-    return imgs;
+  // Photos: one per item (1 Article No = 1 photo). Companion/locked rows have no
+  // photo. The A4 sheet holds up to 4, so take the first 4 photographed items.
+  const photoItems = items.filter(it => it && !it.locked && it.image && it.image.src).slice(0,4);
+  function photoCell(i){
+    const it = photoItems[i];
+    if(!it || !it.image || !it.image.src) return '';
+    const img = it.image;
+    const x=(img.x||0)*100, y=(img.y||0)*100, w=(img.w||0.5)*100, h=(img.h||0.5)*100;
+    const ox = img.objX!==undefined ? img.objX : 50, oy = img.objY!==undefined ? img.objY : 50;
+    return `<img src="${img.src}" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:cover;object-position:${ox}% ${oy}%;">`;
   }
-  function articleHdr(boxIdx){ return `<td class="part-hdr">Article No</td>`; }
-  function articleVal(boxIdx){ return `<td class="part-val">${escHtml(itemArticle((boxes[boxIdx]||{}).refItem))}</td>`; }
+  function articleHdr(i){ return `<td class="part-hdr">Article No</td>`; }
+  function articleVal(i){ const it = photoItems[i]; return `<td class="part-val">${escHtml(it && it.articleNo ? String(it.articleNo) : '-')}</td>`; }
 
   /* Comments box: render actual user-entered comments text (split by newline) into the ruled lines,
      falling back to a blank line where no text was entered */
@@ -1053,8 +1109,7 @@ function defaultOrder(){
     invoiceAddress: DEFAULT_ADDRESS,
     shippingAddress: DEFAULT_ADDRESS,
     customer: '',
-    items: [ {machineNo:'', machineType:'', articleNo:'', description:''} ],
-    boxes: [ {refItem:-1, images:[]}, {refItem:-1, images:[]}, {refItem:-1, images:[]}, {refItem:-1, images:[]} ],
+    items: [ {machineNo:'', machineType:'', articleNo:'', description:'', image:null} ],
     comments: ''
   };
 }
@@ -1313,7 +1368,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
       {key:'recent',  label:`เพิ่งบันทึก (${recent.length})`},
       {key:'machines',label:`เครื่อง (${lookupCache.machines.length})`},
       {key:'parts',   label:`อะไหล่ (${lookupCache.parts.length})`},
-      {key:'images',  label:'รูปภาพ'},
     ];
     return `<div class="db-tabs">${tabs.map(t=>`
       <button type="button" class="db-tab${dbActiveTab===t.key?' active':''}" data-tab="${t.key}">${t.label}</button>
@@ -1330,61 +1384,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
     return `<div class="db-table-wrap" style="overflow:auto;"><table class="db-table">${head}${body}</table></div>${more}`;
   }
 
-  function renderPartsWithAliases(parts){
+  // Merged parts list: thumbnail up front (tap = full-image lightbox), code +
+  // description + predict-words, and an edit (✎) button per row.
+  function renderPartsList(parts){
     if(!parts || !parts.length) return '<div class="db-empty">ไม่มีข้อมูล (0 แถว)</div>';
-    return parts.slice(0, 100).map(p => {
-      const articleNo = String(p.ArticleNo||'');
-      const aliasCols = Object.keys(p).filter(k => /suggestion\s*word/i.test(k));
-      const aliases = aliasCols.filter(k => String(p[k]||'').trim());
-      const aliasTags = aliases.map(k =>
-        `<span class="alias-tag">${escDb(p[k])}
-          <button type="button" class="alias-del-btn"
-            data-articleno="${escAttr(articleNo)}"
-            data-colname="${escAttr(k)}"
-            data-aliasval="${escAttr(p[k])}">✕</button>
-        </span>`).join('');
-      return `<div class="part-alias-row">
-        <div class="part-alias-top">
-          <span class="part-alias-no">#${escDb(articleNo)}</span>
-          <span class="part-alias-desc">${escDb(p.Description||'-')}</span>
-        </div>
-        ${aliasTags ? `<div class="alias-tags-wrap">${aliasTags}</div>` : '<div class="alias-none">ยังไม่มีคำค้นหาอื่น</div>'}
-      </div>`;
-    }).join('');
-  }
-
-  function renderImagesSection(parts){
-    if(!parts || !parts.length) return '<div class="db-empty">ไม่มีข้อมูล</div>';
     const html = parts.slice(0, 100).map(p => {
       const articleNo = String(p.ArticleNo||'');
       const imgUrl = normalizeImageUrl(p.ImageURL);
-      const desc = escDb(p.Description||'-');
-      if(imgUrl){
-        return `<div class="db-img-card">
-          <img src="${escAttr(imgUrl)}" onerror="this.style.display='none'" class="db-img-thumb">
-          <div class="db-img-info">
-            <div class="part-alias-no">#${escDb(articleNo)}</div>
-            <div class="part-alias-desc">${desc}</div>
-          </div>
-          <button type="button" class="db-del-img-btn" data-articleno="${escAttr(articleNo)}" title="ลบรูป">🗑</button>
-        </div>`;
-      } else {
-        return `<div class="db-img-card db-img-card-empty">
-          <div class="db-img-no-img">📷</div>
-          <div class="db-img-info">
-            <div class="part-alias-no">#${escDb(articleNo)}</div>
-            <div class="part-alias-desc">${desc}</div>
-          </div>
-          <label class="db-img-upload-btn" title="อัปโหลดรูป">+
-            <input type="file" accept="image/*"
-              data-articleno="${escAttr(articleNo)}"
-              data-desc="${escAttr(p.Description||'')}"
-              style="position:absolute;width:1px;height:1px;opacity:0;">
-          </label>
-        </div>`;
-      }
+      const aliasCols = Object.keys(p).filter(k => /suggestion\s*word/i.test(k));
+      const aliases = aliasCols.filter(k => String(p[k]||'').trim()).map(k => escDb(p[k]));
+      const aliasHtml = aliases.length
+        ? `<div class="alias-tags-wrap">${aliases.map(a=>`<span class="alias-tag">${a}</span>`).join('')}</div>`
+        : '<div class="alias-none">ยังไม่มีคำค้นหาอื่น</div>';
+      const thumb = imgUrl
+        ? `<img src="${escAttr(imgUrl)}" class="db-part-thumb" data-full="${escAttr(imgUrl)}" title="แตะเพื่อดูรูปเต็ม" onerror="this.classList.add('db-part-noimg');this.removeAttribute('src');this.removeAttribute('data-full');">`
+        : `<div class="db-part-thumb db-part-noimg" title="ยังไม่มีรูป">📷</div>`;
+      return `<div class="db-part-card">
+        ${thumb}
+        <div class="db-part-info">
+          <div class="part-alias-no">#${escDb(articleNo)}</div>
+          <div class="part-alias-desc">${escDb(p.Description||'-')}</div>
+          ${aliasHtml}
+        </div>
+        <button type="button" class="db-edit-btn" data-articleno="${escAttr(articleNo)}" title="แก้ไข">✎</button>
+      </div>`;
     }).join('');
-    return `<div class="db-img-list">${html}</div>`;
+    return `<div class="db-part-list">${html}</div>`;
   }
 
   function renderRecentTable(rows){
@@ -1452,9 +1477,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     } else if(dbActiveTab === 'machines'){
       sectionHtml = renderDbTable(lookupCache.machines);
     } else if(dbActiveTab === 'parts'){
-      sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">กด ✕ บน chip เพื่อลบคำค้นหาที่ผิด</p>` + renderPartsWithAliases(lookupCache.parts);
-    } else if(dbActiveTab === 'images'){
-      sectionHtml = renderImagesSection(lookupCache.parts);
+      sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
     }
 
     body.innerHTML = syncLine + renderDbTabs(recent) + `<div class="db-section-body">${sectionHtml}</div>`;
@@ -1470,70 +1493,161 @@ document.addEventListener('DOMContentLoaded', ()=>{
     body.querySelectorAll('.db-confirm-btn').forEach(btn=>{
       btn.onclick = ()=>confirmRecentlyAddedItem(+btn.dataset.i);
     });
-    // Parts: delete alias
-    body.querySelectorAll('.alias-del-btn').forEach(btn=>{
-      btn.onclick = ()=>deleteAliasFromDb(btn.dataset.articleno, btn.dataset.colname, btn.dataset.aliasval, btn);
+    // Parts: tap thumbnail → full-image lightbox (closes via Esc/Back/tap-outside)
+    body.querySelectorAll('.db-part-thumb[data-full]').forEach(el=>{
+      el.onclick = ()=>openImageLightbox(el.dataset.full);
     });
-    // Images: delete image
-    body.querySelectorAll('.db-del-img-btn').forEach(btn=>{
-      btn.onclick = ()=>deleteImageFromDb(btn.dataset.articleno, btn);
+    // Parts: edit (✎) → audited edit form
+    body.querySelectorAll('.db-edit-btn').forEach(btn=>{
+      btn.onclick = ()=>openEditPart(btn.dataset.articleno);
     });
-    // Images: upload new image
-    body.querySelectorAll('.db-img-list input[type=file]').forEach(inp=>{
-      inp.onchange = async (e)=>{
-        const file = e.target.files[0]; if(!file) return;
-        const articleNo = inp.dataset.articleno;
-        const desc = inp.dataset.desc;
+  }
+
+  // Editor name is remembered between edits but re-confirmed each time.
+  let _lastEditor = (function(){ try{ return localStorage.getItem('editorName')||''; }catch(e){ return ''; } })();
+
+  // Audited edit: require editor name → back up (server side) → edit image / code /
+  // description / predict-words → save. Also a restore view over the EditLog.
+  async function openEditPart(articleNo){
+    const part = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === String(articleNo).trim().toLowerCase());
+    if(!part){ flashStatus('ไม่พบอะไหล่'); return; }
+
+    let editor = window.prompt('ลงชื่อผู้แก้ไข (จำเป็น):', _lastEditor);
+    if(editor === null) return;               // cancelled
+    editor = editor.trim();
+    if(!editor){ flashStatus('ต้องลงชื่อผู้แก้ไขก่อน'); return; }
+    _lastEditor = editor; try{ localStorage.setItem('editorName', editor); }catch(e){}
+
+    const origArticleNo = String(part.ArticleNo||'');
+    const origImageRaw = String(part.ImageURL||'');
+    let artVal = origArticleNo;
+    let descVal = String(part.Description||'');
+    let newImageValue;                        // undefined = unchanged, '' = deleted, url = new
+    let aliases = Object.keys(part).filter(k=>/suggestion\s*word/i.test(k)).map(k=>String(part[k]||'').trim()).filter(Boolean);
+
+    const ov = document.createElement('div');
+    ov.className = 'edit-part-modal open';
+    const displayImg = ()=> normalizeImageUrl(newImageValue !== undefined ? newImageValue : origImageRaw) || '';
+
+    function renderEdit(){
+      const img = displayImg();
+      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}">` : `<div class="epm-img-preview noimg">📷</div>`;
+      const aliasTags = aliases.length
+        ? aliases.map((a,i)=>`<span class="alias-tag">${escDb(a)}<button type="button" class="alias-del-btn" data-i="${i}">✕</button></span>`).join('')
+        : '<span class="alias-none">ยังไม่มีคำค้นหา</span>';
+      ov.innerHTML = `
+        <div class="edit-part-dialog">
+          <div class="epm-head"><span>แก้ไขอะไหล่</span><button type="button" class="epm-x">✕</button></div>
+          <div class="epm-body">
+            <div class="epm-note">ผู้แก้ไข: <b>${escDb(editor)}</b> · ระบบจะสำรองข้อมูลเดิมก่อนบันทึก และกู้คืนได้</div>
+            <div class="epm-img-row">
+              ${imgHtml}
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <label class="btn-file" style="margin:0;"><span class="btn-ico">📷</span> เปลี่ยนรูป<input type="file" accept="image/*" class="epm-img-input" hidden></label>
+                ${img ? '<button type="button" class="btn epm-img-del" style="padding:6px 10px;font-size:12px;">ลบรูป</button>' : ''}
+              </div>
+            </div>
+            <label>Article No (รหัส)<input type="text" class="epm-article" value="${escAttr(artVal)}"></label>
+            <label>Description (รายละเอียด)<input type="text" class="epm-desc" value="${escAttr(descVal)}"></label>
+            <label>Predict words (คำค้นหา)</label>
+            <div class="epm-alias-tags">${aliasTags}</div>
+            <div class="epm-alias-add"><input type="text" class="epm-alias-input" placeholder="เพิ่มคำค้นหา"><button type="button" class="btn epm-alias-addbtn">เพิ่ม</button></div>
+            <button type="button" class="btn epm-restore-open" style="font-size:12px;">🕘 ประวัติ / กู้คืนข้อมูล</button>
+          </div>
+          <div class="epm-actions">
+            <button type="button" class="btn epm-cancel">ยกเลิก</button>
+            <button type="button" class="btn btn-primary epm-save">บันทึกการแก้ไข</button>
+          </div>
+        </div>`;
+      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.epm-cancel').onclick = ()=>userDismissTopModal();
+      const artInp = ov.querySelector('.epm-article'); artInp.oninput = ()=>{ artVal = artInp.value; };
+      const descInp = ov.querySelector('.epm-desc'); descInp.oninput = ()=>{ descVal = descInp.value; };
+      ov.querySelectorAll('.alias-del-btn').forEach(b=>{ b.onclick = ()=>{ aliases.splice(+b.dataset.i,1); renderEdit(); }; });
+      const addInp = ov.querySelector('.epm-alias-input');
+      const doAdd = ()=>{ const v=addInp.value.trim(); if(v){ aliases.push(v); renderEdit(); } };
+      ov.querySelector('.epm-alias-addbtn').onclick = doAdd;
+      addInp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doAdd(); } };
+      const imgDel = ov.querySelector('.epm-img-del'); if(imgDel) imgDel.onclick = ()=>{ newImageValue=''; renderEdit(); };
+      ov.querySelector('.epm-img-input').onchange = async (e)=>{
+        const f=e.target.files[0]; if(!f) return;
         try{
           flashStatus('กำลังอัปโหลดรูป...');
-          const {src, base64} = await compressForUpload(file);
-          const filename = (articleNo ? articleNo + '_' : '') + desc.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
-          const upRes = await lookupApiCall('uploadImage', {base64, mimeType:'image/jpeg', filename});
-          if(upRes && upRes.url){
-            await lookupApiCall('setImageURL', {articleNo, url: upRes.url});
-            const part = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === articleNo.toLowerCase());
-            if(part) part.ImageURL = upRes.url;
-            await lkvSet('cache', {machines: lookupCache.machines, parts: lookupCache.parts, syncedAt: lookupCache.syncedAt, cacheVersion: LOOKUP_CACHE_VERSION});
-            flashStatus('อัปโหลดรูปสำเร็จ');
-            await renderDbModal();
-          }
-        }catch(err){
-          const msg = String(err.message||err);
-          let hint = msg.includes('Unknown action') ? ' → ต้อง Deploy Code.gs ใหม่ก่อน' : '';
-          flashStatus('อัปโหลดไม่สำเร็จ: ' + msg + hint);
-        }
+          const {base64}=await compressForUpload(f);
+          const filename=(artVal?artVal+'_':'')+descVal.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40)+'.jpg';
+          const up=await lookupApiCall('uploadImage',{base64,mimeType:'image/jpeg',filename});
+          if(up&&up.url){ newImageValue=up.url; flashStatus('อัปโหลดรูปแล้ว (กดบันทึกเพื่อยืนยัน)'); renderEdit(); }
+        }catch(err){ const m=String(err.message||err); flashStatus('อัปโหลดไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':'')); }
       };
-    });
-  }
-
-  async function deleteImageFromDb(articleNo, btn){
-    if(!confirm(`ลบรูปของ #${articleNo} ออกไหมครับ?`)) return;
-    btn.disabled = true;
-    try{
-      await lookupApiCall('setImageURL', {articleNo, url: ''});
-      const part = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === articleNo.toLowerCase());
-      if(part) part.ImageURL = '';
-      await lkvSet('cache', {machines: lookupCache.machines, parts: lookupCache.parts, syncedAt: lookupCache.syncedAt, cacheVersion: LOOKUP_CACHE_VERSION});
-      await renderDbModal();
-    }catch(err){
-      btn.disabled = false;
-      alert('ลบรูปไม่สำเร็จ: ' + err.message);
+      ov.querySelector('.epm-restore-open').onclick = renderRestore;
+      ov.querySelector('.epm-save').onclick = save;
     }
-  }
 
-  async function deleteAliasFromDb(articleNo, colName, aliasVal, btn){
-    if(!confirm(`ลบคำค้นหา "${aliasVal}" ออกไหมครับ?`)) return;
-    btn.disabled = true;
-    try{
-      await lookupApiCall('deleteAlias', {articleNo, columnName: colName});
-      const part = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === String(articleNo).trim().toLowerCase());
-      if(part && part[colName] !== undefined) part[colName] = '';
-      await lkvSet('cache', {machines: lookupCache.machines, parts: lookupCache.parts, syncedAt: lookupCache.syncedAt, cacheVersion: LOOKUP_CACHE_VERSION});
-      await renderDbModal();
-    }catch(err){
-      btn.disabled = false;
-      alert('ลบไม่สำเร็จ: ' + err.message + (lookupOnline ? '' : '\n(ต้องมีอินเทอร์เน็ตถึงจะลบได้)'));
+    async function save(){
+      const btn = ov.querySelector('.epm-save'); if(btn) btn.disabled=true;
+      const payload = { origArticleNo, editor, newDescription: descVal, aliases };
+      const at = artVal.trim();
+      if(at && at.toLowerCase() !== origArticleNo.toLowerCase()) payload.newArticleNo = at;
+      if(newImageValue !== undefined) payload.imageURL = newImageValue;
+      try{
+        await lookupApiCall('updatePart', payload);
+        part.Description = descVal;
+        if(newImageValue !== undefined) part.ImageURL = newImageValue;
+        Object.keys(part).filter(k=>/suggestion\s*word/i.test(k)).forEach(k=>{ part[k]=''; });
+        aliases.forEach((a,i)=>{ part['Suggestion word'+(i+1)] = a; });
+        if(payload.newArticleNo) part.ArticleNo = payload.newArticleNo;
+        await lkvSet('cache', {machines:lookupCache.machines, parts:lookupCache.parts, syncedAt:lookupCache.syncedAt, cacheVersion:LOOKUP_CACHE_VERSION});
+        flashStatus('บันทึกการแก้ไขแล้ว · สำรองข้อมูลเดิมไว้');
+        userDismissTopModal();
+        await renderDbModal();
+      }catch(err){
+        if(btn) btn.disabled=false;
+        const m=String(err.message||err);
+        alert('บันทึกไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่ (มี updatePart)':''));
+      }
     }
+
+    async function renderRestore(){
+      ov.innerHTML = `<div class="edit-part-dialog">
+        <div class="epm-head"><span>ประวัติ #${escDb(origArticleNo)}</span><button type="button" class="epm-x">✕</button></div>
+        <div class="epm-body"><div class="db-empty">กำลังโหลด...</div></div>
+        <div class="epm-actions"><button type="button" class="btn epm-back">← กลับไปแก้ไข</button></div>
+      </div>`;
+      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.epm-back').onclick = renderEdit;
+      const bodyEl = ov.querySelector('.epm-body');
+      let entries=[];
+      try{ const res=await lookupApiCall('getEditLog',{articleNo:origArticleNo, limit:50}); entries=res.entries||[]; }
+      catch(err){ const m=String(err.message||err); bodyEl.innerHTML='<div class="db-status-line err">โหลดไม่สำเร็จ: '+escDb(m)+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':'')+'</div>'; return; }
+      if(!entries.length){ bodyEl.innerHTML='<div class="db-empty">ยังไม่มีประวัติการแก้ไข</div>'; return; }
+      bodyEl.innerHTML = `<div class="epm-restore-list">` + entries.map(en=>{
+        const when = en.timestamp ? new Date(en.timestamp).toLocaleString('th-TH') : '-';
+        const od = en.oldData||{};
+        const summary = `รหัส ${escDb(od.ArticleNo||od['Article No.']||'-')} · ${escDb(od.Description||'-')}`;
+        return `<div class="epm-restore-card">
+          <div class="rc-meta">${escDb(when)} · ${escDb(en.editor||'-')} · ${escDb(en.action||'')}</div>
+          <div>${summary}</div>
+          <button type="button" class="btn epm-restore-btn" data-row="${en.rowIndex}">↩ กู้คืนเป็นค่านี้</button>
+        </div>`;
+      }).join('') + `</div>`;
+      bodyEl.querySelectorAll('.epm-restore-btn').forEach(b=>{
+        b.onclick = async ()=>{
+          if(!confirm('กู้คืนข้อมูลอะไหล่กลับเป็นค่าที่สำรองไว้นี้?')) return;
+          b.disabled=true;
+          try{
+            await lookupApiCall('restorePart',{rowIndex:+b.dataset.row, editor});
+            flashStatus('กู้คืนข้อมูลแล้ว');
+            userDismissTopModal();
+            await lookupSync(); await renderDbModal();
+          }catch(err){ b.disabled=false; alert('กู้คืนไม่สำเร็จ: '+String(err.message||err)); }
+        };
+      });
+    }
+
+    ov.addEventListener('click', (e)=>{ if(e.target===ov) userDismissTopModal(); });
+    document.body.appendChild(ov);
+    modalOpened();
+    renderEdit();
   }
 
   const btnViewDb = document.getElementById('btnViewDb');
@@ -1541,11 +1655,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
     dbActiveTab = 'recent';
     await renderDbModal();
     document.getElementById('dbModal').classList.add('open');
+    modalOpened();
   };
   const dbModalClose = document.getElementById('dbModalClose');
-  if(dbModalClose) dbModalClose.onclick = ()=>{
-    document.getElementById('dbModal').classList.remove('open');
-  };
+  if(dbModalClose) dbModalClose.onclick = ()=>userDismissTopModal();
+  const dbModalEl = document.getElementById('dbModal');
+  if(dbModalEl) dbModalEl.addEventListener('click', (e)=>{ if(e.target === dbModalEl) userDismissTopModal(); });
   const dbModalRefresh = document.getElementById('dbModalRefresh');
   if(dbModalRefresh) dbModalRefresh.onclick = async ()=>{
     dbModalRefresh.disabled = true;
@@ -1704,7 +1819,7 @@ function addCompanionRows(srcIdx, comps){
     });
     added++;
   });
-  renderItems(); renderBoxSelects();
+  renderItems();
   if(added) flashStatus('เพิ่มพาร์ทแนะนำ ' + added + ' รายการ' + (skipped ? ' (เกิน '+MAX_ITEMS+' แถว ข้าม '+skipped+' รายการ)' : ''));
   else if(skipped) flashStatus('เพิ่มไม่ได้: เกิน '+MAX_ITEMS+' แถวแล้ว');
 }
@@ -1725,11 +1840,16 @@ function showCompanionPrompt(trigger, comps){
           <button type="button" class="btn btn-primary cmp-yes-btn">ใช่ เพิ่มให้เลย</button>
         </div>
       </div>`;
-    function close(val){ ov.remove(); resolve(val); }
+    let done = false;
+    // close from a button/tap: resolve + consume the history entry
+    function close(val){ if(done) return; done=true; _companionClose=null; ov.remove(); resolve(val); consumeModalHistory(); }
+    // close from Esc/Back (global manager): resolve(false), history already handled there
+    _companionClose = ()=>{ if(done) return; done=true; ov.remove(); resolve(false); };
     ov.querySelector('.cmp-yes-btn').onclick = ()=>close(true);
     ov.querySelector('.cmp-no-btn').onclick = ()=>close(false);
     ov.addEventListener('click', e=>{ if(e.target===ov) close(false); });
     document.body.appendChild(ov);
+    modalOpened();
   });
 }
 
@@ -1780,7 +1900,7 @@ function selectMachineSuggestion(idx, m){
   order.items[idx].machineNo = String(m.MachineNumber || '');
   order.items[idx].machineType = m.MachineType || order.items[idx].machineType;
   if(m.CustomerName) order.customer = m.CustomerName;
-  renderItems(); bindTopFields(); renderBoxSelects();
+  renderItems(); bindTopFields();
   flashField(`.mt-wrap[data-idx="${idx}"]`);
   if(m.CustomerName) flashField('#customerWrap');
 }
@@ -1832,9 +1952,9 @@ function selectPartSuggestion(idx, p){
   }
   order.items[idx].articleNo = realArticleNo;
   order.items[idx].description = canonical || order.items[idx].description;
-  renderItems(); renderBoxSelects();
+  renderItems();
   flashField(`.f-description[data-idx="${idx}"]`);
-  renderPartImgPreview(idx);
+  maybeAutofillDbImage(idx);
   maybeSuggestCompanions(idx);
 }
 
@@ -1918,112 +2038,8 @@ function onArticleNoEntered(idx, articleNo){
 /* "+ เพิ่มชื่อเรียกอื่น" - a clearly separate, deliberate way to add an alias for
    the currently-matched part, since auto-fill leaves the main Description field
    looking "already correct" and most people won't think to edit it. */
-/* Shows either:
-   - the DB image for an already-matched part (has ArticleNo + ImageURL in cache)
-   - a pending image the user attached for a codeless part
-   - an "attach photo" button for codeless parts that don't have an image yet */
-function renderPartImgPreview(idx){
-  const wrap = document.getElementById('partImgWrap' + idx);
-  if(!wrap) return;
-  const it = order.items[idx];
-  const articleNo = String(it.articleNo||'').trim();
-  const desc = String(it.description||'').trim();
-
-  // Key for pending image: use articleNo if known, otherwise description
-  const pendingKey = articleNo ? articleNo.toLowerCase() : desc.toLowerCase();
-
-  // Case 1: part has DB image → auto-fill into first empty photo box (no thumbnail in item row)
-  if(articleNo){
-    const match = findPart(articleNo);
-    const imgUrl = normalizeImageUrl(match ? match.ImageURL : '');
-    if(imgUrl){
-      // show a small status indicator only, the actual image goes to the photo box
-      wrap.innerHTML = `<span style="font-size:12px;color:var(--gray);">📷 มีรูปในฐานข้อมูล</span>`;
-      // auto-fill into first empty photo box if not already there
-      const alreadyInBox = order.boxes.some(b => b.images && b.images.some(img => img.src && img.src.startsWith(imgUrl.split('?')[0].replace(/\/d\//,'/d/'))));
-      const emptyBox = order.boxes.findIndex(b => !b.images || b.images.length === 0);
-      if(!alreadyInBox && emptyBox >= 0){
-        const helperImg = new Image();
-        helperImg.crossOrigin = 'anonymous';
-        helperImg.onload = ()=>{
-          const boxRatio = 4/3;
-          const imgRatio = helperImg.width / helperImg.height;
-          let fw, fh;
-          if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio / imgRatio; }
-          else { fh = 1; fw = imgRatio / boxRatio; }
-          order.boxes[emptyBox].images.push({src: imgUrl, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:++zCounters[emptyBox]});
-          order.boxes[emptyBox].refItem = idx;
-          renderBox(emptyBox);
-          const sel = document.getElementById('boxRef'+emptyBox);
-          if(sel) sel.value = String(idx);
-          flashStatus('รูปจาก DB ถูกใส่ลงกล่องภาพที่ ' + (emptyBox+1) + ' อัตโนมัติ');
-        };
-        helperImg.onerror = ()=>{
-          // CORS/load failed - just keep the status text, don't crash
-        };
-        helperImg.src = imgUrl;
-      }
-      return;
-    }
-  }
-
-  // Case 2: no DB image and no description → nothing to show
-  if(!desc && !articleNo){ wrap.innerHTML = ''; return; }
-
-  // Case 3: has pending image — show minimal status + change button (no thumbnail here, image is in box)
-  const pending = pendingPartImages[pendingKey];
-  if(pending){
-    wrap.innerHTML = `<span style="font-size:12px;color:var(--gray);">📷 รูปถูกใส่ในกล่องภาพแล้ว</span>
-      <label class="part-img-attach-btn" style="cursor:pointer;padding:4px 10px;font-size:12px;">เปลี่ยน
-        <input type="file" id="partImgInput${idx}" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
-      </label>`;
-  } else {
-    // Case 4: no image yet — show attach button for ANY part (coded or codeless)
-    wrap.innerHTML = `<label class="part-img-attach-btn" style="cursor:pointer;">📷 แนบรูปอะไหล่
-        <input type="file" id="partImgInput${idx}" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
-      </label>`;
-  }
-  const input = document.getElementById('partImgInput' + idx);
-  if(input){
-    input.onchange = async (e)=>{
-      const file = e.target.files[0];
-      if(!file) return;
-      try{
-        const {src, base64} = await compressForUpload(file);
-        const filename = (articleNo ? articleNo + '_' : '') + desc.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
-        pendingPartImages[pendingKey] = {base64, mimeType: 'image/jpeg', filename, localSrc: src, articleNo, desc};
-        renderPartImgPreview(idx);
-        // Auto-fill into the first empty photo box
-        const emptyBox = order.boxes.findIndex(b => !b.images || b.images.length === 0);
-        if(emptyBox >= 0){
-          const helperImg = new Image();
-          helperImg.onload = ()=>{
-            const boxRatio = 4/3;
-            const imgRatio = helperImg.width / helperImg.height;
-            let fw, fh;
-            if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio / imgRatio; }
-            else { fh = 1; fw = imgRatio / boxRatio; }
-            order.boxes[emptyBox].images.push({
-              src, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh,
-              objX:50, objY:50, z:++zCounters[emptyBox]
-            });
-            order.boxes[emptyBox].refItem = idx;
-            // renderBox directly — boxCanvas already exists in DOM from initial setupBoxUI
-            renderBox(emptyBox);
-            // Sync the dropdown value without full DOM rebuild
-            const sel = document.getElementById('boxRef'+emptyBox);
-            if(sel){ sel.value = String(idx); }
-            flashStatus('รูปถูกใส่ลงกล่องภาพที่ ' + (emptyBox+1) + ' อัตโนมัติ');
-          };
-          helperImg.src = src;
-        }
-      }catch(err){
-        console.error('compressForUpload failed', err);
-        flashStatus('ไม่สามารถโหลดรูปได้: ' + (err.message||err));
-      }
-    };
-  }
-}
+/* (photo handling moved to renderItemPhoto / maybeAutofillDbImage — one photo
+   per item, rendered inline in the item row) */
 
 function renderAliasAddRow(idx){
   const container = document.querySelector(`.alias-add-row[data-idx="${idx}"]`);
@@ -2076,56 +2092,27 @@ function flashField(selector){
 let order = defaultOrder();
 
 /* ---------------- helpers: select with custom value ---------------- */
-/* allowCustom=false → no "พิมพ์เอง" option and no free-text input (used for
-   Machine Type, which is auto-filled from the DB). Any value not in the base
-   list — e.g. a machine type coming from the sheet that isn't hard-coded here —
-   is still added as an option so auto-fill always displays correctly. */
-function buildSelectCustom(baseOptions, value, onChange, placeholder, allowCustom){
-  if(allowCustom === undefined) allowCustom = true;
+/* Editable combobox: a normal text field you can TYPE into directly (to add a
+   new customer / machine type), with a native dropdown of known options via
+   <datalist>. Keeps the "pick from list" convenience while allowing free text. */
+let _comboSeq = 0;
+function buildComboBox(baseOptions, value, onChange, placeholder){
   const wrap = document.createElement('div');
-  wrap.className = 'select-custom';
-  const sel = document.createElement('select');
-  const allOptions = baseOptions.slice();
-
-  function rebuildOptions(){
-    sel.innerHTML = '';
-    const blank = document.createElement('option');
-    blank.value = ''; blank.textContent = placeholder || '- เลือก -';
-    sel.appendChild(blank);
-    allOptions.forEach(o=>{
-      const op = document.createElement('option');
-      op.value = o; op.textContent = o;
-      sel.appendChild(op);
-    });
-    if(allowCustom){
-      const otherOpt = document.createElement('option');
-      otherOpt.value = '__other__'; otherOpt.textContent = '+ พิมพ์เอง...';
-      sel.appendChild(otherOpt);
-    }
-  }
-  rebuildOptions();
-
+  wrap.className = 'combo-box';
+  const listId = 'combolist_' + (++_comboSeq);
   const inp = document.createElement('input');
-  inp.type = 'text'; inp.className = 'custom-input'; inp.style.display = 'none';
-  inp.placeholder = 'พิมพ์ค่าที่ต้องการ';
-
-  function setValue(v){
-    if(!v){ sel.value=''; inp.style.display='none'; return; }
-    if(!allOptions.includes(v)){
-      if(allowCustom){ sel.value='__other__'; inp.style.display=''; inp.value=v; return; }
-      // no custom input: surface the DB value by adding it as a real option
-      allOptions.push(v); rebuildOptions();
-    }
-    sel.value=v; inp.style.display='none';
-  }
-  setValue(value);
-  sel.addEventListener('change',()=>{
-    if(sel.value==='__other__'){ inp.style.display=''; inp.value=''; inp.focus(); onChange(''); }
-    else { inp.style.display='none'; onChange(sel.value); }
-  });
-  inp.addEventListener('input',()=>onChange(inp.value));
-  wrap.appendChild(sel); wrap.appendChild(inp);
-  wrap.setValue = setValue;
+  inp.type = 'text';
+  inp.setAttribute('list', listId);
+  inp.setAttribute('autocomplete', 'off');
+  inp.placeholder = placeholder || '';
+  inp.value = value || '';
+  const dl = document.createElement('datalist');
+  dl.id = listId;
+  (baseOptions || []).forEach(o=>{ const op = document.createElement('option'); op.value = o; dl.appendChild(op); });
+  inp.addEventListener('input', ()=>onChange(inp.value));
+  inp.addEventListener('change', ()=>onChange(inp.value));
+  wrap.appendChild(inp); wrap.appendChild(dl);
+  wrap.setValue = (v)=>{ inp.value = v || ''; };
   return wrap;
 }
 
@@ -2155,7 +2142,7 @@ function bindTopFields(){
   typeWrap.appendChild(typeSel);
 
   const custWrap = $('customerWrap'); custWrap.innerHTML='';
-  custWrap.appendChild(buildSelectCustom(CUSTOMERS, order.customer, v=>{ order.customer = v; }, '- เลือกลูกค้า -'));
+  custWrap.appendChild(buildComboBox(CUSTOMERS, order.customer, v=>{ order.customer = v; }, '- เลือกลูกค้า -'));
 }
 
 /* ---------------- items table ---------------- */
@@ -2184,18 +2171,23 @@ function renderItems(){
         <label class="fld-inline"><span class="fld-cap">Article No</span><div class="ac-wrap"><input type="text" class="f-articleNo" data-idx="${idx}" value="${escAttr(it.articleNo)}" autocomplete="off"><div class="ac-list" id="partAc${idx}"></div></div></label>
         <label class="fld-stack"><span class="fld-cap">Description</span><div class="ac-wrap"><input type="text" class="f-description" data-idx="${idx}" value="${escAttr(it.description)}" autocomplete="off"><div class="ac-list" id="descAc${idx}"></div></div></label>
         <div class="alias-add-row" data-idx="${idx}"></div>
-        <div class="part-img-wrap" id="partImgWrap${idx}"></div>
+        <div class="item-photo fld-stack">
+          <span class="fld-cap">รูปอะไหล่ <span class="item-photo-status" id="itemPhotoStatus${idx}"></span></span>
+          <div class="photo-canvas" id="itemPhotoCanvas${idx}"></div>
+          <div class="item-photo-actions">
+            <label class="btn-file" id="itemPhotoAddLabel${idx}"><span class="btn-ico">📷</span> <span class="ipa-text">เพิ่มรูป</span><input type="file" accept="image/*" id="itemPhotoFile${idx}" hidden></label>
+          </div>
+        </div>
       </div>`;
     }
     list.appendChild(row);
   });
-  order.items.forEach((it, idx)=>{ renderAliasAddRow(idx); renderPartImgPreview(idx); });
+  order.items.forEach((it, idx)=>{ renderAliasAddRow(idx); renderItemPhoto(idx); });
   list.querySelectorAll('.f-machineNo').forEach(el=>{
     const idx = +el.dataset.idx;
     const ac = document.getElementById('machineAc'+idx);
     el.oninput = e=>{
       order.items[idx].machineNo = e.target.value;
-      renderBoxSelects();
       renderMachineSuggestions(ac, idx, e.target.value);
     };
     el.onfocus = e=>renderMachineSuggestions(ac, idx, e.target.value);
@@ -2211,13 +2203,12 @@ function renderItems(){
     const ac = document.getElementById('partAc'+idx);
     el.oninput = e=>{
       order.items[idx].articleNo = e.target.value;
-      renderBoxSelects();
       renderPartSuggestions(ac, idx, e.target.value);
     };
     el.onfocus = e=>renderPartSuggestions(ac, idx, e.target.value);
     el.onblur = ()=>{
       setTimeout(()=>ac.classList.remove('show'), 150);
-      setTimeout(()=>{ onArticleNoEntered(idx, order.items[idx].articleNo); maybeSuggestCompanions(idx); }, 220);
+      setTimeout(()=>{ onArticleNoEntered(idx, order.items[idx].articleNo); maybeAutofillDbImage(idx); maybeSuggestCompanions(idx); }, 220);
     };
   });
   list.querySelectorAll('.f-description').forEach(el=>{
@@ -2226,26 +2217,22 @@ function renderItems(){
     el.oninput = e=>{
       order.items[idx].description = e.target.value;
       renderPartSuggestions(ac, idx, e.target.value);
-      // show attach-photo button immediately if codeless (no articleNo)
-      if(!order.items[idx].articleNo) setTimeout(()=>renderPartImgPreview(idx), 0);
     };
     el.onfocus = e=>renderPartSuggestions(ac, idx, e.target.value);
     el.onblur = ()=>{
       setTimeout(()=>ac.classList.remove('show'), 150);
       setTimeout(()=>{
-        if(order.items[idx].articleNo){ onArticleNoEntered(idx, order.items[idx].articleNo); maybeSuggestCompanions(idx); }
-        renderPartImgPreview(idx);
+        if(order.items[idx].articleNo){ onArticleNoEntered(idx, order.items[idx].articleNo); maybeAutofillDbImage(idx); maybeSuggestCompanions(idx); }
       }, 220);
     };
   });
   list.querySelectorAll('.mt-wrap').forEach(wrap=>{
     const idx = +wrap.dataset.idx;
-    wrap.appendChild(buildSelectCustom(MACHINE_TYPES, order.items[idx].machineType, v=>{ order.items[idx].machineType = v; }, '- เลือกรุ่นเครื่อง -', false));
+    wrap.appendChild(buildComboBox(MACHINE_TYPES, order.items[idx].machineType, v=>{ order.items[idx].machineType = v; }, '- เลือกรุ่นเครื่อง -'));
   });
   list.querySelectorAll('.btn-del-row').forEach(btn=>btn.onclick = ()=>{
     order.items.splice(+btn.dataset.idx,1);
-    order.boxes.forEach(b=>{ if(b.refItem === +btn.dataset.idx) b.refItem=-1; else if(b.refItem > +btn.dataset.idx) b.refItem--; });
-    renderItems(); renderBoxSelects();
+    renderItems();
   });
   document.getElementById('btnAddRow').disabled = order.items.length >= MAX_ITEMS;
 }
@@ -2254,32 +2241,114 @@ function escAttr(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('btnAddRow').onclick = ()=>{
     if(order.items.length >= MAX_ITEMS) return;
-    order.items.push({machineNo:'',machineType:'',articleNo:'',description:''});
+    order.items.push({machineNo:'',machineType:'',articleNo:'',description:'',image:null});
     renderItems();
   };
 });
 
-/* ---------------- photo boxes ---------------- */
-const BOX_COUNT = 4;
-let zCounters = [1,1,1,1];
+/* ---------------- per-item photo (1 Article No = 1 รูป) ---------------- */
+// z-index counter keyed by any canvas id (kept for the shared drag helper)
+let zCounters = {};
 
-function renderBoxSelects(){
-  for(let b=0;b<BOX_COUNT;b++){
-    const sel = document.getElementById('boxRef'+b);
-    if(!sel) continue;
-    const cur = order.boxes[b].refItem;
-    sel.innerHTML = '';
-    const optNone = document.createElement('option'); optNone.value='-1'; optNone.textContent='- ไม่ระบุ -';
-    sel.appendChild(optNone);
-    order.items.forEach((it,idx)=>{
-      const op = document.createElement('option');
-      op.value = String(idx);
-      op.textContent = `แถว ${idx+1}: ${it.machineNo||'(ไม่มี Machine No)'} / ${it.articleNo||'ไม่มี Article No'}`;
-      sel.appendChild(op);
-    });
-    sel.value = (cur!=null && cur < order.items.length) ? String(cur) : '-1';
-    if(sel.value === '-1') order.boxes[b].refItem = -1;
+/* Renders the single photo for a non-locked item into its inline canvas, with
+   the same move/resize/crop/focus framing as before. Empty → shows the tap hint
+   and the canvas opens the file picker. */
+function renderItemPhoto(idx){
+  const it = order.items[idx];
+  if(!it || it.locked) return;
+  const canvas = document.getElementById('itemPhotoCanvas'+idx);
+  const fileInput = document.getElementById('itemPhotoFile'+idx);
+  if(!canvas) return;
+  canvas.innerHTML = '';
+  const hasImg = it.image && it.image.src;
+
+  // status caption + add-button label
+  const statusEl = document.getElementById('itemPhotoStatus'+idx);
+  const addText = document.querySelector('#itemPhotoAddLabel'+idx+' .ipa-text');
+  const art = String(it.articleNo||'').trim();
+  const dbHasImage = art && findPart(art) && normalizeImageUrl(findPart(art).ImageURL);
+  if(statusEl){
+    statusEl.textContent = hasImg
+      ? (it.image.fromDb ? '· จากฐานข้อมูล' : (it.image._new ? '· รูปใหม่ (บันทึกเข้า DB ตอนกดบันทึก)' : ''))
+      : '';
   }
+  if(addText) addText.textContent = hasImg ? 'เปลี่ยนรูป' : 'เพิ่มรูป';
+
+  canvas.onclick = hasImg ? null : (()=>{ if(fileInput) fileInput.click(); });
+
+  if(hasImg){
+    const img = it.image;
+    if(img.objX===undefined) img.objX = 50;
+    if(img.objY===undefined) img.objY = 50;
+    const box = { images:[img] }; // shim so the shared drag helpers can mutate img in place
+    const el = document.createElement('div');
+    el.className = 'ph-img';
+    el.style.left = (img.x*100)+'%';
+    el.style.top = (img.y*100)+'%';
+    el.style.width = (img.w*100)+'%';
+    el.style.height = (img.h*100)+'%';
+    el.style.zIndex = img.z || 1;
+    el.innerHTML = `<img src="${img.src}" draggable="false" style="object-position:${img.objX}% ${img.objY}%;"><div class="resize-handle" title="ปรับขนาด (คงสัดส่วน)"></div><div class="crop-handle" title="ครอป (ปรับอิสระ)"></div><div class="focus-handle" title="เลือกจุดที่ต้องการเก็บไว้" style="left:${img.objX}%;top:${img.objY}%;"></div><button type="button" class="del-img-btn">×</button>`;
+    canvas.appendChild(el);
+    attachDrag(el, canvas, box, 0, 'i'+idx);
+    attachFocusDrag(el, box, 0);
+    el.querySelector('.del-img-btn').onclick = (ev)=>{ ev.stopPropagation(); it.image = null; renderItemPhoto(idx); };
+  }
+
+  if(fileInput){
+    fileInput.onchange = async (e)=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      try{
+        const { src, w:iw, h:ih } = await compressImage(f);
+        const boxRatio = 4/3, imgRatio = iw/ih;
+        let fw, fh;
+        if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; }
+        else { fh = 1; fw = imgRatio/boxRatio; }
+        it.image = { src, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, _new:true };
+        // also queue a Drive-quality copy so this photo enriches the DB on Save/Export
+        const desc = String(it.description||'').trim();
+        const pendingKey = art ? art.toLowerCase() : desc.toLowerCase();
+        if(pendingKey){
+          const up = await compressForUpload(f);
+          const filename = (art ? art+'_' : '') + desc.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
+          pendingPartImages[pendingKey] = { base64: up.base64, mimeType:'image/jpeg', filename, localSrc: src, articleNo: art, desc };
+        }
+        renderItemPhoto(idx);
+      }catch(err){
+        console.error('item photo load failed', err);
+        flashStatus('ไม่สามารถโหลดรูปได้: ' + (err.message||err));
+      }
+      e.target.value = '';
+    };
+  }
+}
+
+/* If the item's part has an image in the DB and the item has no photo yet,
+   pull that image in automatically. */
+function maybeAutofillDbImage(idx){
+  const it = order.items[idx];
+  if(!it || it.locked) return;
+  if(it.image && it.image.src) return; // never overwrite a chosen photo
+  const art = String(it.articleNo||'').trim();
+  if(!art) return;
+  const match = findPart(art);
+  const imgUrl = normalizeImageUrl(match ? match.ImageURL : '');
+  if(!imgUrl) return;
+  const helper = new Image();
+  helper.crossOrigin = 'anonymous';
+  helper.onload = ()=>{
+    if(it.image && it.image.src) return; // race guard
+    const boxRatio = 4/3, imgRatio = helper.width/helper.height;
+    let fw, fh;
+    if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; }
+    else { fh = 1; fw = imgRatio/boxRatio; }
+    it.image = { src: imgUrl, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, fromDb:true };
+    renderItemPhoto(idx);
+    flashStatus('ใส่รูปจากฐานข้อมูลให้อัตโนมัติ');
+  };
+  helper.onerror = ()=>{};
+  helper.src = imgUrl;
 }
 
 function compressImage(file){
@@ -2340,32 +2409,6 @@ function compressForUpload(file){
   });
 }
 
-function renderBox(b){
-  const canvas = document.getElementById('boxCanvas'+b);
-  canvas.innerHTML = '';
-  const box = order.boxes[b];
-  // Empty box: let tapping the canvas itself open the file picker (matches the
-  // "แตะเพื่อเพิ่มรูป" hint). Cleared once images exist so it never interferes
-  // with dragging/positioning them.
-  canvas.onclick = box.images.length ? null : (()=>{ const f = document.getElementById('boxFile'+b); if(f) f.click(); });
-  box.images.forEach((img, i)=>{
-    if(img.objX===undefined) img.objX = 50;
-    if(img.objY===undefined) img.objY = 50;
-    const el = document.createElement('div');
-    el.className = 'ph-img';
-    el.style.left = (img.x*100)+'%';
-    el.style.top = (img.y*100)+'%';
-    el.style.width = (img.w*100)+'%';
-    el.style.height = (img.h*100)+'%';
-    el.style.zIndex = img.z || 1;
-    el.innerHTML = `<img src="${img.src}" draggable="false" style="object-position:${img.objX}% ${img.objY}%;"><div class="resize-handle" title="ปรับขนาด (คงสัดส่วน)"></div><div class="crop-handle" title="ครอป (ปรับอิสระ)"></div><div class="focus-handle" title="เลือกจุดที่ต้องการเก็บไว้" style="left:${img.objX}%;top:${img.objY}%;"></div><button type="button" class="del-img-btn">×</button>`;
-    canvas.appendChild(el);
-    attachDrag(el, canvas, box, i, b);
-    attachFocusDrag(el, box, i);
-    el.querySelector('.del-img-btn').onclick = (ev)=>{ ev.stopPropagation(); box.images.splice(i,1); renderBox(b); };
-  });
-}
-
 function attachDrag(el, canvas, box, idx, boxIdx){
   const img = box.images[idx];
   const HOLD_MS_MOVE = 350;   // how long to hold still before a move-drag engages
@@ -2385,7 +2428,7 @@ function attachDrag(el, canvas, box, idx, boxIdx){
   function activate(){
     holdTimer = null;
     mode = pendingMode;
-    el.style.zIndex = ++zCounters[boxIdx];
+    el.style.zIndex = (zCounters[boxIdx] = (zCounters[boxIdx]||1) + 1);
     img.z = el.style.zIndex;
     const rect = canvas.getBoundingClientRect();
     startX = lastX; startY = lastY;
@@ -2501,54 +2544,6 @@ function attachFocusDrag(el, box, idx){
   handle.addEventListener('pointercancel', end);
 }
 
-function setupBoxUI(){
-  const grid = document.getElementById('photoBoxesGrid');
-  grid.innerHTML = '';
-  for(let b=0;b<BOX_COUNT;b++){
-    const card = document.createElement('div');
-    card.className = 'photo-box-card';
-    card.innerHTML = `
-      <div class="pb-head">
-        <span>กล่องรูปที่ ${b+1}</span>
-        <select id="boxRef${b}"></select>
-      </div>
-      <div class="pb-canvas-wrap">
-        <div id="boxCanvas${b}" class="photo-canvas"></div>
-      </div>
-      <div class="pb-actions">
-        <label class="btn-file">+ เพิ่มรูป<input type="file" accept="image/*" multiple id="boxFile${b}" hidden></label>
-        <button type="button" class="btn-clear-box" data-b="${b}">ลบรูปทั้งหมด</button>
-      </div>`;
-    grid.appendChild(card);
-  }
-  renderBoxSelects();
-  for(let b=0;b<BOX_COUNT;b++){
-    renderBox(b);
-    document.getElementById('boxRef'+b).onchange = (e)=>{ order.boxes[b].refItem = +e.target.value; };
-    document.getElementById('boxFile'+b).onchange = async (e)=>{
-      const files = Array.from(e.target.files || []);
-      for(const f of files){
-        try{
-          const { src, w: iw, h: ih } = await compressImage(f);
-          const boxRatio = 4/3; // matches .photo-canvas{ aspect-ratio:4/3 }
-          const imgRatio = iw / ih;
-          let fw, fh;
-          if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio / imgRatio; }
-          else { fh = 1; fw = imgRatio / boxRatio; }
-          order.boxes[b].images.push({src, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:++zCounters[b]});
-        }catch(err){ console.error(err); }
-      }
-      renderBox(b);
-      e.target.value = '';
-    };
-    document.querySelector(`.btn-clear-box[data-b="${b}"]`).onclick = ()=>{
-      if(order.boxes[b].images.length && !confirm('ลบรูปทั้งหมดในกล่องนี้?')) return;
-      order.boxes[b].images = [];
-      renderBox(b);
-    };
-  }
-}
-
 /* ---------------- history ---------------- */
 async function renderHistory(){
   const list = document.getElementById('historyList');
@@ -2583,6 +2578,15 @@ async function loadOrder(id){
   const rec = all.find(r=>r.id===id);
   if(!rec) return;
   order = rec;
+  // migrate older orders that stored photos in the 4 shared boxes → per-item image
+  if(order.boxes && Array.isArray(order.boxes) && !(order.items||[]).some(it=>it && it.image)){
+    order.boxes.forEach(b=>{
+      if(b && b.refItem >= 0 && b.images && b.images[0] && order.items[b.refItem] && !order.items[b.refItem].image){
+        order.items[b.refItem].image = b.images[0];
+      }
+    });
+  }
+  delete order.boxes;
   companionPrompted = new Set();
   resetPdfPreview();
   fullRender();
@@ -2615,7 +2619,6 @@ async function saveOrder(){
     // Flush all deferred DB records + images on every save
     await flushPendingDbRecords();
     recordCodelessPartsOnSave();
-    await uploadBoxImagesForParts();
     flashStatus(useMemFallback ? 'บันทึกแล้ว (ชั่วคราว - เบราว์เซอร์นี้ไม่รองรับการบันทึกถาวร)' : 'บันทึกแล้ว');
   } catch(e){
     console.error('saveOrder failed', e);
@@ -2697,7 +2700,7 @@ function recordCodelessPartsOnSave(){
           const match = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === pendingKey);
           if(match) match.ImageURL = url;
           await lkvSet('cache', {machines: lookupCache.machines, parts: lookupCache.parts, syncedAt: lookupCache.syncedAt, cacheVersion: LOOKUP_CACHE_VERSION});
-          renderPartImgPreview(order.items.indexOf(it));
+          renderItemPhoto(order.items.indexOf(it));
           flashStatus('บันทึกรูปอะไหล่เรียบร้อย');
         }
       }
@@ -2719,49 +2722,6 @@ function recordCodelessPartsOnSave(){
     lookupQueueOrSend('recordNew', {type:'Part', data}).then(notifyRecordOutcome);
     trackRecentlyAdded('Part', desc, Object.assign({byField:'Description'}, data));
   });
-}
-// Upload the first image from each photo box that is linked to a part
-// that currently has no ImageURL in the DB — called on Save/Export only.
-async function uploadBoxImagesForParts(){
-  for(const box of order.boxes){
-    if(!box.images || !box.images.length) continue;
-    if(box.refItem == null || box.refItem < 0) continue;
-    const item = order.items[box.refItem];
-    if(!item) continue;
-    const articleNo = String(item.articleNo||'').trim();
-    if(!articleNo) continue;
-    const match = findPart(articleNo);
-    if(!match) continue;
-    if(normalizeImageUrl(match.ImageURL)) continue; // already has image
-    // Check if already queued/submitted this session
-    const imgKey = 'boximg:' + articleNo.toLowerCase();
-    if(submittedThisSession.has(imgKey)) continue;
-    submittedThisSession.add(imgKey);
-    // Compress the image src from the box (already compressed but re-compress for Drive quality)
-    try{
-      const imgSrc = box.images[0].src;
-      // Convert data URL to blob-like object for compressForUpload
-      const res = await fetch(imgSrc);
-      const blob = await res.blob();
-      const file = new File([blob], articleNo + '_' + String(item.description||'').replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,30) + '.jpg', {type:'image/jpeg'});
-      const {base64} = await compressForUpload(file);
-      const filename = articleNo + '_' + String(item.description||'').replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
-      flashStatus('กำลังอัปโหลดรูปอะไหล่ #' + articleNo + ' ...');
-      const upRes = await lookupApiCall('uploadImage', {base64, mimeType:'image/jpeg', filename});
-      if(upRes && upRes.url){
-        const ok = await writeImageUrlToSheet(articleNo, upRes.url);
-        if(ok){
-          match.ImageURL = upRes.url;
-          await lkvSet('cache', {machines: lookupCache.machines, parts: lookupCache.parts, syncedAt: lookupCache.syncedAt, cacheVersion: LOOKUP_CACHE_VERSION});
-          flashStatus('บันทึกรูปอะไหล่ #' + articleNo + ' เรียบร้อย');
-        }
-      }
-      break; // only 1 upload per save
-    }catch(err){
-      console.error('uploadBoxImagesForParts failed', err);
-      // don't block the save process for image upload failures
-    }
-  }
 }
 
 function newOrder(){
@@ -2852,6 +2812,7 @@ function openPdfPreview(){
   document.getElementById('pdfModalImg').src = _pdfPreviewImgData || '';
   document.getElementById('emailDraftText').value = _emailDraftText || '';
   document.getElementById('pdfModal').classList.add('open');
+  modalOpened();
 }
 function closePdfPreview(){
   document.getElementById('pdfModal').classList.remove('open');
@@ -2866,12 +2827,82 @@ function downloadPdfPreview(){
   a.click();
   a.remove();
 }
+/* Adaptive email: on phones (and modern desktops) share the actual PDF file so
+   Outlook attaches it automatically; otherwise download the PDF and open a
+   pre-filled Outlook/mail draft for the user to attach it. */
+async function emailCurrentPdf(){
+  if(!_pdfPreviewUrl) return;
+  const subject = [(order.type||'Warranty'), 'Part Order', order.customer ? '- '+order.customer : ''].filter(Boolean).join(' ').trim();
+  const body = _emailDraftText || '';
+  let file = null;
+  try{
+    const blob = await (await fetch(_pdfPreviewUrl)).blob();
+    file = new File([blob], _pdfPreviewFilename || 'export_order.pdf', { type:'application/pdf' });
+  }catch(e){ /* ignore, fall back below */ }
+
+  if(file && navigator.canShare && navigator.canShare({ files:[file] })){
+    try{ await navigator.share({ files:[file], title: subject, text: body }); return; }
+    catch(err){ if(err && err.name === 'AbortError') return; /* user cancelled */ }
+  }
+  // Fallback (desktop): download the file + open a pre-filled mail draft to attach it.
+  downloadPdfPreview();
+  const note = '\n\n[' + (_pdfPreviewFilename||'PDF') + ' ถูกดาวน์โหลดแล้ว — โปรดแนบไฟล์นี้ก่อนส่ง]';
+  const a = document.createElement('a');
+  a.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body + note);
+  document.body.appendChild(a); a.click(); a.remove();
+  flashStatus('ดาวน์โหลด PDF แล้ว — แนบไฟล์ลงอีเมลที่เปิดขึ้น');
+}
+/* Merged action: Save + Export PDF + create the Outlook draft. */
+async function saveExportEmail(){
+  await exportPdf();               // saves the order, builds the PDF, shows the preview
+  if(_pdfPreviewUrl) await emailCurrentPdf();
+}
+
+/* ---------------- modal dismissal: Esc (desktop), Back button (mobile), tap-outside ----------------
+   Each opened modal pushes one history entry so the phone Back button pops it; Esc / a backdrop tap
+   close the topmost modal and consume that entry (guarded so it doesn't double-fire). */
+let _modalDepth = 0;
+let _ignorePop = false;
+let _companionClose = null; // set to a remove+resolve(false) fn while the companion prompt is open
+function modalOpened(){ _modalDepth++; history.pushState({ appModal:_modalDepth }, ''); }
+function consumeModalHistory(){ if(_modalDepth>0){ _modalDepth--; _ignorePop=true; history.back(); } }
+function closeTopmostModalDom(){
+  // transient overlays that open ON TOP of another modal come first
+  const lb=document.querySelector('.img-lightbox.open'); if(lb){ lb.remove(); return true; }
+  const ep=document.querySelector('.edit-part-modal.open'); if(ep){ if(typeof ep._onClose==='function') ep._onClose(); ep.remove(); return true; }
+  if(_companionClose){ const f=_companionClose; _companionClose=null; f(); return true; }
+  const pdf=document.getElementById('pdfModal'); if(pdf && pdf.classList.contains('open')){ closePdfPreview(); return true; }
+  const db=document.getElementById('dbModal'); if(db && db.classList.contains('open')){ db.classList.remove('open'); return true; }
+  const hist=document.getElementById('historyPanel'); if(hist && hist.classList.contains('open')){ hist.classList.remove('open'); return true; }
+  return false;
+}
+/* Full-image lightbox (opens over the DB modal; dismiss via Esc / Back / tap-outside). */
+function openImageLightbox(url){
+  if(!url) return;
+  const ov=document.createElement('div');
+  ov.className='img-lightbox open';
+  ov.innerHTML=`<img src="${escAttr(url)}" alt=""><button type="button" class="lightbox-close" aria-label="close">✕</button>`;
+  ov.addEventListener('click', (e)=>{ if(e.target===ov || e.target.classList.contains('lightbox-close')) userDismissTopModal(); });
+  document.body.appendChild(ov);
+  modalOpened();
+}
+function userDismissTopModal(){ if(closeTopmostModalDom()) consumeModalHistory(); }
+window.addEventListener('popstate', ()=>{
+  if(_ignorePop){ _ignorePop=false; return; }
+  if(_modalDepth>0){ _modalDepth--; closeTopmostModalDom(); }
+});
+window.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape' && _modalDepth>0){ e.preventDefault(); userDismissTopModal(); }
+});
 
 /* ---------------- history panel toggle ---------------- */
 function toggleHistory(force){
   const panel = document.getElementById('historyPanel');
-  const show = force!==undefined ? force : !panel.classList.contains('open');
-  panel.classList.toggle('open', show);
+  const willShow = force!==undefined ? force : !panel.classList.contains('open');
+  if(willShow === panel.classList.contains('open')){ if(willShow) renderHistory(); return; }
+  if(willShow){ panel.classList.add('open'); modalOpened(); }
+  else { userDismissTopModal(); }
+  const show = willShow;
   if(show) renderHistory();
 }
 
@@ -2879,7 +2910,6 @@ function toggleHistory(force){
 function fullRender(){
   bindTopFields();
   renderItems();
-  setupBoxUI();
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -2888,11 +2918,15 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('btnNew').onclick = ()=>{
     if(confirm('สร้างใบสั่งใหม่? ข้อมูลที่ยังไม่บันทึกจะหายไป')) newOrder();
   };
-  document.getElementById('btnExport').onclick = exportPdf;
+  document.getElementById('btnExport').onclick = saveExportEmail;
   document.getElementById('btnCloseHistory').onclick = ()=>toggleHistory(false);
+  const histOverlay = document.querySelector('.overlay');
+  if(histOverlay) histOverlay.onclick = ()=>toggleHistory(false);
   document.getElementById('btnOpenPdf').onclick = openPdfPreview;
   document.getElementById('btnDownloadPdf').onclick = downloadPdfPreview;
-  document.getElementById('pdfModalClose').onclick = closePdfPreview;
+  document.getElementById('pdfModalClose').onclick = ()=>userDismissTopModal();
+  const pdfModalEl = document.getElementById('pdfModal');
+  pdfModalEl.addEventListener('click', (e)=>{ if(e.target === pdfModalEl) userDismissTopModal(); });
   document.getElementById('pdfModalDownload').onclick = downloadPdfPreview;
   document.getElementById('emailCopyBtn').onclick = async ()=>{
     const ta = document.getElementById('emailDraftText');
