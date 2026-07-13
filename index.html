@@ -109,6 +109,22 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .cset-part-desc{flex:1;color:var(--gray);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cset-mainbtn,.cset-del{background:none;border:none;cursor:pointer;font-size:13px;color:var(--gray);padding:2px 5px;}
 .cset-mainbtn:hover{color:#7c3aed;} .cset-del:hover{color:var(--red);}
+/* danger / delete button */
+.btn-danger{background:#fff;border:1px solid var(--red);color:var(--red);}
+.btn-danger:hover{background:var(--red);color:#fff;}
+/* sign-in gate before editing */
+.signin-icon{font-size:34px;text-align:center;margin:2px 0 -2px;}
+.signin-lead{font-size:12.5px;color:var(--gray);text-align:center;line-height:1.5;}
+.epm-signed{display:flex;align-items:center;gap:8px;background:#eefdf3;border:1px solid #b9e6c9;border-radius:9px;padding:8px 11px;font-size:12.5px;}
+.epm-signed .who{font-weight:700;color:#166534;}
+.epm-signed .chg{margin-left:auto;background:none;border:none;color:var(--red);font-size:12px;cursor:pointer;text-decoration:underline;padding:0;}
+/* recycle bin (ถังขยะ) */
+.trash-card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
+.trash-info{flex:1;min-width:0;}
+.trash-no{font-weight:700;}
+.trash-desc{font-size:12.5px;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.trash-meta{font-size:11px;color:#9ca3af;margin-top:2px;}
+.trash-restore-btn{flex-shrink:0;padding:7px 12px;font-size:12.5px;}
 .cset-results{border:1px solid var(--border);border-radius:8px;max-height:210px;overflow:auto;margin-top:6px;}
 .cset-result{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f0f0f1;}
 .cset-result:last-child{border-bottom:none;}
@@ -1383,6 +1399,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       {key:'machines',label:`เครื่อง (${lookupCache.machines.length})`},
       {key:'parts',   label:`อะไหล่ (${lookupCache.parts.length})`},
       {key:'sets',    label:`ชุดเบิก (${(lookupCache.companions||[]).length})`},
+      {key:'trash',   label:`🗑 ถังขยะ`},
     ];
     return `<div class="db-tabs">${tabs.map(t=>`
       <button type="button" class="db-tab${dbActiveTab===t.key?' active':''}" data-tab="${t.key}">${t.label}</button>
@@ -1425,6 +1442,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
       </div>`;
     }).join('');
     return `<div class="db-part-list">${html}</div>`;
+  }
+
+  // "ถังขยะ" (recycle bin): soft-deleted parts, fetched on demand from the
+  // server's RecycleBin tab. Each row can be restored back into the live sheet.
+  async function renderRecycleBin(){
+    let entries = [];
+    try{
+      const res = await lookupApiCall('getRecycleBin', { limit:200 });
+      entries = res.entries || [];
+    }catch(err){
+      const m = String(err.message||err);
+      return `<div class="db-status-line err">โหลดถังขยะไม่สำเร็จ: ${escDb(m)}${m.includes('Unknown action')?' → ต้อง Deploy Code.gs ใหม่':''}</div>`;
+    }
+    if(!entries.length) return '<div class="db-empty">ถังขยะว่าง — ยังไม่มีอะไหล่ที่ถูกลบ</div>';
+    const list = entries.map(en=>{
+      const when = en.deletedAt ? new Date(en.deletedAt).toLocaleString('th-TH') : '-';
+      return `<div class="trash-card">
+        <div class="trash-info">
+          <div class="trash-no">#${escDb(en.articleNo||'-')}</div>
+          <div class="trash-desc">${escDb(en.description||'-')}</div>
+          <div class="trash-meta">ลบเมื่อ ${escDb(when)} · โดย ${escDb(en.deletedBy||'-')}</div>
+        </div>
+        <button type="button" class="btn btn-primary trash-restore-btn" data-row="${en.rowIndex}" data-articleno="${escAttr(en.articleNo||'')}">↩ กู้คืน</button>
+      </div>`;
+    }).join('');
+    return `<div class="db-part-list">${list}</div>`;
   }
 
   // "ชุดเบิก" list: named companion sets with a combined image + parts (⭐ = main).
@@ -1643,6 +1686,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
       sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
     } else if(dbActiveTab === 'sets'){
       sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">ชุดพาร์ทที่ต้องเบิกด้วยกัน · ⭐ = พาร์ทหลัก (ตัวกระตุ้น) · แตะรูปเพื่อดูเต็ม</p>` + renderCompanionSets(lookupCache.companions||[]);
+    } else if(dbActiveTab === 'trash'){
+      sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">อะไหล่ที่ถูกลบ (สำรองไว้) · กด “กู้คืน” เพื่อนำกลับเข้าฐานข้อมูล</p>` + await renderRecycleBin();
     }
 
     body.innerHTML = syncLine + renderDbTabs(recent) + `<div class="db-section-body">${sectionHtml}</div>`;
@@ -1662,9 +1707,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
     body.querySelectorAll('.db-part-thumb[data-full]').forEach(el=>{
       el.onclick = ()=>openImageLightbox(el.dataset.full);
     });
-    // Parts: edit (✎) → audited edit form (exclude the set-edit buttons)
+    // Parts: edit (✎) → sign-in gate → audited edit form (exclude set-edit buttons)
     body.querySelectorAll('.db-edit-btn:not(.db-set-edit)').forEach(btn=>{
-      btn.onclick = ()=>openEditPart(btn.dataset.articleno);
+      btn.onclick = async ()=>{
+        const editor = await requireEditorSignIn();
+        if(!editor) return;                       // cancelled the sign-in → stay put
+        openEditPart(btn.dataset.articleno, editor);
+      };
+    });
+    // Recycle bin: restore a soft-deleted part (also gated by sign-in)
+    body.querySelectorAll('.trash-restore-btn').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const editor = await requireEditorSignIn();
+        if(!editor) return;
+        if(!confirm('กู้คืนอะไหล่นี้กลับเข้าฐานข้อมูล?')) return;
+        btn.disabled = true;
+        try{
+          await lookupApiCall('restoreDeletedPart', { rowIndex:+btn.dataset.row, editor });
+          flashStatus('กู้คืนอะไหล่แล้ว');
+          await lookupSync();
+          await renderDbModal();
+        }catch(err){
+          btn.disabled = false;
+          const m = String(err.message||err);
+          alert('กู้คืนไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่':''));
+        }
+      };
     });
     // Sets: add / edit companion set
     const addSetBtn = body.querySelector('#dbAddSet');
@@ -1677,15 +1745,63 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Editor name is remembered between edits but re-confirmed each time.
   let _lastEditor = (function(){ try{ return localStorage.getItem('editorName')||''; }catch(e){ return ''; } })();
 
+  // Sign-in gate: before ANY edit / delete / restore we ask who is doing it and
+  // record that name in the server-side audit log. Resolves with the trimmed
+  // editor name, or null if the user cancels/dismisses. (This is an audit
+  // sign-in — it identifies the editor, it is not password authentication.)
+  function requireEditorSignIn(){
+    return new Promise((resolve)=>{
+      let name = _lastEditor;
+      let done = false;
+      const finish = (val)=>{ if(done) return; done=true; resolve(val); };
+      const ov = document.createElement('div');
+      ov.className = 'edit-part-modal open';
+      ov.innerHTML = `
+        <div class="edit-part-dialog">
+          <div class="epm-head"><span>ลงชื่อเข้าใช้เพื่อแก้ไข</span><button type="button" class="epm-x">✕</button></div>
+          <div class="epm-body">
+            <div class="signin-icon">🔒</div>
+            <div class="signin-lead">กรุณาลงชื่อผู้แก้ไขก่อนเข้าหน้าแก้ไขอะไหล่<br>ชื่อนี้จะถูกบันทึกไว้ในประวัติการแก้ไข</div>
+            <label>ชื่อผู้แก้ไข <span style="color:var(--red)">*</span>
+              <input type="text" class="signin-name" value="${escAttr(name)}" placeholder="พิมพ์ชื่อของคุณ" autocomplete="name">
+            </label>
+          </div>
+          <div class="epm-actions">
+            <button type="button" class="btn signin-cancel">ยกเลิก</button>
+            <button type="button" class="btn btn-primary signin-go">เข้าสู่ระบบ</button>
+          </div>
+        </div>`;
+      // Dismissal via Esc / Back / tap-outside routes through the modal manager,
+      // which calls _onClose — treat that as a cancel.
+      ov._onClose = ()=>finish(null);
+      const inp = ov.querySelector('.signin-name');
+      const submit = ()=>{
+        const v = (inp.value||'').trim();
+        if(!v){ alert('กรุณาพิมพ์ชื่อผู้แก้ไข'); inp.focus(); return; }
+        _lastEditor = v; try{ localStorage.setItem('editorName', v); }catch(e){}
+        finish(v);
+        userDismissTopModal();
+      };
+      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.signin-cancel').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.signin-go').onclick = submit;
+      inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); submit(); } };
+      ov.addEventListener('click', (e)=>{ if(e.target===ov) userDismissTopModal(); });
+      document.body.appendChild(ov);
+      modalOpened();
+      setTimeout(()=>inp.focus(), 30);
+    });
+  }
+
   // Audited edit: require editor name → back up (server side) → edit image / code /
   // description / predict-words → save. Also a restore view over the EditLog.
-  async function openEditPart(articleNo){
+  async function openEditPart(articleNo, signedInEditor){
     const part = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === String(articleNo).trim().toLowerCase());
     if(!part){ flashStatus('ไม่พบอะไหล่'); return; }
 
-    // Editor name is entered inside the form (required) — no native prompt(), which
-    // some installed-PWA / mobile browsers silently block.
-    let editor = _lastEditor;
+    // The editor has already signed in via requireEditorSignIn() before we get
+    // here; carry that name through. (Fallback to the last name just in case.)
+    let editor = (signedInEditor || _lastEditor || '').trim();
 
     const origArticleNo = String(part.ArticleNo||'');
     const origImageRaw = String(part.ImageURL||'');
@@ -1709,7 +1825,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
           <div class="epm-head"><span>แก้ไขอะไหล่</span><button type="button" class="epm-x">✕</button></div>
           <div class="epm-body">
             <div class="epm-note">ระบบจะสำรองข้อมูลเดิม (พร้อมชื่อผู้แก้ไข) ก่อนบันทึกทุกครั้ง และกู้คืนได้</div>
-            <label>ผู้แก้ไข (จำเป็น) <span style="color:var(--red)">*</span><input type="text" class="epm-editor" value="${escAttr(editor)}" placeholder="พิมพ์ชื่อผู้แก้ไข"></label>
+            <div class="epm-signed">✅ ผู้แก้ไข: <span class="who">${escDb(editor||'-')}</span><button type="button" class="epm-changeuser chg">เปลี่ยนผู้ใช้</button></div>
             <div class="epm-img-row">
               ${imgHtml}
               <div style="display:flex;flex-direction:column;gap:6px;">
@@ -1723,6 +1839,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
             <div class="epm-alias-tags">${aliasTags}</div>
             <div class="epm-alias-add"><input type="text" class="epm-alias-input" placeholder="เพิ่มคำค้นหา"><button type="button" class="btn epm-alias-addbtn">เพิ่ม</button></div>
             <button type="button" class="btn epm-restore-open" style="font-size:12px;">🕘 ประวัติ / กู้คืนข้อมูล</button>
+            <button type="button" class="btn btn-danger epm-delete" style="font-size:12px;">🗑 ลบอะไหล่นี้ (ย้ายไปถังขยะ)</button>
           </div>
           <div class="epm-actions">
             <button type="button" class="btn epm-cancel">ยกเลิก</button>
@@ -1731,7 +1848,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
         </div>`;
       ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
       ov.querySelector('.epm-cancel').onclick = ()=>userDismissTopModal();
-      const edInp = ov.querySelector('.epm-editor'); edInp.oninput = ()=>{ editor = edInp.value; };
+      const chgBtn = ov.querySelector('.epm-changeuser');
+      if(chgBtn) chgBtn.onclick = async ()=>{ const e2 = await requireEditorSignIn(); if(e2){ editor = e2; renderEdit(); } };
       const artInp = ov.querySelector('.epm-article'); artInp.oninput = ()=>{ artVal = artInp.value; };
       const descInp = ov.querySelector('.epm-desc'); descInp.oninput = ()=>{ descVal = descInp.value; };
       ov.querySelectorAll('.alias-del-btn').forEach(b=>{ b.onclick = ()=>{ aliases.splice(+b.dataset.i,1); renderEdit(); }; });
@@ -1751,7 +1869,30 @@ document.addEventListener('DOMContentLoaded', ()=>{
         }catch(err){ const m=String(err.message||err); flashStatus('อัปโหลดไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':'')); }
       };
       ov.querySelector('.epm-restore-open').onclick = renderRestore;
+      ov.querySelector('.epm-delete').onclick = doDelete;
       ov.querySelector('.epm-save').onclick = save;
+    }
+
+    // Soft delete: back up the whole row to the RecycleBin tab server-side, then
+    // remove it from the live list. Recoverable from the ถังขยะ tab.
+    async function doDelete(){
+      editor = (editor||'').trim();
+      if(!editor){ alert('กรุณาลงชื่อผู้แก้ไขก่อน'); return; }
+      if(!confirm(`ต้องการลบอะไหล่ #${origArticleNo} ?\n\nระบบจะย้ายไปที่ถังขยะ (สำรองข้อมูลเดิมไว้) และกู้คืนได้ภายหลัง`)) return;
+      const btn = ov.querySelector('.epm-delete'); if(btn) btn.disabled=true;
+      try{
+        await lookupApiCall('softDeletePart', { articleNo: origArticleNo, editor });
+        const i = lookupCache.parts.findIndex(p => String(p.ArticleNo).trim().toLowerCase() === origArticleNo.trim().toLowerCase());
+        if(i >= 0) lookupCache.parts.splice(i, 1);
+        lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
+        flashStatus('ย้ายอะไหล่ไปถังขยะแล้ว · กู้คืนได้ในแท็บ “ถังขยะ”');
+        userDismissTopModal();
+        await renderDbModal();
+      }catch(err){
+        if(btn) btn.disabled=false;
+        const m = String(err.message||err);
+        alert('ลบไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่ (มี softDeletePart)':''));
+      }
     }
 
     async function save(){
@@ -3077,7 +3218,10 @@ function consumeModalHistory(){ if(_modalDepth>0){ _modalDepth--; _ignorePop=tru
 function closeTopmostModalDom(){
   // transient overlays that open ON TOP of another modal come first
   const lb=document.querySelector('.img-lightbox.open'); if(lb){ lb.remove(); return true; }
-  const ep=document.querySelector('.edit-part-modal.open'); if(ep){ if(typeof ep._onClose==='function') ep._onClose(); ep.remove(); return true; }
+  // Pick the LAST (topmost) edit-part-modal so a modal opened on top of another
+  // one — e.g. the sign-in gate over the edit form (change-user) — closes first.
+  const eps=document.querySelectorAll('.edit-part-modal.open'); const ep=eps[eps.length-1];
+  if(ep){ if(typeof ep._onClose==='function') ep._onClose(); ep.remove(); return true; }
   if(_companionClose){ const f=_companionClose; _companionClose=null; f(); return true; }
   const pdf=document.getElementById('pdfModal'); if(pdf && pdf.classList.contains('open')){ closePdfPreview(); return true; }
   const db=document.getElementById('dbModal'); if(db && db.classList.contains('open')){ db.classList.remove('open'); return true; }

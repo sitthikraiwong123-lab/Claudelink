@@ -78,6 +78,9 @@ function handleRequest(e) {
       case 'updatePart':    result = updatePart(params); break;
       case 'getEditLog':    result = getEditLog(params); break;
       case 'restorePart':   result = restorePart(params); break;
+      case 'softDeletePart':     result = softDeletePart(params); break;
+      case 'getRecycleBin':      result = getRecycleBin(params); break;
+      case 'restoreDeletedPart': result = restoreDeletedPart(params); break;
       case 'saveCompanionSet':   result = saveCompanionSet(params); break;
       case 'deleteCompanionSet': result = deleteCompanionSet(params); break;
       case 'ping':          result = { success: true, time: Date.now() }; break;
@@ -751,4 +754,115 @@ function restorePart(params) {
     if (Object.prototype.hasOwnProperty.call(oldData, key)) info.sheet.getRange(rowNum, i + 1).setValue(oldData[key]);
   });
   return { success: true, articleNo: origArticleNo };
+}
+
+// ============================================================
+// SOFT DELETE + RECYCLE BIN (BACKUP) — softDeletePart / getRecycleBin /
+//   restoreDeletedPart
+// Deleting a part from the edit page does NOT remove it for good. The whole
+// original row is copied into a "RecycleBin" tab (with who/when), then the row
+// is removed from the live "Part No." sheet. From the app's ถังขยะ (Recycle
+// Bin) tab it can be restored back into the live sheet at any time.
+// ============================================================
+const RECYCLEBIN_SHEET = 'RecycleBin';
+// RowData = JSON of the whole original row (header -> value), so a restore can
+// rebuild every column exactly, even columns the app doesn't otherwise use.
+const RECYCLEBIN_HEADERS = ['DeletedAt', 'DeletedBy', 'ArticleNo', 'Description', 'RowData'];
+
+function getRecycleBinSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(RECYCLEBIN_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(RECYCLEBIN_SHEET);
+    sh.appendRow(RECYCLEBIN_HEADERS);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+// Move ONE part into the recycle bin (backup + remove from live sheet).
+// params: { articleNo, editor }
+function softDeletePart(params) {
+  const editor = String(params.editor || '').trim();
+  if (!editor) return { success: false, error: 'ต้องลงชื่อผู้แก้ไขก่อน (editor required)' };
+  const articleNo = String(params.articleNo || '').trim();
+  if (!articleNo) return { success: false, error: 'articleNo required' };
+
+  const info = partsSheetInfo_();
+  const found = findPartRow_(info, articleNo);
+  if (!found) return { success: false, error: 'ไม่พบอะไหล่รหัส ' + articleNo };
+  const rowNum = found.rowIndex0 + 1;
+  const oldData = found.obj;
+
+  // 1) back up the full row into the RecycleBin tab BEFORE removing it
+  getRecycleBinSheet_().appendRow([
+    new Date(), editor, articleNo, String(oldData['Description'] || ''), JSON.stringify(oldData)
+  ]);
+  // 2) leave an audit trail in the EditLog timeline as well
+  getEditLogSheet_().appendRow([new Date(), editor, 'delete', articleNo, '', JSON.stringify(oldData), '']);
+  // 3) remove from the live sheet + tombstone it (blocks a stale offline re-insert)
+  info.sheet.deleteRow(rowNum);
+  recordTombstone('Part', articleNo);
+
+  return { success: true, articleNo: articleNo };
+}
+
+// List everything currently in the recycle bin, newest first.
+function getRecycleBin(params) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RECYCLEBIN_SHEET);
+  if (!sh) return { success: true, entries: [] };
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return { success: true, entries: [] };
+  const limit = Number(params && params.limit) || 200;
+  const out = [];
+  for (let r = data.length - 1; r >= 1 && out.length < limit; r--) {
+    // skip blank rows (e.g. after a restore removed the row)
+    if (!String(data[r][2] || '').trim() && !String(data[r][4] || '').trim()) continue;
+    out.push({
+      rowIndex: r + 1,
+      deletedAt: data[r][0] ? new Date(data[r][0]).getTime() : null,
+      deletedBy: data[r][1],
+      articleNo: data[r][2],
+      description: data[r][3]
+    });
+  }
+  return { success: true, entries: out };
+}
+
+// Put a recycle-bin row back into the live "Part No." sheet, then remove it
+// from the bin. Rejects if that Article No. already exists live again.
+// params: { rowIndex, editor }
+function restoreDeletedPart(params) {
+  const editor = String(params.editor || '').trim();
+  if (!editor) return { success: false, error: 'ต้องลงชื่อผู้แก้ไขก่อน (editor required)' };
+  const binRow = Number(params.rowIndex);
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RECYCLEBIN_SHEET);
+  if (!sh || !binRow) return { success: false, error: 'ไม่พบรายการในถังขยะ' };
+
+  const vals = sh.getRange(binRow, 1, 1, RECYCLEBIN_HEADERS.length).getValues()[0];
+  const articleNo = String(vals[2] || '').trim();
+  const rowData = safeParse_(vals[4]);
+  if (!rowData) return { success: false, error: 'ข้อมูลสำรองเสียหาย' };
+
+  const info = partsSheetInfo_();
+  if (articleNo && findPartRow_(info, articleNo)) {
+    return { success: false, error: 'รหัส ' + articleNo + ' มีอยู่ในฐานข้อมูลแล้ว กู้คืนไม่ได้' };
+  }
+
+  // rebuild the row in the live sheet's column order; stamp LastModified so it
+  // flows back out on the next delta sync.
+  const sheet = getSheet(SHEETS.PARTS);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const newRow = headers.map(function (h) {
+    const key = String(h).trim();
+    if (key === 'LastModified') return new Date();
+    return Object.prototype.hasOwnProperty.call(rowData, key) ? rowData[key] : '';
+  });
+  sheet.appendRow(newRow);
+
+  // audit + clear the bin row
+  getEditLogSheet_().appendRow([new Date(), editor, 'restore-deleted', articleNo, '', '', JSON.stringify(rowData)]);
+  sh.deleteRow(binRow);
+
+  return { success: true, articleNo: articleNo };
 }
