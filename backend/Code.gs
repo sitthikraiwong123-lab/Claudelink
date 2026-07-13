@@ -81,6 +81,7 @@ function handleRequest(e) {
       case 'softDeletePart':     result = softDeletePart(params); break;
       case 'getRecycleBin':      result = getRecycleBin(params); break;
       case 'restoreDeletedPart': result = restoreDeletedPart(params); break;
+      case 'logout':             result = logoutSession(params); break;
       case 'saveCompanionSet':   result = saveCompanionSet(params); break;
       case 'deleteCompanionSet': result = deleteCompanionSet(params); break;
       case 'ping':          result = { success: true, time: Date.now() }; break;
@@ -865,4 +866,14 @@ function restoreDeletedPart(params) {
   sh.deleteRow(binRow);
 
   return { success: true, articleNo: articleNo };
+}
+
+// Called (best-effort, via navigator.sendBeacon) when the app page is closed.
+// There is no server-side session token to invalidate in this app — the client
+// clears its own remembered editor identity — so here we just record that the
+// editing session ended, giving a full sign-in/edit/sign-out audit timeline.
+function logoutSession(params) {
+  const editor = String((params && params.editor) || '').trim();
+  getEditLogSheet_().appendRow([new Date(), editor || '(unknown)', 'logout', '', '', '', '']);
+  return { success: true };
 }

@@ -1751,7 +1751,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // sign-in — it identifies the editor, it is not password authentication.)
   function requireEditorSignIn(){
     return new Promise((resolve)=>{
-      let name = _lastEditor;
+      // Prefill from storage (not the in-memory _lastEditor) so that after an
+      // auto-logout on close the field is genuinely blank on the next sign-in.
+      let name = (function(){ try{ return localStorage.getItem('editorName')||''; }catch(e){ return ''; } })();
       let done = false;
       const finish = (val)=>{ if(done) return; done=true; resolve(val); };
       const ov = document.createElement('div');
@@ -3246,6 +3248,33 @@ window.addEventListener('popstate', ()=>{
 window.addEventListener('keydown', (e)=>{
   if(e.key==='Escape' && _modalDepth>0){ e.preventDefault(); userDismissTopModal(); }
 });
+
+/* ---------------- Auto-logout on tab / window close ----------------
+   The "session" in this app is the remembered editor identity (the name used
+   to sign audit-log entries) — there is no server-side session token. When the
+   page is being closed / navigated away, we:
+     (a) fire a best-effort audit beacon so the backend logs that the session
+         ended (navigator.sendBeacon survives the page teardown), and
+     (b) clear the stored editor name, so the next visit must sign in again.
+   We listen on 'pagehide' (fires on a REAL close / navigation, unlike a
+   cancellable 'beforeunload', so cancelling a close won't sign the user out). */
+let _autoLogoutDone = false;
+function autoLogoutOnClose(){
+  if(_autoLogoutDone) return;                 // guard against double-fire
+  _autoLogoutDone = true;
+  let editor = '';
+  try{ editor = localStorage.getItem('editorName') || ''; }catch(e){}
+  // (a) best-effort audit beacon (ignored if backend URL not configured)
+  try{
+    if(editor && typeof LOOKUP_API_URL === 'string' && LOOKUP_API_URL.indexOf('PASTE_YOUR') !== 0 && navigator.sendBeacon){
+      const body = JSON.stringify({ action:'logout', editor });
+      navigator.sendBeacon(LOOKUP_API_URL, new Blob([body], { type:'text/plain;charset=utf-8' }));
+    }
+  }catch(e){}
+  // (b) clear the local editor identity → next visit must sign in again
+  try{ localStorage.removeItem('editorName'); }catch(e){}
+}
+window.addEventListener('pagehide', autoLogoutOnClose);
 
 /* ---------------- history panel toggle ---------------- */
 function toggleHistory(force){
