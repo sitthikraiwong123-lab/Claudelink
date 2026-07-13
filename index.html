@@ -62,7 +62,7 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .db-part-list{display:flex;flex-direction:column;gap:8px;}
 .db-part-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);
   border-radius:10px;padding:10px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04);}
-.db-part-thumb{width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#eee;cursor:zoom-in;border:1px solid var(--border);}
+.db-part-thumb{width:68px;height:68px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#eee;cursor:zoom-in;border:1px solid var(--border);}
 .db-part-thumb.db-part-noimg{display:flex;align-items:center;justify-content:center;font-size:24px;background:#f0f0f2;color:#9ca3af;cursor:default;}
 .db-part-info{flex:1;min-width:0;}
 .db-edit-btn{flex-shrink:0;width:38px;height:38px;border-radius:9px;border:1px solid var(--border);
@@ -101,6 +101,20 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .epm-restore-card{border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:12.5px;}
 .epm-restore-card .rc-meta{color:var(--gray);font-size:11px;margin-bottom:4px;}
 .epm-restore-card .btn{margin-top:7px;padding:5px 10px;font-size:12px;}
+/* companion-set editor */
+.cset-parts{display:flex;flex-direction:column;gap:6px;}
+.cset-part-row{display:flex;align-items:center;gap:8px;background:#f7f7f8;border-radius:8px;padding:6px 9px;font-size:13px;}
+.cset-main-badge{font-size:10.5px;color:#7c3aed;font-weight:700;min-width:46px;}
+.cset-part-no{font-weight:700;white-space:nowrap;}
+.cset-part-desc{flex:1;color:var(--gray);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cset-mainbtn,.cset-del{background:none;border:none;cursor:pointer;font-size:13px;color:var(--gray);padding:2px 5px;}
+.cset-mainbtn:hover{color:#7c3aed;} .cset-del:hover{color:var(--red);}
+.cset-results{border:1px solid var(--border);border-radius:8px;max-height:210px;overflow:auto;margin-top:6px;}
+.cset-result{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f0f0f1;}
+.cset-result:last-child{border-bottom:none;}
+.cset-result-info{flex:1;font-size:12.5px;min-width:0;}
+.cset-addbtn{padding:4px 14px;font-size:12px;flex-shrink:0;}
+.cset-added{font-size:11.5px;color:var(--green);font-weight:600;flex-shrink:0;}
 .db-section h4{margin:0 0 10px;font-size:12.5px;color:var(--gray);text-transform:uppercase;
   letter-spacing:.04em;font-weight:700;}
 .db-status-line{font-size:12.5px;color:var(--gray);margin-bottom:14px;line-height:1.5;
@@ -1368,6 +1382,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       {key:'recent',  label:`เพิ่งบันทึก (${recent.length})`},
       {key:'machines',label:`เครื่อง (${lookupCache.machines.length})`},
       {key:'parts',   label:`อะไหล่ (${lookupCache.parts.length})`},
+      {key:'sets',    label:`ชุดเบิก (${(lookupCache.companions||[]).length})`},
     ];
     return `<div class="db-tabs">${tabs.map(t=>`
       <button type="button" class="db-tab${dbActiveTab===t.key?' active':''}" data-tab="${t.key}">${t.label}</button>
@@ -1410,6 +1425,154 @@ document.addEventListener('DOMContentLoaded', ()=>{
       </div>`;
     }).join('');
     return `<div class="db-part-list">${html}</div>`;
+  }
+
+  // "ชุดเบิก" list: named companion sets with a combined image + parts (⭐ = main).
+  function renderCompanionSets(sets){
+    const add = `<button type="button" class="btn btn-add-row" id="dbAddSet" style="margin-bottom:12px;"><span class="btn-ico">＋</span> เพิ่มชุดเบิก</button>`;
+    if(!sets || !sets.length) return add + '<div class="db-empty">ยังไม่มีชุดเบิก — กด “เพิ่มชุดเบิก” เพื่อสร้าง</div>';
+    const list = sets.map(s=>{
+      const img = normalizeImageUrl(s.image);
+      const thumb = img
+        ? `<img src="${escAttr(img)}" class="db-part-thumb" data-full="${escAttr(img)}" title="ดูรูปเต็ม">`
+        : `<div class="db-part-thumb db-part-noimg">📷</div>`;
+      const partsHtml = (s.parts||[]).map((p,pi)=>`<span class="alias-tag">${pi===0?'⭐ ':''}${escDb(p)}</span>`).join('') || '<span class="alias-none">ยังไม่มีพาร์ท</span>';
+      return `<div class="db-part-card">
+        ${thumb}
+        <div class="db-part-info">
+          <div class="part-alias-desc">${escDb(s.name||'(ไม่มีชื่อ)')}</div>
+          <div class="alias-tags-wrap">${partsHtml}</div>
+        </div>
+        <button type="button" class="db-edit-btn db-set-edit" data-name="${escAttr(s.name||'')}" title="แก้ไขชุด">✎</button>
+      </div>`;
+    }).join('');
+    return add + `<div class="db-part-list">${list}</div>`;
+  }
+
+  // Set editor modal (create/edit a companion set): name, parts (searchable add
+  // from DB, ⭐=main), one combined image.
+  function openCompanionSetEditor(existing){
+    let name = existing ? String(existing.name||'') : '';
+    const origName = name;
+    let parts = existing ? (existing.parts||[]).slice() : [];
+    let imageValue = existing ? String(existing.image||'') : '';
+    let search = '';
+    const isNew = !existing;
+
+    const ov = document.createElement('div');
+    ov.className = 'edit-part-modal open';
+    const displayImg = ()=> normalizeImageUrl(imageValue) || '';
+
+    function render(){
+      const img = displayImg();
+      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}">` : `<div class="epm-img-preview noimg">📷</div>`;
+      const partsHtml = parts.length ? parts.map((p,i)=>{
+        const part = findPart(p); const desc = part ? String(part.Description||'') : '';
+        return `<div class="cset-part-row">
+          <span class="cset-main-badge">${i===0?'⭐ หลัก':''}</span>
+          <span class="cset-part-no">#${escDb(p)}</span>
+          <span class="cset-part-desc">${escDb(desc)}</span>
+          ${i!==0?`<button type="button" class="cset-mainbtn" data-i="${i}" title="ตั้งเป็นพาร์ทหลัก">⭐</button>`:''}
+          <button type="button" class="cset-del" data-i="${i}" title="ลบออกจากชุด">✕</button>
+        </div>`;
+      }).join('') : '<div class="alias-none">ยังไม่มีพาร์ทในชุด</div>';
+      const q = search.trim().toLowerCase();
+      let results = '';
+      if(q){
+        const matches = (lookupCache.parts||[]).filter(p=>{
+          const a=String(p.ArticleNo||'').toLowerCase(), d=String(p.Description||'').toLowerCase();
+          return a.includes(q) || d.includes(q);
+        }).slice(0,8);
+        const rows = matches.length ? matches.map(p=>{
+          const a=String(p.ArticleNo||'');
+          const inSet = parts.some(x=>x.toLowerCase()===a.toLowerCase());
+          return `<div class="cset-result">
+            <div class="cset-result-info"><b>#${escDb(a)}</b> ${escDb(p.Description||'')}</div>
+            ${inSet?'<span class="cset-added">เพิ่มแล้ว</span>':`<button type="button" class="btn cset-addbtn" data-art="${escAttr(a)}">Add</button>`}
+          </div>`;
+        }).join('') : '<div class="alias-none" style="padding:8px 10px;">ไม่พบพาร์ท</div>';
+        results = `<div class="cset-results">${rows}</div>`;
+      }
+      ov.innerHTML = `
+        <div class="edit-part-dialog">
+          <div class="epm-head"><span>${isNew?'เพิ่มชุดเบิก':'แก้ไขชุดเบิก'}</span><button type="button" class="epm-x">✕</button></div>
+          <div class="epm-body">
+            <label>ชื่อชุด (จำเป็น) <span style="color:var(--red)">*</span><input type="text" class="cset-name" value="${escAttr(name)}" placeholder="เช่น WATERFILTER POLYMER"></label>
+            <div class="epm-img-row">
+              ${imgHtml}
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <label class="btn-file" style="margin:0;"><span class="btn-ico">📷</span> รูปรวมพาร์ท<input type="file" accept="image/*" class="cset-img-input" hidden></label>
+                ${img?'<button type="button" class="btn cset-img-del" style="padding:6px 10px;font-size:12px;">ลบรูป</button>':''}
+              </div>
+            </div>
+            <label>พาร์ทในชุด — พาร์ทแรก (⭐) = หลัก/ตัวกระตุ้น</label>
+            <div class="cset-parts">${partsHtml}</div>
+            <label>เพิ่มพาร์ทจาก DB<input type="text" class="cset-search" value="${escAttr(search)}" placeholder="พิมพ์ค้นหา รหัส/ชื่อ แล้วกด Add"></label>
+            ${results}
+          </div>
+          <div class="epm-actions">
+            ${isNew?'':'<button type="button" class="btn cset-delete" style="color:var(--red);border-color:var(--red);">ลบชุด</button>'}
+            <button type="button" class="btn cset-cancel">ยกเลิก</button>
+            <button type="button" class="btn btn-primary cset-save">บันทึก</button>
+          </div>
+        </div>`;
+      // wire
+      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.cset-cancel').onclick = ()=>userDismissTopModal();
+      const nameInp = ov.querySelector('.cset-name'); nameInp.oninput = ()=>{ name = nameInp.value; };
+      const searchInp = ov.querySelector('.cset-search');
+      searchInp.oninput = ()=>{ search = searchInp.value; render(); const s=ov.querySelector('.cset-search'); if(s){ s.focus(); try{ s.setSelectionRange(s.value.length,s.value.length); }catch(e){} } };
+      ov.querySelectorAll('.cset-addbtn').forEach(b=>{ b.onclick = ()=>{ parts.push(b.dataset.art); render(); }; });
+      ov.querySelectorAll('.cset-del').forEach(b=>{ b.onclick = ()=>{ parts.splice(+b.dataset.i,1); render(); }; });
+      ov.querySelectorAll('.cset-mainbtn').forEach(b=>{ b.onclick = ()=>{ const i=+b.dataset.i; const p=parts.splice(i,1)[0]; parts.unshift(p); render(); }; });
+      const imgDel = ov.querySelector('.cset-img-del'); if(imgDel) imgDel.onclick = ()=>{ imageValue=''; render(); };
+      ov.querySelector('.cset-img-input').onchange = async (e)=>{
+        const f=e.target.files[0]; if(!f) return;
+        try{
+          flashStatus('กำลังอัปโหลดรูป...');
+          const {base64}=await compressForUpload(f);
+          const filename='set_'+(name||'combined').replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40)+'.jpg';
+          const up=await lookupApiCall('uploadImage',{base64,mimeType:'image/jpeg',filename});
+          if(up&&up.url){ imageValue=up.url; flashStatus('อัปโหลดรูปแล้ว'); render(); }
+        }catch(err){ const m=String(err.message||err); flashStatus('อัปโหลดไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':'')); }
+      };
+      const delBtn = ov.querySelector('.cset-delete'); if(delBtn) delBtn.onclick = deleteSet;
+      ov.querySelector('.cset-save').onclick = save;
+    }
+
+    async function save(){
+      name = (name||'').trim();
+      if(!name){ alert('กรุณาตั้งชื่อชุด'); return; }
+      if(!parts.length){ alert('กรุณาเพิ่มพาร์ทอย่างน้อย 1 รายการ'); return; }
+      const btn = ov.querySelector('.cset-save'); if(btn) btn.disabled=true;
+      try{
+        await lookupApiCall('saveCompanionSet', { name, imageURL: imageValue, parts, origName: origName||name });
+        const sets = lookupCache.companions || (lookupCache.companions = []);
+        const set = { name, image: imageValue, parts: parts.slice(), trigger: parts[0]||'' };
+        const i = sets.findIndex(s=>String(s.name||'').toLowerCase() === String(origName||name).toLowerCase());
+        if(i>=0) sets[i]=set; else sets.push(set);
+        await lkvSet('cache', {machines:lookupCache.machines, parts:lookupCache.parts, companions:lookupCache.companions, syncedAt:lookupCache.syncedAt, cacheVersion:LOOKUP_CACHE_VERSION});
+        flashStatus('บันทึกชุดเบิกแล้ว');
+        userDismissTopModal();
+        await renderDbModal();
+      }catch(err){ if(btn)btn.disabled=false; const m=String(err.message||err); alert('บันทึกไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่ (มี saveCompanionSet)':'')); }
+    }
+    async function deleteSet(){
+      if(!confirm('ลบชุดเบิกนี้?')) return;
+      try{
+        await lookupApiCall('deleteCompanionSet', { name: origName });
+        lookupCache.companions = (lookupCache.companions||[]).filter(s=>String(s.name||'').toLowerCase() !== String(origName||'').toLowerCase());
+        await lkvSet('cache', {machines:lookupCache.machines, parts:lookupCache.parts, companions:lookupCache.companions, syncedAt:lookupCache.syncedAt, cacheVersion:LOOKUP_CACHE_VERSION});
+        flashStatus('ลบชุดเบิกแล้ว');
+        userDismissTopModal();
+        await renderDbModal();
+      }catch(err){ alert('ลบไม่สำเร็จ: '+String(err.message||err)); }
+    }
+
+    ov.addEventListener('click', (e)=>{ if(e.target===ov) userDismissTopModal(); });
+    document.body.appendChild(ov);
+    modalOpened();
+    render();
   }
 
   function renderRecentTable(rows){
@@ -1478,6 +1641,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
       sectionHtml = renderDbTable(lookupCache.machines);
     } else if(dbActiveTab === 'parts'){
       sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
+    } else if(dbActiveTab === 'sets'){
+      sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">ชุดพาร์ทที่ต้องเบิกด้วยกัน · ⭐ = พาร์ทหลัก (ตัวกระตุ้น) · แตะรูปเพื่อดูเต็ม</p>` + renderCompanionSets(lookupCache.companions||[]);
     }
 
     body.innerHTML = syncLine + renderDbTabs(recent) + `<div class="db-section-body">${sectionHtml}</div>`;
@@ -1497,9 +1662,15 @@ document.addEventListener('DOMContentLoaded', ()=>{
     body.querySelectorAll('.db-part-thumb[data-full]').forEach(el=>{
       el.onclick = ()=>openImageLightbox(el.dataset.full);
     });
-    // Parts: edit (✎) → audited edit form
-    body.querySelectorAll('.db-edit-btn').forEach(btn=>{
+    // Parts: edit (✎) → audited edit form (exclude the set-edit buttons)
+    body.querySelectorAll('.db-edit-btn:not(.db-set-edit)').forEach(btn=>{
       btn.onclick = ()=>openEditPart(btn.dataset.articleno);
+    });
+    // Sets: add / edit companion set
+    const addSetBtn = body.querySelector('#dbAddSet');
+    if(addSetBtn) addSetBtn.onclick = ()=>openCompanionSetEditor(null);
+    body.querySelectorAll('.db-set-edit').forEach(btn=>{
+      btn.onclick = ()=>{ const s=(lookupCache.companions||[]).find(x=>String(x.name||'')===btn.dataset.name); openCompanionSetEditor(s||null); };
     });
   }
 
@@ -1512,11 +1683,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const part = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === String(articleNo).trim().toLowerCase());
     if(!part){ flashStatus('ไม่พบอะไหล่'); return; }
 
-    let editor = window.prompt('ลงชื่อผู้แก้ไข (จำเป็น):', _lastEditor);
-    if(editor === null) return;               // cancelled
-    editor = editor.trim();
-    if(!editor){ flashStatus('ต้องลงชื่อผู้แก้ไขก่อน'); return; }
-    _lastEditor = editor; try{ localStorage.setItem('editorName', editor); }catch(e){}
+    // Editor name is entered inside the form (required) — no native prompt(), which
+    // some installed-PWA / mobile browsers silently block.
+    let editor = _lastEditor;
 
     const origArticleNo = String(part.ArticleNo||'');
     const origImageRaw = String(part.ImageURL||'');
@@ -1539,7 +1708,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
         <div class="edit-part-dialog">
           <div class="epm-head"><span>แก้ไขอะไหล่</span><button type="button" class="epm-x">✕</button></div>
           <div class="epm-body">
-            <div class="epm-note">ผู้แก้ไข: <b>${escDb(editor)}</b> · ระบบจะสำรองข้อมูลเดิมก่อนบันทึก และกู้คืนได้</div>
+            <div class="epm-note">ระบบจะสำรองข้อมูลเดิม (พร้อมชื่อผู้แก้ไข) ก่อนบันทึกทุกครั้ง และกู้คืนได้</div>
+            <label>ผู้แก้ไข (จำเป็น) <span style="color:var(--red)">*</span><input type="text" class="epm-editor" value="${escAttr(editor)}" placeholder="พิมพ์ชื่อผู้แก้ไข"></label>
             <div class="epm-img-row">
               ${imgHtml}
               <div style="display:flex;flex-direction:column;gap:6px;">
@@ -1561,6 +1731,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         </div>`;
       ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
       ov.querySelector('.epm-cancel').onclick = ()=>userDismissTopModal();
+      const edInp = ov.querySelector('.epm-editor'); edInp.oninput = ()=>{ editor = edInp.value; };
       const artInp = ov.querySelector('.epm-article'); artInp.oninput = ()=>{ artVal = artInp.value; };
       const descInp = ov.querySelector('.epm-desc'); descInp.oninput = ()=>{ descVal = descInp.value; };
       ov.querySelectorAll('.alias-del-btn').forEach(b=>{ b.onclick = ()=>{ aliases.splice(+b.dataset.i,1); renderEdit(); }; });
@@ -1584,6 +1755,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
 
     async function save(){
+      editor = (editor||'').trim();
+      if(!editor){
+        alert('กรุณาลงชื่อผู้แก้ไขก่อนบันทึก');
+        const e = ov.querySelector('.epm-editor'); if(e) e.focus();
+        return;
+      }
+      _lastEditor = editor; try{ localStorage.setItem('editorName', editor); }catch(e){}
       const btn = ov.querySelector('.epm-save'); if(btn) btn.disabled=true;
       const payload = { origArticleNo, editor, newDescription: descVal, aliases };
       const at = artVal.trim();
@@ -1632,10 +1810,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }).join('') + `</div>`;
       bodyEl.querySelectorAll('.epm-restore-btn').forEach(b=>{
         b.onclick = async ()=>{
+          if(!(editor||'').trim()){ alert('กรุณาลงชื่อผู้แก้ไขก่อน (ในหน้าแก้ไข)'); return; }
           if(!confirm('กู้คืนข้อมูลอะไหล่กลับเป็นค่าที่สำรองไว้นี้?')) return;
           b.disabled=true;
           try{
-            await lookupApiCall('restorePart',{rowIndex:+b.dataset.row, editor});
+            await lookupApiCall('restorePart',{rowIndex:+b.dataset.row, editor:(editor||'').trim()});
             flashStatus('กู้คืนข้อมูลแล้ว');
             userDismissTopModal();
             await lookupSync(); await renderDbModal();
@@ -1765,26 +1944,51 @@ function findPart(articleNo){
 // on every blur. Reset by newOrder()/loadOrder().
 let companionPrompted = new Set();
 
-// Returns companion parts for a given trigger Article No that are NOT already in
-// the order, as [{articleNo, description}]. Description is resolved from the DB.
-function getCompanionsFor(triggerArticleNo){
+// A companion SET is {name, image, parts:[...], trigger:parts[0]}. The suggestion
+// fires only when the trigger (main/first) part is chosen.
+function getCompanionSetFor(triggerArticleNo){
   const q = String(triggerArticleNo||'').trim().toLowerCase();
-  if(!q) return [];
-  const groups = lookupCache.companions || [];
+  if(!q) return null;
+  const sets = lookupCache.companions || [];
+  return sets.find(s => String(s.trigger||'').trim().toLowerCase() === q) || null;
+}
+// Companion parts (everything after the main part) for a trigger, excluding any
+// already in the order. [{articleNo, description}] with Description from the DB.
+function getCompanionsFor(triggerArticleNo){
+  const set = getCompanionSetFor(triggerArticleNo);
+  if(!set) return [];
+  const q = String(triggerArticleNo||'').trim().toLowerCase();
   const already = new Set(order.items.map(it => String(it.articleNo||'').trim().toLowerCase()).filter(Boolean));
   const out = [];
   const seen = new Set();
-  groups.forEach(g=>{
-    if(String(g.trigger||'').trim().toLowerCase() !== q) return;
-    (g.companions||[]).forEach(cno=>{
-      const key = String(cno||'').trim().toLowerCase();
-      if(!key || key === q || already.has(key) || seen.has(key)) return;
-      seen.add(key);
-      const part = findPart(cno);
-      out.push({ articleNo: String(cno).trim(), description: part ? String(part.Description||'') : '' });
-    });
+  (set.parts||[]).slice(1).forEach(cno=>{
+    const key = String(cno||'').trim().toLowerCase();
+    if(!key || key === q || already.has(key) || seen.has(key)) return;
+    seen.add(key);
+    const part = findPart(cno);
+    out.push({ articleNo: String(cno).trim(), description: part ? String(part.Description||'') : '' });
   });
   return out;
+}
+// Put the set's combined image on the MAIN part (if it has no photo yet).
+function applyCompanionSetImage(idx, set){
+  const it = order.items[idx];
+  if(!it || it.locked) return;
+  if(it.image && it.image.src) return;
+  const url = set && normalizeImageUrl(set.image);
+  if(!url) return;
+  const helper = new Image(); helper.crossOrigin = 'anonymous';
+  helper.onload = ()=>{
+    if(it.image && it.image.src) return;
+    const boxRatio = 4/3, imgRatio = helper.width/helper.height;
+    let fw, fh;
+    if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; } else { fh = 1; fw = imgRatio/boxRatio; }
+    it.image = { src: url, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, fromDb:true };
+    renderItemPhoto(idx);
+    flashStatus('ใส่รูปรวมของชุดให้พาร์ทหลักแล้ว');
+  };
+  helper.onerror = ()=>{};
+  helper.src = url;
 }
 
 // Called after a part is confirmed on item `idx`. If it triggers companions,
@@ -1799,8 +2003,12 @@ function maybeSuggestCompanions(idx){
   const comps = getCompanionsFor(trigger);
   if(!comps.length) return;
   companionPrompted.add(key);
+  const set = getCompanionSetFor(trigger);
   showCompanionPrompt(trigger, comps).then(yes=>{
-    if(yes) addCompanionRows(idx, comps);
+    if(yes){
+      addCompanionRows(idx, comps);
+      applyCompanionSetImage(idx, set); // combined image → main part's photo
+    }
   });
 }
 

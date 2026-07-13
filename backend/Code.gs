@@ -78,6 +78,8 @@ function handleRequest(e) {
       case 'updatePart':    result = updatePart(params); break;
       case 'getEditLog':    result = getEditLog(params); break;
       case 'restorePart':   result = restorePart(params); break;
+      case 'saveCompanionSet':   result = saveCompanionSet(params); break;
+      case 'deleteCompanionSet': result = deleteCompanionSet(params); break;
       case 'ping':          result = { success: true, time: Date.now() }; break;
       case 'debugHeaders':  result = debugHeaders(); break;
       default:              result = { success: false, error: 'Unknown action: ' + params.action };
@@ -146,29 +148,79 @@ function fullSync() {
     success: true,
     machines: sheetToObjects(SHEETS.MACHINES, MACHINE_HEADER_MAP),
     parts: sheetToObjects(SHEETS.PARTS, PART_HEADER_MAP),
-    companions: getCompanionGroups(),
+    companions: getCompanionSets(),
     syncedAt: Date.now()
   };
 }
 
-// Reads the optional "Companion" tab. Each ROW is one group of parts that are
-// requisitioned together. Column A = the "trigger" Article No; columns B, C, …
-// = the companion Article Nos to suggest when that trigger part is chosen.
-// There is NO header row — put data starting at row 1. Only Article Nos are
-// stored here; the app resolves each Description from the Parts data.
-// Example row:  2232 | 2233 | 2234   → picking 2232 suggests 2233 and 2234.
-// The tab is optional: if it doesn't exist yet, this simply returns [].
-function getCompanionGroups() {
+// Reads the optional "Companion" tab. Each ROW is one "requisition-as-a-set":
+//   Col A = Set Name, Col B = combined-image URL, Col C onwards = part Article
+//   Nos (the FIRST one is the main/trigger part). No header row.
+// Example:  WATERFILTER POLYMER | https://.../img | 72656 | 72657
+//   → picking 72656 suggests 72657, and the set image goes on the main part.
+// Managed in-app via the "ชุดเบิก" tab (saveCompanionSet / deleteCompanionSet).
+// Optional: if the tab doesn't exist, returns [].
+function getCompanionSets() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.COMPANIONS);
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
-  const groups = [];
+  const sets = [];
   data.forEach(function (row) {
-    const cells = row.map(function (c) { return String(c == null ? '' : c).trim(); })
-                     .filter(function (c) { return c !== ''; });
-    if (cells.length >= 2) groups.push({ trigger: cells[0], companions: cells.slice(1) });
+    const name = String(row[0] == null ? '' : row[0]).trim();
+    const image = String(row[1] == null ? '' : row[1]).trim();
+    const parts = row.slice(2).map(function (c) { return String(c == null ? '' : c).trim(); }).filter(function (c) { return c !== ''; });
+    if (name || parts.length) sets.push({ name: name, image: image, parts: parts, trigger: parts[0] || '' });
   });
-  return groups;
+  return sets;
+}
+
+// Find the 1-based row of a set by name (case-insensitive), or -1.
+function findCompanionRow_(sheet, name) {
+  const key = String(name || '').trim().toLowerCase();
+  if (!key) return -1;
+  const data = sheet.getDataRange().getValues();
+  for (var r = 0; r < data.length; r++) {
+    if (String(data[r][0] == null ? '' : data[r][0]).trim().toLowerCase() === key) return r + 1;
+  }
+  return -1;
+}
+
+// Upsert a set. params: { name, imageURL, parts:[...], origName? }
+function saveCompanionSet(params) {
+  const name = String(params.name || '').trim();
+  if (!name) return { success: false, error: 'ต้องตั้งชื่อชุด' };
+  const image = String(params.imageURL || '').trim();
+  const parts = (params.parts || []).map(function (p) { return String(p || '').trim(); }).filter(function (p) { return p; });
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEETS.COMPANIONS);
+  if (!sheet) sheet = ss.insertSheet(SHEETS.COMPANIONS);
+
+  const rowValues = [name, image].concat(parts);
+  const origName = String(params.origName || name).trim();
+  let rowNum = findCompanionRow_(sheet, origName);
+  // if renaming to a name that already exists elsewhere, block
+  if (origName.toLowerCase() !== name.toLowerCase()) {
+    const clash = findCompanionRow_(sheet, name);
+    if (clash !== -1 && clash !== rowNum) return { success: false, error: 'มีชุดชื่อ "' + name + '" อยู่แล้ว' };
+  }
+  if (rowNum === -1) {
+    sheet.appendRow(rowValues);
+  } else {
+    // clear the old row first (it may have had more parts than the new one)
+    sheet.getRange(rowNum, 1, 1, Math.max(sheet.getLastColumn(), rowValues.length)).clearContent();
+    sheet.getRange(rowNum, 1, 1, rowValues.length).setValues([rowValues]);
+  }
+  return { success: true, name: name };
+}
+
+function deleteCompanionSet(params) {
+  const name = String(params.name || '').trim();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEETS.COMPANIONS);
+  if (!sheet) return { success: true };
+  const rowNum = findCompanionRow_(sheet, name);
+  if (rowNum !== -1) sheet.deleteRow(rowNum);
+  return { success: true };
 }
 
 function deltaSync(params) {
@@ -184,7 +236,7 @@ function deltaSync(params) {
     success: true,
     machines: filtered(SHEETS.MACHINES, MACHINE_HEADER_MAP),
     parts: filtered(SHEETS.PARTS, PART_HEADER_MAP),
-    companions: getCompanionGroups(), // small list — always sent in full, even on delta sync
+    companions: getCompanionSets(), // small list — always sent in full, even on delta sync
     syncedAt: Date.now()
   };
 }
