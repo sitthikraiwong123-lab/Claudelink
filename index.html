@@ -150,6 +150,59 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .db-table tr:last-child td{border-bottom:none;}
 .db-table tbody tr:nth-child(even){background:#fbfbfc;}
 
+/* ============================================================
+   "ข้อมูล Database" viewer — modern palette / readability pass.
+   Scoped to #dbModalBody so only the DB page is restyled.
+   ============================================================ */
+#dbModalBody{ background:#eef1f5; padding:16px 14px; }
+#dbModalBody .db-status-line{ background:#fff; border:1px solid #e6e8ec; box-shadow:0 1px 2px rgba(16,24,40,.05); color:#475467; }
+#dbModalBody .db-status-line.err{ background:#fef2f2; border-color:#fecaca; }
+/* segmented tab bar */
+#dbModalBody .db-tabs{ gap:5px; background:#fff; padding:5px; border-radius:12px; border:1px solid #e6e8ec; box-shadow:0 1px 2px rgba(16,24,40,.05); }
+#dbModalBody .db-tab{ border:none; background:transparent; color:#667085; font-weight:600; border-radius:8px; padding:8px 4px; transition:background .15s,color .15s; }
+#dbModalBody .db-tab:hover{ background:#f2f4f7; color:#1d2939; }
+#dbModalBody .db-tab.active{ background:var(--red); color:#fff; box-shadow:0 2px 7px rgba(228,29,21,.32); }
+/* data table: firmer header, clearer zebra + row hover */
+#dbModalBody .db-table-wrap{ border-color:#e6e8ec; box-shadow:0 1px 3px rgba(16,24,40,.07); }
+#dbModalBody .db-table th{ background:#f4f6f9; color:#344054; border-bottom:2px solid #e3e6ea; }
+#dbModalBody .db-table td{ color:#1d2939; border-bottom-color:#eef0f3; }
+#dbModalBody .db-table tbody tr:nth-child(even){ background:#f7f9fc; }
+#dbModalBody .db-table tbody tr:hover{ background:#fff6f5; }
+/* soft hover lift on the card lists */
+#dbModalBody .db-part-card, #dbModalBody .trash-card, #dbModalBody .db-card{ border-color:#e6e8ec; transition:box-shadow .15s, transform .12s; }
+#dbModalBody .db-part-card:hover, #dbModalBody .trash-card:hover, #dbModalBody .db-card:hover{ box-shadow:0 5px 16px rgba(16,24,40,.10); transform:translateY(-1px); }
+#dbModalBody .part-alias-no{ color:#98a2b3; }
+#dbModalBody .part-alias-desc{ color:#101828; }
+#dbModalBody .db-empty{ background:#fff; border-color:#e6e8ec; color:#667085; }
+
+/* "เพิ่มรายการใหม่" toolbar + button */
+.db-add-bar{ display:flex; justify-content:flex-end; margin-bottom:12px; }
+.db-add-btn{ display:inline-flex; align-items:center; gap:7px; background:var(--red); color:#fff; border:none;
+  border-radius:10px; padding:10px 16px; font-size:13px; font-weight:700; box-shadow:0 2px 8px rgba(228,29,21,.28);
+  transition:transform .12s, box-shadow .15s; }
+.db-add-btn:hover{ box-shadow:0 5px 15px rgba(228,29,21,.38); }
+.db-add-btn:active{ transform:scale(.97); }
+.db-add-btn .ico{ font-size:16px; line-height:1; }
+
+/* add-machine form (inside the shared .edit-part-modal shell) */
+.addm-form{ display:flex; flex-direction:column; gap:13px; }
+.addm-form > label{ display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--gray); font-weight:600; }
+.addm-form .req{ color:var(--red); }
+
+/* add-parts multi-row form */
+.addp-hint{ font-size:11.5px; color:var(--gray); background:#f7f7f8; border-radius:8px; padding:8px 10px; line-height:1.45; }
+.addp-list{ display:flex; flex-direction:column; gap:10px; }
+.addp-row{ border:1px solid var(--border); border-radius:11px; padding:10px 11px 12px; background:#fcfcfd;
+  display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.addp-row .addp-idx{ grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between;
+  font-size:11px; font-weight:700; color:var(--gray); letter-spacing:.02em; }
+.addp-row .addp-del{ background:none; border:none; color:#98a2b3; font-size:16px; cursor:pointer; padding:0 2px; line-height:1; }
+.addp-row .addp-del:hover{ color:var(--red); }
+.addp-row .addp-predict{ grid-column:1 / -1; }
+.addp-add{ align-self:flex-start; border:1.5px dashed var(--border); background:#fafafa; color:var(--red);
+  font-weight:700; border-radius:9px; padding:8px 14px; font-size:12.5px; }
+.addp-add:hover{ background:#fff5f4; border-color:var(--red); }
+
 /* card list for "recently added" - has buttons, needs room, doesn't fit a rigid table well */
 .db-card-list{display:flex;flex-direction:column;gap:8px;}
 .db-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 12px;
@@ -1622,6 +1675,170 @@ document.addEventListener('DOMContentLoaded', ()=>{
     render();
   }
 
+  // ============================================================
+  // ADD NEW ITEMS (machines / spare parts) from the DB viewer.
+  // Both reuse the existing recordNew backend action, so no Code.gs
+  // change is needed. Autocomplete options are seeded from the static
+  // lists AND every distinct value already present in the DB.
+  // ============================================================
+
+  // Distinct, trimmed, non-empty values of one field across DB rows.
+  function dbDistinctValues(rows, key){
+    const seen = new Set();
+    (rows||[]).forEach(r=>{ const v = String(r[key]==null?'':r[key]).trim(); if(v) seen.add(v); });
+    return [...seen];
+  }
+  // Seed list ∪ values seen in the DB, de-duped case-insensitively, sorted.
+  function mergeAutocomplete(seed, dynamic){
+    const out = [], lower = new Set();
+    [...(seed||[]), ...(dynamic||[])].forEach(v=>{
+      const s = String(v==null?'':v).trim(); if(!s) return;
+      const k = s.toLowerCase(); if(lower.has(k)) return;
+      lower.add(k); out.push(s);
+    });
+    return out.sort((a,b)=>a.localeCompare(b));
+  }
+
+  // ----- Add a new MACHINE (Customer / Machine No / Machine Type) -----
+  function openAddMachine(){
+    let customer = '', machineNo = '', machineType = '';
+    const custOpts = mergeAutocomplete(CUSTOMERS, dbDistinctValues(lookupCache.machines, 'CustomerName'));
+    const typeOpts = mergeAutocomplete(MACHINE_TYPES, dbDistinctValues(lookupCache.machines, 'MachineType'));
+
+    const ov = document.createElement('div');
+    ov.className = 'edit-part-modal open';
+    ov.innerHTML = `
+      <div class="edit-part-dialog">
+        <div class="epm-head"><span>➕ เพิ่มเครื่องใหม่</span><button type="button" class="epm-x">✕</button></div>
+        <div class="epm-body">
+          <div class="addm-form">
+            <label>Customer Name<div class="addm-cust"></div></label>
+            <label>Machine No <span class="req">*</span><input type="text" class="addm-no" placeholder="เช่น M-2401" autocomplete="off"></label>
+            <label>Machine Type / Model<div class="addm-type"></div></label>
+          </div>
+        </div>
+        <div class="epm-actions">
+          <button type="button" class="btn addm-cancel">ยกเลิก</button>
+          <button type="button" class="btn btn-primary addm-save">บันทึกเครื่อง</button>
+        </div>
+      </div>`;
+
+    const custBox = buildComboBox(custOpts, '', v=>{ customer = v; }, '- เลือก/พิมพ์ชื่อลูกค้า -');
+    const typeBox = buildComboBox(typeOpts, '', v=>{ machineType = v; }, '- เลือก/พิมพ์รุ่นเครื่อง -');
+    ov.querySelector('.addm-cust').appendChild(custBox);
+    ov.querySelector('.addm-type').appendChild(typeBox);
+    const noInp = ov.querySelector('.addm-no');
+    noInp.oninput = e=>{ machineNo = e.target.value; };
+
+    async function save(){
+      machineNo = (machineNo||'').trim(); customer = (customer||'').trim(); machineType = (machineType||'').trim();
+      if(!machineNo){ alert('กรุณากรอก Machine No'); noInp.focus(); return; }
+      const btn = ov.querySelector('.addm-save'); btn.disabled = true;
+      try{
+        await lookupQueueOrSend('recordNew', {type:'Machine', data:{ MachineNumber:machineNo, CustomerName:customer, MachineType:machineType }});
+        // optimistic: show it immediately (works offline too), unless already present
+        if(!findMachine(machineNo)){
+          lookupCache.machines.push({ MachineNumber:machineNo, CustomerName:customer, MachineType:machineType });
+          lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
+        }
+        flashStatus('เพิ่มเครื่องแล้ว: ' + machineNo);
+        userDismissTopModal();
+        dbActiveTab = 'machines';
+        await renderDbModal();
+        lookupSync();                              // reconcile with server in the background
+      }catch(err){ btn.disabled = false; alert('บันทึกไม่สำเร็จ: ' + String(err.message||err)); }
+    }
+
+    ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+    ov.querySelector('.addm-cancel').onclick = ()=>userDismissTopModal();
+    ov.querySelector('.addm-save').onclick = save;
+    ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+    document.body.appendChild(ov);
+    modalOpened();
+    setTimeout(()=>{ const i = custBox.querySelector('input'); if(i) i.focus(); }, 30);
+  }
+
+  // ----- Add one or more SPARE PARTS (Article No / Part Name / Predict Word) -----
+  // The "＋ เพิ่มบรรทัด" button lets several parts be entered before saving.
+  function openAddParts(){
+    let rows = [{ articleNo:'', description:'', predict:'' }];
+    const ov = document.createElement('div');
+    ov.className = 'edit-part-modal open';
+
+    function render(){
+      ov.innerHTML = `
+        <div class="edit-part-dialog">
+          <div class="epm-head"><span>➕ เพิ่มอะไหล่ใหม่</span><button type="button" class="epm-x">✕</button></div>
+          <div class="epm-body">
+            <div class="addp-hint">กรอกได้หลายรายการพร้อมกัน · <b>Predict Word</b> = คำค้นหาเพิ่มเติม (ต้องมี Article No.) · กด <b>＋ เพิ่มบรรทัด</b> เพื่อเพิ่มอะไหล่</div>
+            <div class="addp-list">
+              ${rows.map((r,i)=>`
+                <div class="addp-row" data-i="${i}">
+                  <div class="addp-idx"><span>รายการที่ ${i+1}</span>${rows.length>1?`<button type="button" class="addp-del" data-i="${i}" title="ลบแถวนี้">✕</button>`:''}</div>
+                  <input type="text" class="addp-art" data-i="${i}" placeholder="Article No." value="${escAttr(r.articleNo)}" autocomplete="off">
+                  <input type="text" class="addp-name" data-i="${i}" placeholder="Part Name (ชื่ออะไหล่)" value="${escAttr(r.description)}" autocomplete="off">
+                  <input type="text" class="addp-predict" data-i="${i}" placeholder="Predict Word (คำค้นหา)" value="${escAttr(r.predict)}" autocomplete="off">
+                </div>`).join('')}
+            </div>
+            <button type="button" class="addp-add"><span class="btn-ico">＋</span> เพิ่มบรรทัด</button>
+          </div>
+          <div class="epm-actions">
+            <button type="button" class="btn addp-cancel">ยกเลิก</button>
+            <button type="button" class="btn btn-primary addp-save">บันทึกทั้งหมด</button>
+          </div>
+        </div>`;
+      ov.querySelectorAll('.addp-art').forEach(el=>{ const i=+el.dataset.i; el.oninput=e=>{ rows[i].articleNo = e.target.value; }; });
+      ov.querySelectorAll('.addp-name').forEach(el=>{ const i=+el.dataset.i; el.oninput=e=>{ rows[i].description = e.target.value; }; });
+      ov.querySelectorAll('.addp-predict').forEach(el=>{ const i=+el.dataset.i; el.oninput=e=>{ rows[i].predict = e.target.value; }; });
+      ov.querySelectorAll('.addp-del').forEach(b=>{ b.onclick=()=>{ rows.splice(+b.dataset.i,1); render(); }; });
+      ov.querySelector('.addp-add').onclick = ()=>{
+        rows.push({ articleNo:'', description:'', predict:'' }); render();
+        setTimeout(()=>{ const els=ov.querySelectorAll('.addp-art'); const last=els[els.length-1]; if(last) last.focus(); }, 20);
+      };
+      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.addp-cancel').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.addp-save').onclick = save;
+    }
+
+    async function save(){
+      const valid = rows
+        .map(r=>({ articleNo:(r.articleNo||'').trim(), description:(r.description||'').trim(), predict:(r.predict||'').trim() }))
+        .filter(r=>r.articleNo || r.description);
+      if(!valid.length){ alert('กรุณากรอกอย่างน้อย 1 รายการ (Article No. หรือ Part Name)'); return; }
+      const btn = ov.querySelector('.addp-save'); if(btn) btn.disabled = true;
+      let ok = 0;
+      try{
+        for(const r of valid){
+          // 1) create the part (ArticleNo + Part Name)
+          await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:r.articleNo, Description:r.description }});
+          // 2) attach the predict word as a searchable alias (needs an Article No)
+          if(r.articleNo && r.predict){
+            await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:r.articleNo, Description:r.predict }});
+          }
+          // optimistic cache insert so it shows at once (skip obvious duplicates)
+          if(r.articleNo && !findPart(r.articleNo)){
+            const rec = { ArticleNo:r.articleNo, Description:r.description };
+            if(r.predict) rec['Suggestion word1'] = r.predict;
+            lookupCache.parts.push(rec);
+          }
+          ok++;
+        }
+        lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
+        flashStatus('เพิ่มอะไหล่แล้ว ' + ok + ' รายการ');
+        userDismissTopModal();
+        dbActiveTab = 'parts';
+        await renderDbModal();
+        lookupSync();                              // reconcile with server in the background
+      }catch(err){ if(btn) btn.disabled = false; alert('บันทึกไม่สำเร็จ: ' + String(err.message||err)); }
+    }
+
+    ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+    document.body.appendChild(ov);
+    modalOpened();
+    render();
+    setTimeout(()=>{ const i = ov.querySelector('.addp-art'); if(i) i.focus(); }, 30);
+  }
+
   function renderRecentTable(rows){
     if(!rows || !rows.length) return '<div class="db-empty">ยังไม่มีรายการที่เพิ่งบันทึก</div>';
     const cards = rows.map((r,i) => {
@@ -1685,9 +1902,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(dbActiveTab === 'recent'){
       sectionHtml = renderRecentTable(recent);
     } else if(dbActiveTab === 'machines'){
-      sectionHtml = renderDbTable(lookupCache.machines);
+      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddMachine"><span class="ico">＋</span> เพิ่มเครื่องใหม่</button></div>` + renderDbTable(lookupCache.machines);
     } else if(dbActiveTab === 'parts'){
-      sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
+      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddPart"><span class="ico">＋</span> เพิ่มอะไหล่ใหม่</button></div>`
+        + `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
     } else if(dbActiveTab === 'sets'){
       sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">ชุดพาร์ทที่ต้องเบิกด้วยกัน · ⭐ = พาร์ทหลัก (ตัวกระตุ้น) · แตะรูปเพื่อดูเต็ม</p>` + renderCompanionSets(lookupCache.companions||[]);
     } else if(dbActiveTab === 'trash'){
@@ -1738,6 +1956,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
         }
       };
     });
+    // Machines / Parts: add-new buttons
+    const addMachineBtn = body.querySelector('#dbAddMachine');
+    if(addMachineBtn) addMachineBtn.onclick = ()=>openAddMachine();
+    const addPartBtn = body.querySelector('#dbAddPart');
+    if(addPartBtn) addPartBtn.onclick = ()=>openAddParts();
     // Sets: add / edit companion set
     const addSetBtn = body.querySelector('#dbAddSet');
     if(addSetBtn) addSetBtn.onclick = ()=>openCompanionSetEditor(null);
