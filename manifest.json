@@ -3,7 +3,7 @@
   "short_name": "Schmoll Export",
   "description": "สร้างใบสั่ง Export / Warranty สำหรับเครื่องจักร Schmoll และ export เป็น PDF A4",
   "lang": "th",
-  "start_url": "./index.html",
+  "start_url": "./Warranty%20App.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
