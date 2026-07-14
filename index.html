@@ -1604,18 +1604,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .reimb-bar input{border:none;border-bottom:2px solid var(--line);padding:6px 4px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;background:transparent;transition:border-color .18s;flex:1;min-width:150px}
 .reimb-bar input:focus{border-bottom-color:var(--red)}
 /* ── สวิตช์เปลี่ยนภาษา (ซ้าย=ไทย, ขวา=English) ── */
-.lang-switch{position:relative;width:72px;height:30px;border-radius:999px;border:1.5px solid var(--line);
+.lang-switch{position:relative;width:64px;height:30px;border-radius:999px;border:1.5px solid var(--line);
   background:#f1f3f6;cursor:pointer;padding:0;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
   -webkit-tap-highlight-color:transparent;transition:background .2s}
-.lang-switch .ls-flag{font-size:13px;line-height:1;opacity:.45;pointer-events:none;transition:opacity .2s}
+/* ธงวาดด้วย SVG (ไม่ใช้ emoji — Windows แสดง emoji ธงไม่ได้) */
+.lang-switch .flg{width:18px;height:12px;display:block;border-radius:2px;box-shadow:0 0 0 .5px rgba(0,0,0,.18)}
+.lang-switch .ls-flag{line-height:0;opacity:.4;pointer-events:none;transition:opacity .2s;display:flex}
 .lang-switch .ls-th{margin-left:6px}
-.lang-switch .ls-en{margin-right:7px;font-size:9.5px;font-weight:800;letter-spacing:.3px;color:var(--mid);font-family:inherit}
-.lang-switch .ls-knob{position:absolute;top:2px;left:2px;width:30px;height:24px;border-radius:999px;background:#fff;
-  box-shadow:0 2px 6px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;
-  font-weight:800;letter-spacing:.3px;
+.lang-switch .ls-en{margin-right:6px}
+.lang-switch .ls-knob{position:absolute;top:2px;left:2px;width:26px;height:24px;border-radius:999px;background:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;line-height:0;
   transition:transform .22s cubic-bezier(.34,1.4,.64,1);pointer-events:none}
+.lang-switch .ls-knob .flg{width:19px;height:13px}
+.lang-switch.th .kn-en,.lang-switch.en .kn-th{display:none}
 .lang-switch.en{background:#e8f0fe;border-color:#c3d7fb}
-.lang-switch.en .ls-knob{transform:translateX(38px);font-size:10px;color:#1a56db}
+.lang-switch.en .ls-knob{transform:translateX(32px)}
 .lang-switch.th .ls-th{opacity:1}
 .lang-switch.en .ls-en{opacity:1}
 /* ช่องวันที่ทุกจุด: กดได้ทั้งช่อง (แตะที่ไหนก็เปิดปฏิทิน) */
@@ -1959,9 +1962,12 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
     <div class="cb-left"><span class="cb-dot" id="cbDot"></span><span id="cbStatus">โหมดออฟไลน์ — ยังไม่เชื่อม Google Sheet</span></div>
     <div class="cb-right">
       <button class="lang-switch" id="langSwitch" onclick="toggleLang()" role="switch" aria-label="Language / ภาษา" title="เลื่อนซ้าย = ไทย · เลื่อนขวา = English">
-        <span class="ls-flag ls-th">🇹🇭</span>
-        <span class="ls-flag ls-en">ENG</span>
-        <span class="ls-knob" id="lsKnob">🇹🇭</span>
+        <span class="ls-flag ls-th"><svg class="flg" viewBox="0 0 9 6" aria-hidden="true"><rect width="9" height="6" fill="#fff"/><rect width="9" height="1" y="0" fill="#A51931"/><rect width="9" height="2" y="2" fill="#2D2A4A"/><rect width="9" height="1" y="5" fill="#A51931"/></svg></span>
+        <span class="ls-flag ls-en"><svg class="flg" viewBox="0 0 60 30" aria-hidden="true"><clipPath id="uk1"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk1)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg></span>
+        <span class="ls-knob" id="lsKnob">
+          <span class="kn-th"><svg class="flg" viewBox="0 0 9 6" aria-hidden="true"><rect width="9" height="6" fill="#fff"/><rect width="9" height="1" y="0" fill="#A51931"/><rect width="9" height="2" y="2" fill="#2D2A4A"/><rect width="9" height="1" y="5" fill="#A51931"/></svg></span>
+          <span class="kn-en"><svg class="flg" viewBox="0 0 60 30" aria-hidden="true"><clipPath id="uk2"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk2)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg></span>
+        </span>
       </button>
       <button class="btn btn-out btn-sm" id="cbSettings" onclick="openSettings()">⚙️ Google Sync</button>
     </div>
@@ -4410,7 +4416,7 @@ function setLang(lang){
   const sw=document.getElementById("langSwitch");
   if(sw){ sw.classList.toggle("en",state.lang==="en"); sw.classList.toggle("th",state.lang!=="en");
     sw.setAttribute("aria-checked", state.lang==="en"?"true":"false"); }
-  const kn=document.getElementById("lsKnob"); if(kn) kn.textContent = state.lang==="en" ? "ENG" : "🇹🇭";
+  // ธงใน knob สลับด้วย CSS ตาม class .th / .en (ไม่ใช้ emoji เพราะ Windows แสดงธงไม่ได้)
   document.documentElement.lang = state.lang;
   saveState(); applyLang();
 }
