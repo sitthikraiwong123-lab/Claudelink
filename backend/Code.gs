@@ -750,7 +750,12 @@ function updatePart(params) {
   const lastModCol = findColIdx(info.headers, 'LastModified');
   if (lastModCol !== -1) info.sheet.getRange(rowNum, lastModCol + 1).setValue(new Date());
 
-  return { success: true, articleNo: newArticleNo };
+  // Echo the stored image path back so the caller can confirm/rebind without
+  // waiting for the next sync.
+  const finalImageURL = (params.imageURL !== undefined)
+    ? String(params.imageURL)
+    : (imgHeader ? String(oldData[imgHeader] || '') : '');
+  return { success: true, articleNo: newArticleNo, imageURL: finalImageURL };
 }
 
 function getEditLog(params) {

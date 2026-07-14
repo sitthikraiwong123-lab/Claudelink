@@ -1493,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       url += (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + _imgCacheToken;
     }
     return url
-      ? `<img src="${escAttr(url)}" class="${cls}" data-full="${escAttr(url)}" title="แตะเพื่อดูรูปเต็ม" onerror="this.classList.add('db-part-noimg');this.removeAttribute('src');this.removeAttribute('data-full');">`
+      ? `<img src="${escAttr(url)}" data-src="${escAttr(url)}" class="${cls}" data-full="${escAttr(url)}" title="แตะเพื่อดูรูปเต็ม" onerror="dbImgRetry(this)">`
       : `<div class="${cls} db-part-noimg" title="ยังไม่มีรูป">📷</div>`;
   }
 
@@ -1586,7 +1586,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
     function render(){
       const img = displayImg();
-      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}">` : `<div class="epm-img-preview noimg">📷</div>`;
+      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}" data-src="${escAttr(img)}" onerror="dbImgRetry(this)">` : `<div class="epm-img-preview noimg">📷</div>`;
       const partsHtml = parts.length ? parts.map((p,i)=>{
         const part = findPart(p); const desc = part ? String(part.Description||'') : '';
         return `<div class="cset-part-row">
@@ -2129,7 +2129,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
     function renderEdit(){
       const img = displayImg();
-      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}">` : `<div class="epm-img-preview noimg">📷</div>`;
+      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}" data-src="${escAttr(img)}" onerror="dbImgRetry(this)">` : `<div class="epm-img-preview noimg">📷</div>`;
       const aliasTags = aliases.length
         ? aliases.map((a,i)=>`<span class="alias-tag">${escDb(a)}<button type="button" class="alias-del-btn" data-i="${i}">✕</button></span>`).join('')
         : '<span class="alias-none">ยังไม่มีคำค้นหา</span>';
@@ -2530,6 +2530,31 @@ function normalizeImageUrl(url){
   if(m) return 'https://lh3.googleusercontent.com/d/' + m[1];
   return String(url).trim();
 }
+
+/* Retry-then-fallback loader for DB part images (used via inline onerror).
+   A freshly uploaded Drive file can take a few seconds before
+   lh3.googleusercontent.com will actually serve it, so the FIRST load attempt
+   often 404s even though the upload + sheet update succeeded. Degrading to the
+   📷 placeholder on that first error made correctly-saved images look missing.
+   Instead: retry up to 3 times with growing delays (~1.2s/2.4s/3.6s), each with
+   a fresh ?r= param so the failed response isn't replayed from cache; only
+   after all retries fail do we show the placeholder. (Global on window because
+   it's called from inline onerror attributes in template strings.) */
+window.dbImgRetry = function(el){
+  const tries = +(el.dataset.retry || 0);
+  const base = el.dataset.src || '';
+  if(tries < 3 && /^https?:/i.test(base)){
+    el.dataset.retry = tries + 1;
+    setTimeout(function(){
+      if(!el.isConnected) return;               // view re-rendered meanwhile
+      el.src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'r=' + Date.now();
+    }, 1200 * (tries + 1));
+  } else {
+    // final fallback: placeholder styling, stop the lightbox link
+    el.classList.add('db-part-noimg'); el.classList.add('noimg');
+    el.removeAttribute('src'); el.removeAttribute('data-full');
+  }
+};
 
 function searchAnyField(list, query, limit){
   const q = (query||'').trim().toLowerCase();
