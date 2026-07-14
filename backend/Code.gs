@@ -472,16 +472,23 @@ function setImageURL(params) {
   let realArticleNoHeader = 'Article No.';
   Object.keys(PART_HEADER_MAP).forEach(rh => { if (PART_HEADER_MAP[rh] === 'ArticleNo') realArticleNoHeader = rh; });
   const articleNoColIdx = findColIdx(headers, realArticleNoHeader);
-  const imageUrlColIdx = findColIdx(headers, 'ImageURL');
 
+  // Auto-create the ImageURL column if the sheet doesn't have one yet, so the
+  // first-ever image attach (e.g. from the Add-Spare-Part form) doesn't fail.
+  // This mirrors updatePart(), which also creates the column on demand.
+  let imageUrlColIdx = findColIdx(headers, 'ImageURL');
   if (imageUrlColIdx === -1) {
-    throw new Error('ImageURL column not found in "' + SHEETS.PARTS + '" tab — please add it first');
+    imageUrlColIdx = headers.length;
+    sheet.getRange(1, imageUrlColIdx + 1).setValue('ImageURL');
   }
+  const lastModColIdx = findColIdx(headers, 'LastModified');
 
   const keyLower = articleNo.toLowerCase();
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][articleNoColIdx]).trim().toLowerCase() !== keyLower) continue;
     sheet.getRange(r + 1, imageUrlColIdx + 1).setValue(url);
+    // Bump LastModified so the next deltaSync re-emits this row with its image.
+    if (lastModColIdx !== -1) sheet.getRange(r + 1, lastModColIdx + 1).setValue(new Date());
     return { success: true, updated: true, row: r + 1 };
   }
   return { success: true, updated: false, message: 'ArticleNo not found in sheet' };

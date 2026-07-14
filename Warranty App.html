@@ -104,6 +104,9 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 /* companion-set editor */
 .cset-parts{display:flex;flex-direction:column;gap:6px;}
 .cset-part-row{display:flex;align-items:center;gap:8px;background:#f7f7f8;border-radius:8px;padding:6px 9px;font-size:13px;}
+/* small part thumbnail shared with the parts list (same image-fetch logic) */
+.cset-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#eee;border:1px solid var(--border);}
+.cset-thumb.db-part-noimg{display:flex;align-items:center;justify-content:center;font-size:16px;background:#f0f0f2;color:#9ca3af;}
 .cset-main-badge{font-size:10.5px;color:#7c3aed;font-weight:700;min-width:46px;}
 .cset-part-no{font-weight:700;white-space:nowrap;}
 .cset-part-desc{flex:1;color:var(--gray);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -1473,21 +1476,30 @@ document.addEventListener('DOMContentLoaded', ()=>{
     return `<div class="db-table-wrap" style="overflow:auto;"><table class="db-table">${head}${body}</table></div>${more}`;
   }
 
+  // Shared part-thumbnail renderer. Every view (parts list, kit editor, kit
+  // search) fetches the image the SAME way — normalizeImageUrl(part.ImageURL) —
+  // with a graceful 📷 fallback when there's no image or the URL fails to load.
+  // Centralising this means a fix here applies everywhere at once.
+  function partThumbHtml(part, cls){
+    const url = part ? normalizeImageUrl(part.ImageURL) : '';
+    cls = cls || 'db-part-thumb';
+    return url
+      ? `<img src="${escAttr(url)}" class="${cls}" data-full="${escAttr(url)}" title="แตะเพื่อดูรูปเต็ม" onerror="this.classList.add('db-part-noimg');this.removeAttribute('src');this.removeAttribute('data-full');">`
+      : `<div class="${cls} db-part-noimg" title="ยังไม่มีรูป">📷</div>`;
+  }
+
   // Merged parts list: thumbnail up front (tap = full-image lightbox), code +
   // description + predict-words, and an edit (✎) button per row.
   function renderPartsList(parts){
     if(!parts || !parts.length) return '<div class="db-empty">ไม่มีข้อมูล (0 แถว)</div>';
     const html = parts.slice(0, 100).map(p => {
       const articleNo = String(p.ArticleNo||'');
-      const imgUrl = normalizeImageUrl(p.ImageURL);
       const aliasCols = Object.keys(p).filter(k => /suggestion\s*word/i.test(k));
       const aliases = aliasCols.filter(k => String(p[k]||'').trim()).map(k => escDb(p[k]));
       const aliasHtml = aliases.length
         ? `<div class="alias-tags-wrap">${aliases.map(a=>`<span class="alias-tag">${a}</span>`).join('')}</div>`
         : '<div class="alias-none">ยังไม่มีคำค้นหาอื่น</div>';
-      const thumb = imgUrl
-        ? `<img src="${escAttr(imgUrl)}" class="db-part-thumb" data-full="${escAttr(imgUrl)}" title="แตะเพื่อดูรูปเต็ม" onerror="this.classList.add('db-part-noimg');this.removeAttribute('src');this.removeAttribute('data-full');">`
-        : `<div class="db-part-thumb db-part-noimg" title="ยังไม่มีรูป">📷</div>`;
+      const thumb = partThumbHtml(p);
       return `<div class="db-part-card">
         ${thumb}
         <div class="db-part-info">
@@ -1570,6 +1582,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         const part = findPart(p); const desc = part ? String(part.Description||'') : '';
         return `<div class="cset-part-row">
           <span class="cset-main-badge">${i===0?'⭐ หลัก':''}</span>
+          ${partThumbHtml(part, 'cset-thumb')}
           <span class="cset-part-no">#${escDb(p)}</span>
           <span class="cset-part-desc">${escDb(desc)}</span>
           ${i!==0?`<button type="button" class="cset-mainbtn" data-i="${i}" title="ตั้งเป็นพาร์ทหลัก">⭐</button>`:''}
@@ -1587,6 +1600,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
           const a=String(p.ArticleNo||'');
           const inSet = parts.some(x=>x.toLowerCase()===a.toLowerCase());
           return `<div class="cset-result">
+            ${partThumbHtml(p, 'cset-thumb')}
             <div class="cset-result-info"><b>#${escDb(a)}</b> ${escDb(p.Description||'')}</div>
             ${inSet?'<span class="cset-added">เพิ่มแล้ว</span>':`<button type="button" class="btn cset-addbtn" data-art="${escAttr(a)}">Add</button>`}
           </div>`;
@@ -1836,38 +1850,53 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(!articleNo && (preds.length || imageData)){ alert('ต้องมี Article No. เพื่อบันทึกรูปภาพหรือคำค้นหา'); return; }
       const btn = ov.querySelector('.addp-save'); if(btn) btn.disabled = true;
       try{
-        // 1) create the part (Article No + Part Name)
-        await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:articleNo, Description:partName }});
-        // 2) each predict word → a searchable alias on that Article No
+        // 1) upload the photo FIRST so its URL can be written together with the
+        //    part row in one shot. (uploadImage needs to be online; a failure
+        //    here just leaves imageUrl empty and the part still saves.)
+        let imageUrl = '';
+        if(imageData && articleNo){
+          flashStatus('กำลังอัปโหลดรูป...');
+          const filename = articleNo + '_' + partName.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
+          try{
+            const up = await lookupApiCall('uploadImage', { base64:imageData.base64, mimeType:'image/jpeg', filename });
+            if(up && up.url) imageUrl = up.url;
+          }catch(imgErr){
+            const m = String(imgErr.message||imgErr);
+            flashStatus('อัปโหลดรูปไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':''));
+          }
+        }
+        // 2) create the part WITH its ImageURL in the same record, so the image
+        //    is persisted atomically when the row is appended (matches the proven
+        //    codeless-part path — no reliance on a second call landing).
+        await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:articleNo, Description:partName, ImageURL:imageUrl }});
+        // 3) belt-and-suspenders: also write via setImageURL (now auto-creates the
+        //    ImageURL column if the sheet lacks one). Use lookupApiCall directly so
+        //    a real failure surfaces here instead of being silently queued.
+        if(imageUrl && articleNo){
+          try{ await lookupApiCall('setImageURL', { articleNo, url:imageUrl }); }
+          catch(imgErr){ const m=String(imgErr.message||imgErr); flashStatus('บันทึกรูปลงชีตไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':'')); }
+        }
+        // 4) each predict word → a searchable alias on that Article No
         for(const w of preds){
           await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:articleNo, Description:w }});
         }
-        // 3) photo → upload to Drive, then link the URL to that Article No.
-        //    (kept in its own try so a photo hiccup never loses the saved part)
-        let imageUrl = '';
-        if(imageData && articleNo){
-          try{
-            flashStatus('กำลังอัปโหลดรูป...');
-            const filename = articleNo + '_' + partName.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
-            const up = await lookupApiCall('uploadImage', { base64:imageData.base64, mimeType:'image/jpeg', filename });
-            if(up && up.url){ imageUrl = up.url; await lookupQueueOrSend('setImageURL', { articleNo, url:imageUrl }); }
-          }catch(imgErr){
-            const m = String(imgErr.message||imgErr);
-            flashStatus('บันทึกอะไหล่แล้ว แต่ขึ้นรูปไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':''));
-          }
-        }
-        // optimistic cache insert so it shows immediately (skip obvious duplicate)
-        if(articleNo && !findPart(articleNo)){
+        // optimistic cache so it shows immediately with its image
+        const existing = articleNo ? findPart(articleNo) : null;
+        if(articleNo && !existing){
           const rec = { ArticleNo:articleNo, Description:partName, ImageURL:imageUrl };
           preds.forEach((w,i)=>{ rec['Suggestion word'+(i+1)] = w; });
           lookupCache.parts.push(rec);
+        } else if(existing && imageUrl){
+          existing.ImageURL = imageUrl;             // part already cached → just bind the new image
         }
         lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
         flashStatus('เพิ่มอะไหล่แล้ว: ' + (articleNo || partName));
         userDismissTopModal();
         dbActiveTab = 'parts';
         await renderDbModal();
-        lookupSync();                              // reconcile with server in the background
+        // reconcile with the server, then re-render so the authoritative row (and
+        // a freshly-propagated image) is reflected without a manual refresh.
+        lookupSync().then(()=>{ if(dbActiveTab==='parts' && document.getElementById('dbModalBody')) renderDbModal(); });
       }catch(err){ if(btn) btn.disabled = false; alert('บันทึกไม่สำเร็จ: ' + String(err.message||err)); }
     }
 
