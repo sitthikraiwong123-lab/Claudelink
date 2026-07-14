@@ -651,6 +651,33 @@ function findPartRow_(info, articleNo) {
   return null;
 }
 
+// Extracts a Drive file id from any URL shape we store/produce:
+//   https://lh3.googleusercontent.com/d/FILEID
+//   https://drive.google.com/file/d/FILEID/view
+//   https://drive.google.com/uc?export=view&id=FILEID
+function driveIdFromUrl_(url) {
+  const s = String(url || '');
+  let m = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (m) return m[1];
+  m = s.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+  if (m) return m[1];
+  return '';
+}
+
+// Best-effort: move a replaced image to Drive trash so overwritten files don't
+// pile up as orphans. Uses trash (recoverable for ~30 days) rather than a hard
+// delete, and NEVER throws — a missing / foreign / inaccessible file is fine.
+function trashDriveImage_(url) {
+  try {
+    const id = driveIdFromUrl_(url);
+    if (!id) return false;
+    DriveApp.getFileById(id).setTrashed(true);   // getFileById throws if gone → caught below
+    return true;
+  } catch (e) {
+    return false;                                 // cleanup is optional; ignore failures
+  }
+}
+
 function updatePart(params) {
   const editor = String(params.editor || '').trim();
   if (!editor) return { success: false, error: 'ต้องระบุชื่อผู้แก้ไขก่อน (editor required)' };
@@ -684,9 +711,16 @@ function updatePart(params) {
     info.sheet.getRange(rowNum, info.descCol + 1).setValue(String(params.newDescription));
 
   if (params.imageURL !== undefined) {
+    const oldImageUrl = imgHeader ? String(oldData[imgHeader] || '') : '';
+    const newImageUrl = String(params.imageURL);
     let imgCol = info.imageCol;
     if (imgCol < 0) { imgCol = info.headers.length; info.sheet.getRange(1, imgCol + 1).setValue('ImageURL'); }
-    info.sheet.getRange(rowNum, imgCol + 1).setValue(String(params.imageURL));
+    info.sheet.getRange(rowNum, imgCol + 1).setValue(newImageUrl);
+    // Orphan cleanup: if the image actually changed to a different Drive file
+    // (or was cleared), trash the previous one so it doesn't linger forever.
+    if (oldImageUrl && driveIdFromUrl_(oldImageUrl) && driveIdFromUrl_(oldImageUrl) !== driveIdFromUrl_(newImageUrl)) {
+      trashDriveImage_(oldImageUrl);
+    }
   }
 
   if (params.aliases !== undefined) {
@@ -710,6 +744,11 @@ function updatePart(params) {
 
   // rename LAST, so all the lookups above matched on the original key
   if (renaming) info.sheet.getRange(rowNum, info.articleNoCol + 1).setValue(newArticleNo);
+
+  // Stamp LastModified so the next deltaSync re-emits this row on every device
+  // (without this, an edited image/description silently fails to propagate).
+  const lastModCol = findColIdx(info.headers, 'LastModified');
+  if (lastModCol !== -1) info.sheet.getRange(rowNum, lastModCol + 1).setValue(new Date());
 
   return { success: true, articleNo: newArticleNo };
 }

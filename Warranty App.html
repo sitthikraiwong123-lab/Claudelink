@@ -1476,13 +1476,22 @@ document.addEventListener('DOMContentLoaded', ()=>{
     return `<div class="db-table-wrap" style="overflow:auto;"><table class="db-table">${head}${body}</table></div>${more}`;
   }
 
+  // Cache-buster token: bumped whenever a part image is added/replaced/removed
+  // so the browser re-fetches the changed image instead of serving a stale one.
+  // It stays constant between changes, so normal caching still applies otherwise.
+  let _imgCacheToken = '';
+
   // Shared part-thumbnail renderer. Every view (parts list, kit editor, kit
   // search) fetches the image the SAME way — normalizeImageUrl(part.ImageURL) —
   // with a graceful 📷 fallback when there's no image or the URL fails to load.
   // Centralising this means a fix here applies everywhere at once.
   function partThumbHtml(part, cls){
-    const url = part ? normalizeImageUrl(part.ImageURL) : '';
+    let url = part ? normalizeImageUrl(part.ImageURL) : '';
     cls = cls || 'db-part-thumb';
+    // Append the cache-buster to remote images only (never to data: URIs).
+    if(url && _imgCacheToken && /^https?:/i.test(url)){
+      url += (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + _imgCacheToken;
+    }
     return url
       ? `<img src="${escAttr(url)}" class="${cls}" data-full="${escAttr(url)}" title="แตะเพื่อดูรูปเต็ม" onerror="this.classList.add('db-part-noimg');this.removeAttribute('src');this.removeAttribute('data-full');">`
       : `<div class="${cls} db-part-noimg" title="ยังไม่มีรูป">📷</div>`;
@@ -1889,6 +1898,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         } else if(existing && imageUrl){
           existing.ImageURL = imageUrl;             // part already cached → just bind the new image
         }
+        if(imageUrl) _imgCacheToken = Date.now();    // fresh image → bust any stale browser cache
         lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
         flashStatus('เพิ่มอะไหล่แล้ว: ' + (articleNo || partName));
         userDismissTopModal();
@@ -2214,7 +2224,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       try{
         await lookupApiCall('updatePart', payload);
         part.Description = descVal;
-        if(newImageValue !== undefined) part.ImageURL = newImageValue;
+        if(newImageValue !== undefined){ part.ImageURL = newImageValue; _imgCacheToken = Date.now(); }
         Object.keys(part).filter(k=>/suggestion\s*word/i.test(k)).forEach(k=>{ part[k]=''; });
         aliases.forEach((a,i)=>{ part['Suggestion word'+(i+1)] = a; });
         if(payload.newArticleNo) part.ArticleNo = payload.newArticleNo;
