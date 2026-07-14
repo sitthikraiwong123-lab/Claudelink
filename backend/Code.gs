@@ -74,6 +74,7 @@ function handleRequest(e) {
       case 'deleteAlias':   result = deleteAlias(params); break;
       case 'uploadImage':   result = uploadImage(params); break;
       case 'setImageURL':   result = setImageURL(params); break;
+      case 'repairImages':  result = repairImages(params); break;
       case 'deleteAlias':   result = deleteAlias(params); break;
       case 'updatePart':    result = updatePart(params); break;
       case 'getEditLog':    result = getEditLog(params); break;
@@ -487,11 +488,43 @@ function setImageURL(params) {
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][articleNoColIdx]).trim().toLowerCase() !== keyLower) continue;
     sheet.getRange(r + 1, imageUrlColIdx + 1).setValue(url);
+    ensureImageShared_(url);                     // make it viewable in <img> tags
     // Bump LastModified so the next deltaSync re-emits this row with its image.
     if (lastModColIdx !== -1) sheet.getRange(r + 1, lastModColIdx + 1).setValue(new Date());
     return { success: true, updated: true, row: r + 1 };
   }
   return { success: true, updated: false, message: 'ArticleNo not found in sheet' };
+}
+
+// One-shot repair for every part image: re-apply anyone-with-link sharing to
+// each Drive file referenced in the ImageURL column. Fixes rows whose URL was
+// pasted by hand from the Drive app (private file → <img> can never load it)
+// and any app upload whose setSharing call failed. Read-safe on the sheet
+// itself (only Drive permissions are touched). Returns per-row results.
+function repairImages() {
+  const sheet = getSheet(SHEETS.PARTS);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const imageUrlColIdx = findColIdx(headers, 'ImageURL');
+  if (imageUrlColIdx === -1) return { success: true, checked: 0, fixed: 0, failed: 0 };
+
+  let realArticleNoHeader = 'Article No.';
+  Object.keys(PART_HEADER_MAP).forEach(rh => { if (PART_HEADER_MAP[rh] === 'ArticleNo') realArticleNoHeader = rh; });
+  const articleNoColIdx = findColIdx(headers, realArticleNoHeader);
+
+  let checked = 0, fixed = 0, failed = 0;
+  const failures = [];
+  for (let r = 1; r < data.length; r++) {
+    const url = String(data[r][imageUrlColIdx] || '').trim();
+    if (!url || !driveIdFromUrl_(url)) continue;
+    checked++;
+    if (ensureImageShared_(url)) { fixed++; }
+    else {
+      failed++;
+      failures.push(String(articleNoColIdx !== -1 ? data[r][articleNoColIdx] : ('row ' + (r + 1))));
+    }
+  }
+  return { success: true, checked: checked, fixed: fixed, failed: failed, failures: failures.slice(0, 20) };
 }
 
 function debugHeaders() {
@@ -678,6 +711,22 @@ function trashDriveImage_(url) {
   }
 }
 
+// Best-effort: make sure the Drive file behind an image URL is viewable by
+// anyone with the link. Without this, a URL pasted by hand from the Drive app
+// (e.g. .../view?usp=drivesdk on a private file) is stored fine but can NEVER
+// render in an <img> tag for other people — the exact "uploaded but no
+// preview" symptom. Called whenever we store an image URL. Never throws.
+function ensureImageShared_(url) {
+  try {
+    const id = driveIdFromUrl_(url);
+    if (!id) return false;
+    DriveApp.getFileById(id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return true;
+  } catch (e) {
+    return false;                                 // foreign/missing file → leave as-is
+  }
+}
+
 function updatePart(params) {
   const editor = String(params.editor || '').trim();
   if (!editor) return { success: false, error: 'ต้องระบุชื่อผู้แก้ไขก่อน (editor required)' };
@@ -716,6 +765,7 @@ function updatePart(params) {
     let imgCol = info.imageCol;
     if (imgCol < 0) { imgCol = info.headers.length; info.sheet.getRange(1, imgCol + 1).setValue('ImageURL'); }
     info.sheet.getRange(rowNum, imgCol + 1).setValue(newImageUrl);
+    ensureImageShared_(newImageUrl);             // make it viewable in <img> tags
     // Orphan cleanup: if the image actually changed to a different Drive file
     // (or was cleared), trash the previous one so it doesn't linger forever.
     if (oldImageUrl && driveIdFromUrl_(oldImageUrl) && driveIdFromUrl_(oldImageUrl) !== driveIdFromUrl_(newImageUrl)) {

@@ -1795,6 +1795,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const ov = document.createElement('div');
     ov.className = 'edit-part-modal open';
 
+    // Same unsaved-photo guard as the edit form: the photo is only uploaded +
+    // linked when บันทึกอะไหล่ is pressed, so closing with a photo attached
+    // would silently lose it.
+    const confirmDiscard = ()=> !imageData
+      || confirm('รูปที่แนบยังไม่ถูกบันทึก\nปิดโดยไม่บันทึกใช่หรือไม่? (ต้องกด “บันทึกอะไหล่” รูปจึงจะขึ้นในหน้าอะไหล่)');
+
     function render(){
       const imgHtml = imageData
         ? `<img class="epm-img-preview" src="${escAttr(imageData.src)}">`
@@ -1846,8 +1852,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
         catch(err){ flashStatus('เตรียมรูปไม่สำเร็จ'); }
       };
       const imgDel = ov.querySelector('.addp-img-del'); if(imgDel) imgDel.onclick = ()=>{ imageData = null; render(); };
-      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
-      ov.querySelector('.addp-cancel').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.epm-x').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
+      ov.querySelector('.addp-cancel').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
       ov.querySelector('.addp-save').onclick = save;
     }
 
@@ -1910,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }catch(err){ if(btn) btn.disabled = false; alert('บันทึกไม่สำเร็จ: ' + String(err.message||err)); }
     }
 
-    ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+    ov.addEventListener('click', e=>{ if(e.target===ov && confirmDiscard()) userDismissTopModal(); });
     document.body.appendChild(ov);
     modalOpened();
     render();
@@ -1982,8 +1988,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     } else if(dbActiveTab === 'machines'){
       sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddMachine"><span class="ico">＋</span> เพิ่มเครื่องใหม่</button></div>` + renderDbTable(lookupCache.machines);
     } else if(dbActiveTab === 'parts'){
-      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddPart"><span class="ico">＋</span> เพิ่มอะไหล่ใหม่</button></div>`
-        + `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
+      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddPart"><span class="ico">＋</span> เพิ่มอะไหล่ใหม่</button><button type="button" class="db-add-btn" id="dbRepairImages" title="ตั้งสิทธิ์แชร์รูปทุกไฟล์ใหม่ ให้รูปที่ไม่ขึ้นกลับมาแสดงได้">🔧 ซ่อมรูป</button></div>`
+        + `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่ · รูปไม่ขึ้น? กด “🔧 ซ่อมรูป”</p>` + renderPartsList(lookupCache.parts);
     } else if(dbActiveTab === 'sets'){
       sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">ชุดพาร์ทที่ต้องเบิกด้วยกัน · ⭐ = พาร์ทหลัก (ตัวกระตุ้น) · แตะรูปเพื่อดูเต็ม</p>` + renderCompanionSets(lookupCache.companions||[]);
     } else if(dbActiveTab === 'trash'){
@@ -2039,6 +2045,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(addMachineBtn) addMachineBtn.onclick = ()=>openAddMachine();
     const addPartBtn = body.querySelector('#dbAddPart');
     if(addPartBtn) addPartBtn.onclick = ()=>openAddParts();
+    // Parts: repair image sharing (fixes hand-pasted private Drive links, and
+    // any upload whose sharing call failed) then re-sync + re-render.
+    const repairBtn = body.querySelector('#dbRepairImages');
+    if(repairBtn) repairBtn.onclick = async ()=>{
+      if(!confirm('ตั้งสิทธิ์แชร์รูปอะไหล่ทุกไฟล์ใหม่ (anyone with link) เพื่อให้รูปที่ไม่ขึ้นกลับมาแสดง?')) return;
+      repairBtn.disabled = true; repairBtn.textContent = '🔧 กำลังซ่อม...';
+      try{
+        const res = await lookupApiCall('repairImages', {});
+        flashStatus(`ซ่อมรูปแล้ว: ตรวจ ${res.checked||0} · สำเร็จ ${res.fixed||0}` + (res.failed ? ` · แก้ไม่ได้ ${res.failed} (${(res.failures||[]).join(', ')})` : ''));
+        await lookupSync();
+        await renderDbModal();
+      }catch(err){
+        repairBtn.disabled = false; repairBtn.textContent = '🔧 ซ่อมรูป';
+        const m = String(err.message||err);
+        alert('ซ่อมรูปไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่ (มี repairImages)':''));
+      }
+    };
     // Sets: add / edit companion set
     const addSetBtn = body.querySelector('#dbAddSet');
     if(addSetBtn) addSetBtn.onclick = ()=>openCompanionSetEditor(null);
@@ -2127,6 +2150,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
     ov.className = 'edit-part-modal open';
     const displayImg = ()=> normalizeImageUrl(newImageValue !== undefined ? newImageValue : origImageRaw) || '';
 
+    // Guard: an uploaded image reaches the sheet only when the user presses
+    // "บันทึกการแก้ไข". Closing the form after changing the image silently
+    // orphans the upload on Drive — the classic "uploaded but no preview"
+    // trap — so confirm before discarding.
+    const confirmDiscard = ()=> newImageValue === undefined
+      || confirm('รูปที่เปลี่ยนยังไม่ถูกบันทึกลงฐานข้อมูล\nปิดโดยไม่บันทึกใช่หรือไม่? (ต้องกด “บันทึกการแก้ไข” รูปจึงจะแสดงในหน้าอะไหล่)');
+
     function renderEdit(){
       const img = displayImg();
       const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}" data-src="${escAttr(img)}" onerror="dbImgRetry(this)">` : `<div class="epm-img-preview noimg">📷</div>`;
@@ -2159,8 +2189,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
             <button type="button" class="btn btn-primary epm-save">บันทึกการแก้ไข</button>
           </div>
         </div>`;
-      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
-      ov.querySelector('.epm-cancel').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.epm-x').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
+      ov.querySelector('.epm-cancel').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
       const chgBtn = ov.querySelector('.epm-changeuser');
       if(chgBtn) chgBtn.onclick = async ()=>{ const e2 = await requireEditorSignIn(); if(e2){ editor = e2; renderEdit(); } };
       const artInp = ov.querySelector('.epm-article'); artInp.oninput = ()=>{ artVal = artInp.value; };
@@ -2277,7 +2307,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       });
     }
 
-    ov.addEventListener('click', (e)=>{ if(e.target===ov) userDismissTopModal(); });
+    ov.addEventListener('click', (e)=>{ if(e.target===ov && confirmDiscard()) userDismissTopModal(); });
     document.body.appendChild(ov);
     modalOpened();
     renderEdit();
