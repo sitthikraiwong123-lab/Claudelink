@@ -189,16 +189,16 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .addm-form > label{ display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--gray); font-weight:600; }
 .addm-form .req{ color:var(--red); }
 
-/* add-parts multi-row form */
+/* add-parts form (single part: Article No / Part Name / photo / many predict words) */
 .addp-hint{ font-size:11.5px; color:var(--gray); background:#f7f7f8; border-radius:8px; padding:8px 10px; line-height:1.45; }
-.addp-list{ display:flex; flex-direction:column; gap:10px; }
-.addp-row{ border:1px solid var(--border); border-radius:11px; padding:10px 11px 12px; background:#fcfcfd;
-  display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.addp-row .addp-idx{ grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between;
-  font-size:11px; font-weight:700; color:var(--gray); letter-spacing:.02em; }
-.addp-row .addp-del{ background:none; border:none; color:#98a2b3; font-size:16px; cursor:pointer; padding:0 2px; line-height:1; }
-.addp-row .addp-del:hover{ color:var(--red); }
-.addp-row .addp-predict{ grid-column:1 / -1; }
+.addp-form{ display:flex; flex-direction:column; gap:12px; }
+.addp-form > label{ display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--gray); font-weight:600; }
+.addp-form .req{ color:var(--red); }
+.addp-predict-list{ display:flex; flex-direction:column; gap:7px; }
+.addp-predict-row{ display:flex; gap:7px; align-items:center; }
+.addp-predict-row .addp-predict{ flex:1; min-width:0; }
+.addp-predict-del{ background:none; border:none; color:#98a2b3; font-size:16px; cursor:pointer; padding:0 4px; line-height:1; flex-shrink:0; }
+.addp-predict-del:hover{ color:var(--red); }
 .addp-add{ align-self:flex-start; border:1.5px dashed var(--border); background:#fafafa; color:var(--red);
   font-weight:700; border-radius:9px; padding:8px 14px; font-size:12.5px; }
 .addp-add:hover{ background:#fff5f4; border-color:var(--red); }
@@ -1760,71 +1760,110 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   // ----- Add one or more SPARE PARTS (Article No / Part Name / Predict Word) -----
   // The "＋ เพิ่มบรรทัด" button lets several parts be entered before saving.
+  // ONE spare part per entry: Article No. + Part Name + a photo + any number of
+  // Predict Words ("＋ เพิ่มคำค้นหา" adds another predict-word input row). Save
+  // creates the part, attaches every predict word as a searchable alias, and
+  // uploads + links the photo to that Article No. — all via existing backend
+  // actions (recordNew / uploadImage / setImageURL), so no Code.gs change.
   function openAddParts(){
-    let rows = [{ articleNo:'', description:'', predict:'' }];
+    let articleNo = '', partName = '';
+    let predicts = [''];                 // predict-word inputs; "＋" appends one
+    let imageData = null;                // {src, base64} after local compression; null = no photo
     const ov = document.createElement('div');
     ov.className = 'edit-part-modal open';
 
     function render(){
+      const imgHtml = imageData
+        ? `<img class="epm-img-preview" src="${escAttr(imageData.src)}">`
+        : `<div class="epm-img-preview noimg">📷</div>`;
       ov.innerHTML = `
         <div class="edit-part-dialog">
           <div class="epm-head"><span>➕ เพิ่มอะไหล่ใหม่</span><button type="button" class="epm-x">✕</button></div>
           <div class="epm-body">
-            <div class="addp-hint">กรอกได้หลายรายการพร้อมกัน · <b>Predict Word</b> = คำค้นหาเพิ่มเติม (ต้องมี Article No.) · กด <b>＋ เพิ่มบรรทัด</b> เพื่อเพิ่มอะไหล่</div>
-            <div class="addp-list">
-              ${rows.map((r,i)=>`
-                <div class="addp-row" data-i="${i}">
-                  <div class="addp-idx"><span>รายการที่ ${i+1}</span>${rows.length>1?`<button type="button" class="addp-del" data-i="${i}" title="ลบแถวนี้">✕</button>`:''}</div>
-                  <input type="text" class="addp-art" data-i="${i}" placeholder="Article No." value="${escAttr(r.articleNo)}" autocomplete="off">
-                  <input type="text" class="addp-name" data-i="${i}" placeholder="Part Name (ชื่ออะไหล่)" value="${escAttr(r.description)}" autocomplete="off">
-                  <input type="text" class="addp-predict" data-i="${i}" placeholder="Predict Word (คำค้นหา)" value="${escAttr(r.predict)}" autocomplete="off">
-                </div>`).join('')}
+            <div class="addp-hint">กรอกอะไหล่ 1 รายการ · แนบรูปของอะไหล่ได้ · กด <b>＋ เพิ่มคำค้นหา</b> เพื่อเพิ่ม Predict Word ได้หลายคำ (รูป/คำค้นหา ต้องมี Article No.)</div>
+            <div class="addp-form">
+              <div class="epm-img-row">
+                ${imgHtml}
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <label class="btn-file" style="margin:0;"><span class="btn-ico">📷</span> ${imageData?'เปลี่ยนรูป':'เพิ่มรูป'}<input type="file" accept="image/*" class="addp-img-input" hidden></label>
+                  ${imageData?'<button type="button" class="btn addp-img-del" style="padding:6px 10px;font-size:12px;">ลบรูป</button>':''}
+                </div>
+              </div>
+              <label>Article No. <span class="req">*</span><input type="text" class="addp-art" placeholder="รหัสอะไหล่" value="${escAttr(articleNo)}" autocomplete="off"></label>
+              <label>Part Name (ชื่ออะไหล่)<input type="text" class="addp-name" placeholder="ชื่ออะไหล่" value="${escAttr(partName)}" autocomplete="off"></label>
+              <label>Predict Word (คำค้นหา)</label>
+              <div class="addp-predict-list">
+                ${predicts.map((p,i)=>`
+                  <div class="addp-predict-row" data-i="${i}">
+                    <input type="text" class="addp-predict" data-i="${i}" placeholder="คำค้นหาที่ ${i+1}" value="${escAttr(p)}" autocomplete="off">
+                    ${predicts.length>1?`<button type="button" class="addp-predict-del" data-i="${i}" title="ลบคำนี้">✕</button>`:''}
+                  </div>`).join('')}
+              </div>
+              <button type="button" class="addp-add"><span class="btn-ico">＋</span> เพิ่มคำค้นหา</button>
             </div>
-            <button type="button" class="addp-add"><span class="btn-ico">＋</span> เพิ่มบรรทัด</button>
           </div>
           <div class="epm-actions">
             <button type="button" class="btn addp-cancel">ยกเลิก</button>
-            <button type="button" class="btn btn-primary addp-save">บันทึกทั้งหมด</button>
+            <button type="button" class="btn btn-primary addp-save">บันทึกอะไหล่</button>
           </div>
         </div>`;
-      ov.querySelectorAll('.addp-art').forEach(el=>{ const i=+el.dataset.i; el.oninput=e=>{ rows[i].articleNo = e.target.value; }; });
-      ov.querySelectorAll('.addp-name').forEach(el=>{ const i=+el.dataset.i; el.oninput=e=>{ rows[i].description = e.target.value; }; });
-      ov.querySelectorAll('.addp-predict').forEach(el=>{ const i=+el.dataset.i; el.oninput=e=>{ rows[i].predict = e.target.value; }; });
-      ov.querySelectorAll('.addp-del').forEach(b=>{ b.onclick=()=>{ rows.splice(+b.dataset.i,1); render(); }; });
+      // field bindings (values live in state, so re-render preserves them)
+      ov.querySelector('.addp-art').oninput = e=>{ articleNo = e.target.value; };
+      ov.querySelector('.addp-name').oninput = e=>{ partName = e.target.value; };
+      ov.querySelectorAll('.addp-predict').forEach(el=>{ const i=+el.dataset.i; el.oninput=e=>{ predicts[i] = e.target.value; }; });
+      ov.querySelectorAll('.addp-predict-del').forEach(b=>{ b.onclick=()=>{ predicts.splice(+b.dataset.i,1); render(); }; });
       ov.querySelector('.addp-add').onclick = ()=>{
-        rows.push({ articleNo:'', description:'', predict:'' }); render();
-        setTimeout(()=>{ const els=ov.querySelectorAll('.addp-art'); const last=els[els.length-1]; if(last) last.focus(); }, 20);
+        predicts.push(''); render();
+        setTimeout(()=>{ const els=ov.querySelectorAll('.addp-predict'); const last=els[els.length-1]; if(last) last.focus(); }, 20);
       };
+      // photo: compress locally now (for preview), upload on Save
+      ov.querySelector('.addp-img-input').onchange = async (e)=>{
+        const f = e.target.files[0]; if(!f) return;
+        try{ flashStatus('กำลังเตรียมรูป...'); imageData = await compressForUpload(f); flashStatus('แนบรูปแล้ว (กดบันทึกเพื่อยืนยัน)'); render(); }
+        catch(err){ flashStatus('เตรียมรูปไม่สำเร็จ'); }
+      };
+      const imgDel = ov.querySelector('.addp-img-del'); if(imgDel) imgDel.onclick = ()=>{ imageData = null; render(); };
       ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
       ov.querySelector('.addp-cancel').onclick = ()=>userDismissTopModal();
       ov.querySelector('.addp-save').onclick = save;
     }
 
     async function save(){
-      const valid = rows
-        .map(r=>({ articleNo:(r.articleNo||'').trim(), description:(r.description||'').trim(), predict:(r.predict||'').trim() }))
-        .filter(r=>r.articleNo || r.description);
-      if(!valid.length){ alert('กรุณากรอกอย่างน้อย 1 รายการ (Article No. หรือ Part Name)'); return; }
+      articleNo = (articleNo||'').trim();
+      partName  = (partName||'').trim();
+      const preds = predicts.map(p=>(p||'').trim()).filter(Boolean);
+      if(!articleNo && !partName){ alert('กรุณากรอก Article No. หรือ Part Name'); return; }
+      if(!articleNo && (preds.length || imageData)){ alert('ต้องมี Article No. เพื่อบันทึกรูปภาพหรือคำค้นหา'); return; }
       const btn = ov.querySelector('.addp-save'); if(btn) btn.disabled = true;
-      let ok = 0;
       try{
-        for(const r of valid){
-          // 1) create the part (ArticleNo + Part Name)
-          await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:r.articleNo, Description:r.description }});
-          // 2) attach the predict word as a searchable alias (needs an Article No)
-          if(r.articleNo && r.predict){
-            await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:r.articleNo, Description:r.predict }});
+        // 1) create the part (Article No + Part Name)
+        await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:articleNo, Description:partName }});
+        // 2) each predict word → a searchable alias on that Article No
+        for(const w of preds){
+          await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo:articleNo, Description:w }});
+        }
+        // 3) photo → upload to Drive, then link the URL to that Article No.
+        //    (kept in its own try so a photo hiccup never loses the saved part)
+        let imageUrl = '';
+        if(imageData && articleNo){
+          try{
+            flashStatus('กำลังอัปโหลดรูป...');
+            const filename = articleNo + '_' + partName.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
+            const up = await lookupApiCall('uploadImage', { base64:imageData.base64, mimeType:'image/jpeg', filename });
+            if(up && up.url){ imageUrl = up.url; await lookupQueueOrSend('setImageURL', { articleNo, url:imageUrl }); }
+          }catch(imgErr){
+            const m = String(imgErr.message||imgErr);
+            flashStatus('บันทึกอะไหล่แล้ว แต่ขึ้นรูปไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':''));
           }
-          // optimistic cache insert so it shows at once (skip obvious duplicates)
-          if(r.articleNo && !findPart(r.articleNo)){
-            const rec = { ArticleNo:r.articleNo, Description:r.description };
-            if(r.predict) rec['Suggestion word1'] = r.predict;
-            lookupCache.parts.push(rec);
-          }
-          ok++;
+        }
+        // optimistic cache insert so it shows immediately (skip obvious duplicate)
+        if(articleNo && !findPart(articleNo)){
+          const rec = { ArticleNo:articleNo, Description:partName, ImageURL:imageUrl };
+          preds.forEach((w,i)=>{ rec['Suggestion word'+(i+1)] = w; });
+          lookupCache.parts.push(rec);
         }
         lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
-        flashStatus('เพิ่มอะไหล่แล้ว ' + ok + ' รายการ');
+        flashStatus('เพิ่มอะไหล่แล้ว: ' + (articleNo || partName));
         userDismissTopModal();
         dbActiveTab = 'parts';
         await renderDbModal();
