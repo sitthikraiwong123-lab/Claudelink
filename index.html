@@ -407,7 +407,7 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 
 /* ===== Print/Export template (html2canvas -> jsPDF image embed) ===== */
 .pdoc{
-  width: 210mm; height: 297mm; padding: 15mm 26mm 15mm 26mm;
+  width: 210mm; height: 297mm; padding: 15mm 13mm 15mm 13mm;
   font-family: 'SarabunPrint', Arial, sans-serif; font-size: 9pt; color: #000;
   box-sizing: border-box;
 }
@@ -417,12 +417,12 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 .pcol-mno, .pcol-mtype, .pcol-art, .pcol-desc,
 .pcol-photoA, .pcol-photoB { box-sizing: border-box; }
 
-.pmeta{ width:158mm; table-layout:fixed; font-size:8pt; font-weight:bold; color:#6d6e71; margin-bottom:2mm; }
+.pmeta{ width:184mm; table-layout:fixed; border-collapse:collapse; font-size:8pt; font-weight:bold; color:#6d6e71; margin-bottom:2mm; }
 .pmeta td{ padding:0; }
 
-table.pframe-top{ width:158mm; table-layout:fixed; border-collapse:collapse; border-left:1.5px solid #C00000; border-right:1.5px solid #C00000; border-top:1.5px solid #C00000; }
+table.pframe-top{ width:184mm; table-layout:fixed; border-collapse:collapse; border-left:1.5px solid #C00000; border-right:1.5px solid #C00000; border-top:1.5px solid #C00000; }
 table.pframe-top > tbody > tr > td{ border-bottom:1px solid #000; padding:0; }
-table.pframe-bottom{ width:158mm; table-layout:fixed; border-collapse:collapse; border-left:2px solid #000; border-right:2px solid #000; border-bottom:2px solid #000; }
+table.pframe-bottom{ width:184mm; table-layout:fixed; border-collapse:collapse; border-left:2px solid #000; border-right:2px solid #000; border-bottom:2px solid #000; }
 table.pframe-bottom > tbody > tr > td{ padding:0; }
 
 .ptitle-row td{ border-bottom:2.5px solid #000 !important; padding:2mm 3mm; height:16mm; }
@@ -456,7 +456,7 @@ table.pframe-bottom > tbody > tr > td{ padding:0; }
 .psection-bar td{ text-align:center; font-weight:bold; font-size:13pt; padding:1.5mm 0; border-bottom:2px solid #000 !important; }
 .psection-bar.photo td{ border-top:2px solid #000 !important; }
 
-table.pitem{ width:158mm; table-layout:fixed; border-collapse:collapse; }
+table.pitem{ width:184mm; table-layout:fixed; border-collapse:collapse; }
 table.pitem th, table.pitem td{
   border:1px solid #000; padding:1mm 2mm; font-size:8.5pt; height:5mm; vertical-align:middle;
   word-wrap:break-word; overflow-wrap:break-word;
@@ -469,9 +469,9 @@ table.pitem th{ font-weight:bold; text-align:center; height:auto; }
 /* Codes/short values read cleaner centered; the descriptive column stays left. */
 table.pitem td.pcol-mno, table.pitem td.pcol-mtype, table.pitem td.pcol-art{ text-align:center; }
 table.pitem th.pcol-desc, table.pitem td.pcol-desc{ text-align:left; }
-.pcol-mno{ width:23mm; } .pcol-mtype{ width:30mm; } .pcol-art{ width:23mm; } .pcol-desc{ width:82mm; }
+.pcol-mno{ width:26mm; } .pcol-mtype{ width:34mm; } .pcol-art{ width:26mm; } .pcol-desc{ width:98mm; }
 
-table.pphoto{ width:158mm; table-layout:fixed; border-collapse:collapse; }
+table.pphoto{ width:184mm; table-layout:fixed; border-collapse:collapse; }
 table.pphoto td{ border:1px solid #000; vertical-align:top; padding:0; }
 table.pphoto tr:first-child td{ border-top:none !important; }
 table.pphoto tr:last-child td{ border-bottom:none !important; }
@@ -483,7 +483,7 @@ table.pphoto tr td:last-child{ border-right:none !important; }
 .part-val{ text-align:center; font-size:8.5pt; padding:1mm 2mm; height:6mm; box-sizing:border-box; border-bottom:1px solid #000; }
 .pimg-cell{ height:50mm; position:relative; overflow:hidden; }
 /* Two equal photo columns fill the full table width (2 × 79mm = 158mm). */
-.pcol-photoA{ width:79mm; } .pcol-photoB{ width:79mm; }
+.pcol-photoA{ width:92mm; } .pcol-photoB{ width:92mm; }
 
 </style>
 </head>
@@ -1067,7 +1067,7 @@ function buildPrintHtml(ord){
   return `
   <div class="pdoc">
     <table class="pmeta"><tr>
-      <td style="text-align:left; width:83mm; white-space:nowrap;">Schmoll Maschinen GmbH Confidential</td>
+      <td style="text-align:left; width:109mm; white-space:nowrap;">Schmoll Maschinen GmbH Confidential</td>
       <td style="text-align:center; width:40mm; white-space:nowrap;">${dateStr}</td>
       <td style="text-align:right; width:35mm; white-space:nowrap;">Page 1</td>
     </tr></table>
@@ -1078,21 +1078,21 @@ function buildPrintHtml(ord){
           <div class="plogo"><img src="${window.LOGO_DATA_URL}"></div>
         </div>
       </td></tr>
-      <tr class="ppt-row"><td><div class="ppt-cell ppt-lbl" style="width:20mm;">Priority:</div><div class="ppt-cell ppt-val" style="width:52mm;">${escHtml(ord.priority)}</div><div class="ppt-cell ppt-lbl" style="width:20mm;">Type:</div><div class="ppt-cell ppt-val" style="width:52mm;">${escHtml(ord.type)}</div></td></tr>
+      <tr class="ppt-row"><td><div class="ppt-cell ppt-lbl" style="width:20mm;">Priority:</div><div class="ppt-cell ppt-val" style="width:65mm;">${escHtml(ord.priority)}</div><div class="ppt-cell ppt-lbl" style="width:20mm;">Type:</div><div class="ppt-cell ppt-val" style="width:65mm;">${escHtml(ord.type)}</div></td></tr>
       <tr class="paddr-label-row"><td>
-        <div class="paddr-cell paddr-lbl-box" style="width:40mm;">Invoice address:</div><div class="paddr-cell paddr-val-box" style="width:104mm;">Schmoll Asia Pacific (Thailand) Limited</div>
+        <div class="paddr-cell paddr-lbl-box" style="width:40mm;">Invoice address:</div><div class="paddr-cell paddr-val-box" style="width:130mm;">Schmoll Asia Pacific (Thailand) Limited</div>
       </td></tr>
       <tr class="paddr-line-row"><td>Head Office no. 1023, Room 158, 15th Floor, MS Siam Tower,</td></tr>
       <tr class="paddr-line-row"><td>Rama III Road, Khwaeng Chong Nonsi, Khet Yan Nawa, Bangkok 10120</td></tr>
       <tr class="paddr-line-row last"><td>Thailand</td></tr>
       <tr class="paddr-label-row"><td>
-        <div class="paddr-cell paddr-lbl-box" style="width:40mm;">Shipping address:</div><div class="paddr-cell paddr-val-box" style="width:104mm;">Schmoll Asia Pacific (Thailand) Limited</div>
+        <div class="paddr-cell paddr-lbl-box" style="width:40mm;">Shipping address:</div><div class="paddr-cell paddr-val-box" style="width:130mm;">Schmoll Asia Pacific (Thailand) Limited</div>
       </td></tr>
       <tr class="paddr-line-row"><td>Head Office no. 1023, Room 158, 15th Floor, MS Siam Tower,</td></tr>
       <tr class="paddr-line-row"><td>Rama III Road, Khwaeng Chong Nonsi, Khet Yan Nawa, Bangkok 10120</td></tr>
       <tr class="paddr-line-row last"><td>Thailand</td></tr>
       <tr class="pcust-row"><td>
-        <div class="pcust-cell pcust-lbl-box" style="width:26mm;">Customer:</div><div class="pcust-cell pcust-val-box" style="width:118mm;"><span class="pcust-val-inner">${escHtml(ord.customer)}</span></div>
+        <div class="pcust-cell pcust-lbl-box" style="width:26mm;">Customer:</div><div class="pcust-cell pcust-val-box" style="width:144mm;"><span class="pcust-val-inner">${escHtml(ord.customer)}</span></div>
       </td></tr>
       <tr class="psection-bar"><td>Detailed item information</td></tr>
     </table>
