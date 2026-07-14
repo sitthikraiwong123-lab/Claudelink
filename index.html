@@ -276,6 +276,13 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 .fld-inline > input,.fld-inline .ac-wrap,.fld-inline .mt-wrap{flex:1;min-width:0;}
 /* Description keeps the caption-above-field stacked layout, full width */
 .fld-stack{display:flex;flex-direction:column;gap:3px;}
+/* Part Name (flex) + Qty (compact) share one line; Description sits full-width below */
+.pname-qty-row{display:flex;gap:10px;align-items:flex-end;}
+.pname-qty-row .pname-fld{flex:1;min-width:0;}
+.pname-qty-row .qty-fld{flex-shrink:0;}
+.qty-inputs{display:flex;gap:6px;}
+.qty-inputs input[type=number]{border:1px solid var(--border);border-radius:7px;padding:9px 10px;font-size:14px;background:#fff;color:var(--dark);width:70px;}
+.qty-inputs select{width:52px;}
 /* locked companion rows (added via "เบิกคู่") */
 .item-row.locked{background:#fbf7ff;border-color:#e3d3f0;}
 .item-row.locked input[readonly]{background:#f4eefa;color:#555;cursor:default;}
@@ -1025,11 +1032,19 @@ function buildPrintHtml(ord){
   const itemRows = [];
   for(let r=0;r<8;r++){
     const it = items[r] || {};
+    // Description column = "[Part Name] [qty] [qtyUnit] [itemDesc]" with blank
+    // parts stripped (no double spaces). The unit only shows when a qty exists.
+    const qtyStr = String(it.qty == null ? '' : it.qty).trim();
+    const unitStr = qtyStr ? String(it.qtyUnit || '').trim() : '';
+    const descCombined = [it.description, qtyStr, unitStr, it.itemDesc]
+      .map(v => String(v == null ? '' : v).trim())
+      .filter(Boolean)
+      .join(' ');
     itemRows.push(`<tr>
       <td class="pcol-mno">${escHtml(it.machineNo)}</td>
       <td class="pcol-mtype">${escHtml(it.machineType)}</td>
       <td class="pcol-art">${escHtml(it.articleNo)}</td>
-      <td class="pcol-desc">${escHtml(it.description)}</td>
+      <td class="pcol-desc">${escHtml(descCombined)}</td>
     </tr>`);
   }
 
@@ -1139,7 +1154,7 @@ function defaultOrder(){
     invoiceAddress: DEFAULT_ADDRESS,
     shippingAddress: DEFAULT_ADDRESS,
     customer: '',
-    items: [ {machineNo:'', machineType:'', articleNo:'', description:'', image:null} ],
+    items: [ {machineNo:'', machineType:'', articleNo:'', description:'', qty:'', qtyUnit:'pcs', itemDesc:'', image:null} ],
     comments: ''
   };
 }
@@ -2172,7 +2187,8 @@ function addCompanionRows(srcIdx, comps){
     if(order.items.length >= MAX_ITEMS){ skipped++; return; }
     order.items.push({
       machineNo: src.machineNo||'', machineType: src.machineType||'',
-      articleNo: c.articleNo, description: c.description, locked: true
+      articleNo: c.articleNo, description: c.description,
+      qty:'', qtyUnit:'pcs', itemDesc:'', locked: true
     });
     added++;
   });
@@ -2517,7 +2533,11 @@ function renderItems(){
           <label class="fld-inline"><span class="fld-cap">Machine No*</span><input type="text" value="${escAttr(it.machineNo)}" readonly tabindex="-1"></label>
           <label class="fld-inline"><span class="fld-cap">Machine Type*</span><input type="text" value="${escAttr(it.machineType)}" readonly tabindex="-1"></label>
           <label class="fld-inline"><span class="fld-cap">Article No</span><input type="text" value="${escAttr(it.articleNo)}" readonly tabindex="-1"></label>
-          <label class="fld-stack"><span class="fld-cap">Description</span><input type="text" value="${escAttr(it.description)}" readonly tabindex="-1"></label>
+          <div class="pname-qty-row">
+            <label class="fld-stack pname-fld"><span class="fld-cap">Part Name</span><input type="text" value="${escAttr(it.description)}" readonly tabindex="-1"></label>
+            <label class="fld-stack qty-fld"><span class="fld-cap">Qty</span><div class="qty-inputs"><input type="number" value="${escAttr(it.qty)}" readonly tabindex="-1"><select disabled tabindex="-1"><option value="pcs"${it.qtyUnit!=='set'?' selected':''}>pcs</option><option value="set"${it.qtyUnit==='set'?' selected':''}>set</option></select></div></label>
+          </div>
+          <label class="fld-stack"><span class="fld-cap">Description</span><input type="text" value="${escAttr(it.itemDesc)}" placeholder="e.g. damaged at left side" readonly tabindex="-1"></label>
         </div>`;
     } else {
       row.innerHTML = `
@@ -2526,7 +2546,11 @@ function renderItems(){
         <label class="fld-inline"><span class="fld-cap">Machine No*</span><div class="ac-wrap"><input type="text" class="f-machineNo" data-idx="${idx}" value="${escAttr(it.machineNo)}" autocomplete="off"><div class="ac-list" id="machineAc${idx}"></div></div></label>
         <label class="fld-inline"><span class="fld-cap">Machine Type*</span><div class="mt-wrap" data-idx="${idx}"></div></label>
         <label class="fld-inline"><span class="fld-cap">Article No</span><div class="ac-wrap"><input type="text" class="f-articleNo" data-idx="${idx}" value="${escAttr(it.articleNo)}" autocomplete="off"><div class="ac-list" id="partAc${idx}"></div></div></label>
-        <label class="fld-stack"><span class="fld-cap">Description</span><div class="ac-wrap"><input type="text" class="f-description" data-idx="${idx}" value="${escAttr(it.description)}" autocomplete="off"><div class="ac-list" id="descAc${idx}"></div></div></label>
+        <div class="pname-qty-row">
+          <label class="fld-stack pname-fld"><span class="fld-cap">Part Name</span><div class="ac-wrap"><input type="text" class="f-description" data-idx="${idx}" value="${escAttr(it.description)}" autocomplete="off"><div class="ac-list" id="descAc${idx}"></div></div></label>
+          <label class="fld-stack qty-fld"><span class="fld-cap">Qty</span><div class="qty-inputs"><input type="number" class="f-qty" data-idx="${idx}" value="${escAttr(it.qty)}" min="0"><select class="f-qtyunit" data-idx="${idx}"><option value="pcs"${it.qtyUnit!=='set'?' selected':''}>pcs</option><option value="set"${it.qtyUnit==='set'?' selected':''}>set</option></select></div></label>
+        </div>
+        <label class="fld-stack"><span class="fld-cap">Description</span><input type="text" class="f-itemdesc" data-idx="${idx}" value="${escAttr(it.itemDesc)}" autocomplete="off" placeholder="e.g. damaged at left side"></label>
         <div class="alias-add-row" data-idx="${idx}"></div>
         <div class="item-photo fld-stack">
           <span class="fld-cap">รูปอะไหล่ <span class="item-photo-status" id="itemPhotoStatus${idx}"></span></span>
@@ -2583,6 +2607,20 @@ function renderItems(){
       }, 220);
     };
   });
+  // Qty (number) + unit (pcs/set) + free-text item description — plain fields,
+  // no autocomplete, just mirror the value into the data model.
+  list.querySelectorAll('.f-qty').forEach(el=>{
+    const idx = +el.dataset.idx;
+    el.oninput = e=>{ order.items[idx].qty = e.target.value; };
+  });
+  list.querySelectorAll('.f-qtyunit').forEach(el=>{
+    const idx = +el.dataset.idx;
+    el.onchange = e=>{ order.items[idx].qtyUnit = e.target.value; };
+  });
+  list.querySelectorAll('.f-itemdesc').forEach(el=>{
+    const idx = +el.dataset.idx;
+    el.oninput = e=>{ order.items[idx].itemDesc = e.target.value; };
+  });
   list.querySelectorAll('.mt-wrap').forEach(wrap=>{
     const idx = +wrap.dataset.idx;
     wrap.appendChild(buildComboBox(MACHINE_TYPES, order.items[idx].machineType, v=>{ order.items[idx].machineType = v; }, '- เลือกรุ่นเครื่อง -'));
@@ -2598,7 +2636,7 @@ function escAttr(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('btnAddRow').onclick = ()=>{
     if(order.items.length >= MAX_ITEMS) return;
-    order.items.push({machineNo:'',machineType:'',articleNo:'',description:'',image:null});
+    order.items.push({machineNo:'',machineType:'',articleNo:'',description:'',qty:'',qtyUnit:'pcs',itemDesc:'',image:null});
     renderItems();
   };
 });
