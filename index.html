@@ -415,7 +415,7 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
    don't add on top of the stated width and overflow the table). Everything
    else keeps the browser default so border-bottom dividers behave normally. */
 .pcol-mno, .pcol-mtype, .pcol-art, .pcol-desc,
-.pcol-photoA, .pcol-photoB, .pcol-comments { box-sizing: border-box; }
+.pcol-photoA, .pcol-photoB { box-sizing: border-box; }
 
 .pmeta{ width:158mm; table-layout:fixed; font-size:8pt; font-weight:bold; color:#6d6e71; margin-bottom:2mm; }
 .pmeta td{ padding:0; }
@@ -458,30 +458,32 @@ table.pframe-bottom > tbody > tr > td{ padding:0; }
 
 table.pitem{ width:158mm; table-layout:fixed; border-collapse:collapse; }
 table.pitem th, table.pitem td{
-  border:1px solid #000; padding:0.5mm 1.5mm; font-size:8.5pt; height:5mm; vertical-align:middle;
+  border:1px solid #000; padding:1mm 2mm; font-size:8.5pt; height:5mm; vertical-align:middle;
   word-wrap:break-word; overflow-wrap:break-word;
 }
 table.pitem tr:first-child th{ border-top:none !important; }
 table.pitem tr:last-child td{ border-bottom:none !important; }
 table.pitem td.pcol-mno, table.pitem th.pcol-mno{ border-left:none !important; }
 table.pitem td.pcol-desc, table.pitem th.pcol-desc{ border-right:none !important; }
-table.pitem th{ font-weight:bold; text-align:left; height:auto; }
+table.pitem th{ font-weight:bold; text-align:center; height:auto; }
+/* Codes/short values read cleaner centered; the descriptive column stays left. */
+table.pitem td.pcol-mno, table.pitem td.pcol-mtype, table.pitem td.pcol-art{ text-align:center; }
+table.pitem th.pcol-desc, table.pitem td.pcol-desc{ text-align:left; }
 .pcol-mno{ width:23mm; } .pcol-mtype{ width:30mm; } .pcol-art{ width:23mm; } .pcol-desc{ width:82mm; }
 
 table.pphoto{ width:158mm; table-layout:fixed; border-collapse:collapse; }
 table.pphoto td{ border:1px solid #000; vertical-align:top; padding:0; }
 table.pphoto tr:first-child td{ border-top:none !important; }
 table.pphoto tr:last-child td{ border-bottom:none !important; }
-table.pphoto td.pcol-photoA{ border-left:none !important; }
-table.pphoto tr td.pimg-cell:first-child{ border-left:none !important; }
-table.pphoto td.pcol-comments{ border-right:none !important; border-bottom:none !important; }
-.part-hdr{ text-align:left; font-weight:bold; font-size:8pt; padding:1mm; height:6mm; box-sizing:border-box; border-bottom:1px solid #000; }
-.part-val{ text-align:center; font-size:8.5pt; padding:1mm; height:6mm; box-sizing:border-box; border-bottom:1px solid #000; }
+/* Outer edges are drawn by the surrounding frame, so drop the grid's own left/
+   right borders to avoid doubled lines at the page margins. */
+table.pphoto tr td:first-child{ border-left:none !important; }
+table.pphoto tr td:last-child{ border-right:none !important; }
+.part-hdr{ text-align:center; font-weight:bold; font-size:8pt; padding:1mm 2mm; height:6mm; box-sizing:border-box; border-bottom:1px solid #000; }
+.part-val{ text-align:center; font-size:8.5pt; padding:1mm 2mm; height:6mm; box-sizing:border-box; border-bottom:1px solid #000; }
 .pimg-cell{ height:50mm; position:relative; overflow:hidden; }
-.pcomments-hdr{ text-align:center; font-weight:bold; font-size:9pt; padding:1mm; border-bottom:2px solid #000; }
-.pcomments-row{ border-bottom:2px solid #000; height:5mm; box-sizing:border-box; padding:1mm 1.5mm; font-size:8.5pt; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.pcomments-row:last-child{ border-bottom:none !important; }
-.pcol-photoA{ width:67mm; } .pcol-photoB{ width:67mm; } .pcol-comments{ width:24mm; }
+/* Two equal photo columns fill the full table width (2 × 79mm = 158mm). */
+.pcol-photoA{ width:79mm; } .pcol-photoB{ width:79mm; }
 
 </style>
 </head>
@@ -1062,15 +1064,6 @@ function buildPrintHtml(ord){
   function articleHdr(i){ return `<td class="part-hdr">Article No</td>`; }
   function articleVal(i){ const it = photoItems[i]; return `<td class="part-val">${escHtml(it && it.articleNo ? String(it.articleNo) : '-')}</td>`; }
 
-  /* Comments box: render actual user-entered comments text (split by newline) into the ruled lines,
-     falling back to a blank line where no text was entered */
-  const commentLines = (ord.comments || '').split('\n');
-  let commentRows = '';
-  for(let i=0;i<24;i++){
-    const line = commentLines[i] !== undefined && commentLines[i] !== '' ? escHtml(commentLines[i]) : '&nbsp;';
-    commentRows += `<div class="pcomments-row">${line}</div>`;
-  }
-
   return `
   <div class="pdoc">
     <table class="pmeta"><tr>
@@ -1113,10 +1106,6 @@ function buildPrintHtml(ord){
         <tr>
           <td class="pcol-photoA part-hdr">Article No</td>
           <td class="pcol-photoB part-hdr">Article No</td>
-          <td class="pcol-comments" rowspan="6" style="vertical-align:top; padding:0; border-left:1px solid #000;">
-            <div class="pcomments-hdr">Comments</div>
-            <div style="overflow:hidden;">${commentRows}</div>
-          </td>
         </tr>
         <tr>${articleVal(0)}${articleVal(1)}</tr>
         <tr><td class="pimg-cell">${photoCell(0)}</td><td class="pimg-cell">${photoCell(1)}</td></tr>
