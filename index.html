@@ -4822,7 +4822,7 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 .photo-canvas:empty::before{content:'\1F4F7';font-size:30px;line-height:1;opacity:.5;}
 .photo-canvas:empty::after{content:'แตะเพื่อเพิ่มรูป';color:#9ca3af;font-size:13px;font-weight:600;}
 .ph-img{position:absolute;border:1px solid rgba(228,29,21,.5);box-shadow:0 1px 4px rgba(0,0,0,.25);touch-action:none;}
-.ph-img img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none;}
+.ph-img img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none;}
 .resize-handle{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;background:var(--red);
   border-radius:3px;cursor:nwse-resize;touch-action:none;}
 .crop-handle{position:absolute;left:-4px;bottom:-4px;width:14px;height:14px;background:#333;
@@ -5557,7 +5557,7 @@ function buildPrintHtml(ord){
     const img = it.image;
     const x=(img.x||0)*100, y=(img.y||0)*100, w=(img.w||0.5)*100, h=(img.h||0.5)*100;
     const ox = img.objX!==undefined ? img.objX : 50, oy = img.objY!==undefined ? img.objY : 50;
-    return `<img src="${img.src}" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:cover;object-position:${ox}% ${oy}%;">`;
+    return `<img src="${img.src}" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:contain;object-position:${ox}% ${oy}%;">`;
   }
   function articleHdr(i){ return `<td class="part-hdr">Article No</td>`; }
   function articleVal(i){ const it = photoItems[i]; return `<td class="part-val">${escHtml(it && it.articleNo ? String(it.articleNo) : '-')}</td>`; }
@@ -5918,15 +5918,24 @@ document.addEventListener('DOMContentLoaded', ()=>{
     return `<div class="db-table-wrap" style="overflow:auto;"><table class="db-table">${head}${body}</table></div>${more}`;
   }
 
+  // Cache-buster token: bumped whenever a part image is added/replaced/removed
+  // so the browser re-fetches the changed image instead of serving a stale one.
+  // It stays constant between changes, so normal caching still applies otherwise.
+  let _imgCacheToken = '';
+
   // Shared part-thumbnail renderer. Every view (parts list, kit editor, kit
   // search) fetches the image the SAME way — normalizeImageUrl(part.ImageURL) —
   // with a graceful 📷 fallback when there's no image or the URL fails to load.
   // Centralising this means a fix here applies everywhere at once.
   function partThumbHtml(part, cls){
-    const url = part ? normalizeImageUrl(part.ImageURL) : '';
+    let url = part ? normalizeImageUrl(part.ImageURL) : '';
     cls = cls || 'db-part-thumb';
+    // Append the cache-buster to remote images only (never to data: URIs).
+    if(url && _imgCacheToken && /^https?:/i.test(url)){
+      url += (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + _imgCacheToken;
+    }
     return url
-      ? `<img src="${escAttr(url)}" class="${cls}" data-full="${escAttr(url)}" title="แตะเพื่อดูรูปเต็ม" onerror="this.classList.add('db-part-noimg');this.removeAttribute('src');this.removeAttribute('data-full');">`
+      ? `<img src="${escAttr(url)}" data-src="${escAttr(url)}" class="${cls}" data-full="${escAttr(url)}" title="แตะเพื่อดูรูปเต็ม" onerror="dbImgRetry(this)">`
       : `<div class="${cls} db-part-noimg" title="ยังไม่มีรูป">📷</div>`;
   }
 
@@ -6019,7 +6028,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
     function render(){
       const img = displayImg();
-      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}">` : `<div class="epm-img-preview noimg">📷</div>`;
+      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}" data-src="${escAttr(img)}" onerror="dbImgRetry(this)">` : `<div class="epm-img-preview noimg">📷</div>`;
       const partsHtml = parts.length ? parts.map((p,i)=>{
         const part = findPart(p); const desc = part ? String(part.Description||'') : '';
         return `<div class="cset-part-row">
@@ -6228,6 +6237,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const ov = document.createElement('div');
     ov.className = 'edit-part-modal open';
 
+    // Same unsaved-photo guard as the edit form: the photo is only uploaded +
+    // linked when บันทึกอะไหล่ is pressed, so closing with a photo attached
+    // would silently lose it.
+    const confirmDiscard = ()=> !imageData
+      || confirm('รูปที่แนบยังไม่ถูกบันทึก\nปิดโดยไม่บันทึกใช่หรือไม่? (ต้องกด “บันทึกอะไหล่” รูปจึงจะขึ้นในหน้าอะไหล่)');
+
     function render(){
       const imgHtml = imageData
         ? `<img class="epm-img-preview" src="${escAttr(imageData.src)}">`
@@ -6279,8 +6294,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
         catch(err){ flashStatus('เตรียมรูปไม่สำเร็จ'); }
       };
       const imgDel = ov.querySelector('.addp-img-del'); if(imgDel) imgDel.onclick = ()=>{ imageData = null; render(); };
-      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
-      ov.querySelector('.addp-cancel').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.epm-x').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
+      ov.querySelector('.addp-cancel').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
       ov.querySelector('.addp-save').onclick = save;
     }
 
@@ -6298,7 +6313,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         let imageUrl = '';
         if(imageData && articleNo){
           flashStatus('กำลังอัปโหลดรูป...');
-          const filename = articleNo + '_' + partName.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
+          const filename = articleNo.replace(/[^\w.-]/g,'') + '_' + partName.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
           try{
             const up = await lookupApiCall('uploadImage', { base64:imageData.base64, mimeType:'image/jpeg', filename });
             if(up && up.url) imageUrl = up.url;
@@ -6331,6 +6346,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         } else if(existing && imageUrl){
           existing.ImageURL = imageUrl;             // part already cached → just bind the new image
         }
+        if(imageUrl) _imgCacheToken = Date.now();    // fresh image → bust any stale browser cache
         lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
         flashStatus('เพิ่มอะไหล่แล้ว: ' + (articleNo || partName));
         userDismissTopModal();
@@ -6342,7 +6358,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }catch(err){ if(btn) btn.disabled = false; alert('บันทึกไม่สำเร็จ: ' + String(err.message||err)); }
     }
 
-    ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+    ov.addEventListener('click', e=>{ if(e.target===ov && confirmDiscard()) userDismissTopModal(); });
     document.body.appendChild(ov);
     modalOpened();
     render();
@@ -6471,6 +6487,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(addMachineBtn) addMachineBtn.onclick = ()=>openAddMachine();
     const addPartBtn = body.querySelector('#dbAddPart');
     if(addPartBtn) addPartBtn.onclick = ()=>openAddParts();
+    // Parts tab visible → kick off the silent background image self-heal
+    // (once per session; see autoRepairImages below).
+    if(dbActiveTab === 'parts') autoRepairImages();
     // Sets: add / edit companion set
     const addSetBtn = body.querySelector('#dbAddSet');
     if(addSetBtn) addSetBtn.onclick = ()=>openCompanionSetEditor(null);
@@ -6478,6 +6497,30 @@ document.addEventListener('DOMContentLoaded', ()=>{
       btn.onclick = ()=>{ const s=(lookupCache.companions||[]).find(x=>String(x.name||'')===btn.dataset.name); openCompanionSetEditor(s||null); };
     });
   }
+
+  // Silent image self-heal — no button, the app fixes itself in the background.
+  // Runs at most once per session, triggered by (a) opening the parts tab or
+  // (b) a thumbnail exhausting its load retries (see dbImgRetry). The backend
+  // repairImages action re-shares every referenced Drive file AND binds parts
+  // that have no ImageURL to their newest matching upload in the Drive folder.
+  // Quiet unless something actually changed; harmless no-op on old backends.
+  let _imgAutoRepairDone = false;
+  async function autoRepairImages(){
+    if(_imgAutoRepairDone) return;
+    _imgAutoRepairDone = true;
+    try{
+      const res = await lookupApiCall('repairImages', {});
+      const changed = (res && ((res.fixed||0) + (res.bound||0))) || 0;
+      if(changed > 0){
+        _imgCacheToken = Date.now();            // changed files → bypass stale cache
+        flashStatus('ซ่อมรูปอัตโนมัติแล้ว '+changed+' รายการ');
+        await lookupSync();                     // pull the newly bound URLs
+        const body = document.getElementById('dbModalBody');
+        if(body && body.offsetParent) await renderDbModal();
+      }
+    }catch(e){ /* repairImages not deployed yet / offline → skip silently */ }
+  }
+  window._onDbImgDead = autoRepairImages;
 
   // Tab-scoped session: once signed in, reuse that identity for every edit /
   // delete / restore in the same tab without re-prompting. The identity lives in
@@ -6557,11 +6600,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
     const ov = document.createElement('div');
     ov.className = 'edit-part-modal open';
-    const displayImg = ()=> normalizeImageUrl(newImageValue !== undefined ? newImageValue : origImageRaw) || '';
+    // A newly picked photo is only compressed + previewed locally; the actual
+    // Drive upload happens ONCE inside save(). This is what makes changing an
+    // image REPLACE the old one instead of piling up a new Drive file on every
+    // pick (the old file is trashed by updatePart when the new URL is stored).
+    let pendingImage = null;                  // {src, base64} picked locally, uploaded on Save
+
+    const displayImg = ()=> pendingImage ? pendingImage.src
+      : (normalizeImageUrl(newImageValue !== undefined ? newImageValue : origImageRaw) || '');
+
+    // Guard: the image change reaches Drive + the sheet only when the user
+    // presses "บันทึกการแก้ไข" — confirm before silently discarding it.
+    const confirmDiscard = ()=> (!pendingImage && newImageValue === undefined)
+      || confirm('รูปที่เปลี่ยนยังไม่ถูกบันทึก\nปิดโดยไม่บันทึกใช่หรือไม่? (ต้องกด “บันทึกการแก้ไข” รูปจึงจะถูกอัปโหลดและแสดงในหน้าอะไหล่)');
 
     function renderEdit(){
       const img = displayImg();
-      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}">` : `<div class="epm-img-preview noimg">📷</div>`;
+      const imgHtml = img ? `<img class="epm-img-preview" src="${escAttr(img)}" data-src="${escAttr(img)}" onerror="dbImgRetry(this)">` : `<div class="epm-img-preview noimg">📷</div>`;
       const aliasTags = aliases.length
         ? aliases.map((a,i)=>`<span class="alias-tag">${escDb(a)}<button type="button" class="alias-del-btn" data-i="${i}">✕</button></span>`).join('')
         : '<span class="alias-none">ยังไม่มีคำค้นหา</span>';
@@ -6591,8 +6646,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
             <button type="button" class="btn btn-primary epm-save">บันทึกการแก้ไข</button>
           </div>
         </div>`;
-      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
-      ov.querySelector('.epm-cancel').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.epm-x').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
+      ov.querySelector('.epm-cancel').onclick = ()=>{ if(confirmDiscard()) userDismissTopModal(); };
       const chgBtn = ov.querySelector('.epm-changeuser');
       if(chgBtn) chgBtn.onclick = async ()=>{ const e2 = await requireEditorSignIn(); if(e2){ editor = e2; renderEdit(); } };
       const artInp = ov.querySelector('.epm-article'); artInp.oninput = ()=>{ artVal = artInp.value; };
@@ -6602,16 +6657,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const doAdd = ()=>{ const v=addInp.value.trim(); if(v){ aliases.push(v); renderEdit(); } };
       ov.querySelector('.epm-alias-addbtn').onclick = doAdd;
       addInp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doAdd(); } };
-      const imgDel = ov.querySelector('.epm-img-del'); if(imgDel) imgDel.onclick = ()=>{ newImageValue=''; renderEdit(); };
+      const imgDel = ov.querySelector('.epm-img-del'); if(imgDel) imgDel.onclick = ()=>{ pendingImage=null; newImageValue=''; renderEdit(); };
       ov.querySelector('.epm-img-input').onchange = async (e)=>{
         const f=e.target.files[0]; if(!f) return;
         try{
-          flashStatus('กำลังอัปโหลดรูป...');
-          const {base64}=await compressForUpload(f);
-          const filename=(artVal?artVal+'_':'')+descVal.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40)+'.jpg';
-          const up=await lookupApiCall('uploadImage',{base64,mimeType:'image/jpeg',filename});
-          if(up&&up.url){ newImageValue=up.url; flashStatus('อัปโหลดรูปแล้ว (กดบันทึกเพื่อยืนยัน)'); renderEdit(); }
-        }catch(err){ const m=String(err.message||err); flashStatus('อัปโหลดไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':'')); }
+          // local preview only — the single Drive upload happens in save()
+          pendingImage = await compressForUpload(f);
+          newImageValue = undefined;              // picking a photo overrides a pending delete
+          flashStatus('แนบรูปแล้ว (กด “บันทึกการแก้ไข” เพื่ออัปโหลดแทนที่รูปเดิม)');
+          renderEdit();
+        }catch(err){ flashStatus('เตรียมรูปไม่สำเร็จ'); }
       };
       ov.querySelector('.epm-restore-open').onclick = renderRestore;
       ov.querySelector('.epm-delete').onclick = doDelete;
@@ -6649,6 +6704,24 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
       setSessionEditor(editor);                 // keep the tab session current
       const btn = ov.querySelector('.epm-save'); if(btn) btn.disabled=true;
+      // Upload the newly picked photo NOW — exactly one Drive file per save.
+      // updatePart then stores this URL and trashes the previous file, so the
+      // image is REPLACED instead of accumulating duplicates on Drive.
+      if(pendingImage){
+        try{
+          flashStatus('กำลังอัปโหลดรูป...');
+          const artClean = (artVal.trim()||origArticleNo).replace(/[^\w.-]/g,'');
+          const filename = (artClean?artClean+'_':'')+descVal.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40)+'.jpg';
+          const up = await lookupApiCall('uploadImage',{ base64:pendingImage.base64, mimeType:'image/jpeg', filename });
+          if(!up || !up.url) throw new Error('อัปโหลดไม่สำเร็จ (ไม่ได้ URL กลับมา)');
+          newImageValue = up.url;
+        }catch(imgErr){
+          if(btn) btn.disabled=false;
+          const m = String(imgErr.message||imgErr);
+          alert('อัปโหลดรูปไม่สำเร็จ — ยังไม่ได้บันทึก: '+m+'\nลองกดบันทึกอีกครั้ง หรือกด "ลบรูป" เพื่อบันทึกโดยไม่เปลี่ยนรูป');
+          return;
+        }
+      }
       const payload = { origArticleNo, editor, newDescription: descVal, aliases };
       const at = artVal.trim();
       if(at && at.toLowerCase() !== origArticleNo.toLowerCase()) payload.newArticleNo = at;
@@ -6656,7 +6729,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
       try{
         await lookupApiCall('updatePart', payload);
         part.Description = descVal;
-        if(newImageValue !== undefined) part.ImageURL = newImageValue;
+        if(newImageValue !== undefined){ part.ImageURL = newImageValue; _imgCacheToken = Date.now(); }
+        pendingImage = null;                    // consumed by the upload above
         Object.keys(part).filter(k=>/suggestion\s*word/i.test(k)).forEach(k=>{ part[k]=''; });
         aliases.forEach((a,i)=>{ part['Suggestion word'+(i+1)] = a; });
         if(payload.newArticleNo) part.ArticleNo = payload.newArticleNo;
@@ -6709,7 +6783,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       });
     }
 
-    ov.addEventListener('click', (e)=>{ if(e.target===ov) userDismissTopModal(); });
+    ov.addEventListener('click', (e)=>{ if(e.target===ov && confirmDiscard()) userDismissTopModal(); });
     document.body.appendChild(ov);
     modalOpened();
     renderEdit();
@@ -6763,11 +6837,19 @@ async function lookupSync(){
   }
 }
 function mergeLookupDelta(list, updates, keyField){
-  const idx = new Map(list.map((r,i)=>[r[keyField], i]));
-  (updates||[]).forEach(u=>{
-    if(idx.has(u[keyField])) list[idx.get(u[keyField])] = u;
-    else list.push(u);
-  });
+  // Normalize the key before comparing: Google Sheets returns a numeric code
+  // (e.g. 46694) as a NUMBER while the app's optimistic entry holds it as a
+  // STRING ("46694"), and raw Map-key equality treats those as different →
+  // the same part gets added twice. Coercing to a trimmed lowercase string
+  // makes them match (also collapses any duplicates already in the cache).
+  const norm = v => String(v==null ? '' : v).trim().toLowerCase();
+  const byKey = new Map();          // normalized key → object (server update wins)
+  const order = [];                 // preserve first-seen display order
+  const put = (obj)=>{ const k = norm(obj[keyField]); if(!byKey.has(k)) order.push(k); byKey.set(k, obj); };
+  list.forEach(put);                // existing entries (dedupes pre-existing copies)
+  (updates||[]).forEach(put);       // server rows override same key, new keys append
+  const out = order.map(k => byKey.get(k));
+  list.length = 0; Array.prototype.push.apply(list, out);
 }
 
 async function lookupFlushOutbox(){
@@ -6856,25 +6938,22 @@ function getCompanionsFor(triggerArticleNo){
   });
   return out;
 }
-// Put the set's combined image on the MAIN part (if it has no photo yet).
-function applyCompanionSetImage(idx, set){
+// On "ตอบตกลง" for a companion set, put the SET's combined image (the one added
+// in DB-ชุดเบิก) onto the MAIN part. Fetched via the proxy (works under the org's
+// Drive-sharing block) and spans the 4:3 cell with object-fit:contain (whole
+// image at its original aspect, never cropped). Overrides an
+// auto-filled part image but never a photo the user shot/uploaded.
+async function applyCompanionSetImage(idx, set){
   const it = order.items[idx];
   if(!it || it.locked) return;
-  if(it.image && it.image.src) return;
-  const url = set && normalizeImageUrl(set.image);
-  if(!url) return;
-  const helper = new Image(); helper.crossOrigin = 'anonymous';
-  helper.onload = ()=>{
-    if(it.image && it.image.src) return;
-    const boxRatio = 4/3, imgRatio = helper.width/helper.height;
-    let fw, fh;
-    if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; } else { fh = 1; fw = imgRatio/boxRatio; }
-    it.image = { src: url, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, fromDb:true };
-    renderItemPhoto(idx);
-    flashStatus('ใส่รูปรวมของชุดให้พาร์ทหลักแล้ว');
-  };
-  helper.onerror = ()=>{};
-  helper.src = url;
+  if(it.image && it.image.src && !it.image.fromDb) return;    // keep a user photo
+  if(!(set && normalizeImageUrl(set.image))) return;
+  const src = await resolveDbImageDataUrl(set.image);
+  if(!src) return;
+  if(it.image && it.image.src && !it.image.fromDb) return;    // user set one meanwhile
+  it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, fromDb:true, fromDbArticle:String(it.articleNo||'').trim() };
+  renderItemPhoto(idx);
+  flashStatus('ใส่รูปรวมของชุดให้พาร์ทหลักแล้ว');
 }
 
 // Called after a part is confirmed on item `idx`. If it triggers companions,
@@ -6961,6 +7040,105 @@ function normalizeImageUrl(url){
   const m = String(url).trim().match(/\/d\/([a-zA-Z0-9_-]{10,})/);
   if(m) return 'https://lh3.googleusercontent.com/d/' + m[1];
   return String(url).trim();
+}
+
+/* Retry-then-fallback loader for DB part images (used via inline onerror).
+   A freshly uploaded Drive file can take a few seconds before
+   lh3.googleusercontent.com will actually serve it, so the FIRST load attempt
+   often 404s even though the upload + sheet update succeeded. Degrading to the
+   📷 placeholder on that first error made correctly-saved images look missing.
+   Instead: retry up to 3 times with growing delays (~1.2s/2.4s/3.6s), each with
+   a fresh ?r= param so the failed response isn't replayed from cache; only
+   after all retries fail do we show the placeholder. (Global on window because
+   it's called from inline onerror attributes in template strings.) */
+// Owner-side image proxy. In a locked-down Google Workspace, Drive refuses to
+// share files "anyone with link", so no lh3/Drive URL can ever load in an <img>.
+// The backend runs as the file OWNER and can read the bytes regardless, so we
+// fetch them (once per file id, cached) and show them as a data: URL. The first
+// success flips _imgProxyWorked so later images skip the retry wait and proxy
+// straight away.
+const _imgProxyCache = {};
+let _imgProxyWorked = false;
+function applyProxyImg(el, dataUrl){
+  if(!el || !el.isConnected) return;
+  el.classList.remove('db-part-noimg'); el.classList.remove('noimg');
+  el.dataset.proxied = '1';
+  if(el.dataset.full !== undefined) el.dataset.full = dataUrl;
+  el.src = dataUrl;
+}
+async function loadImageViaProxy(el){
+  try{
+    const base = el.dataset.src || '';
+    const id = (String(base).match(/\/d\/([a-zA-Z0-9_-]{10,})/) || [])[1];
+    if(!id) return false;
+    if(_imgProxyCache[id]){ applyProxyImg(el, _imgProxyCache[id]); return true; }
+    const res = await lookupApiCall('getImageBytes', { id });
+    if(res && res.base64){
+      const dataUrl = 'data:' + (res.mimeType || 'image/jpeg') + ';base64,' + res.base64;
+      _imgProxyCache[id] = dataUrl;
+      _imgProxyWorked = true;
+      applyProxyImg(el, dataUrl);
+      return true;
+    }
+  }catch(e){ /* proxy not deployed / too large / offline → placeholder */ }
+  return false;
+}
+function placeholderImg(el){
+  el.classList.add('db-part-noimg'); el.classList.add('noimg');
+  el.removeAttribute('src'); el.removeAttribute('data-full');
+  try{ if(window._onDbImgDead) window._onDbImgDead(); }catch(e){}
+}
+
+window.dbImgRetry = function(el){
+  if(el.dataset.proxied){ placeholderImg(el); return; }   // a proxied data URL failed → give up
+  const tries = +(el.dataset.retry || 0);
+  const base = el.dataset.src || '';
+  const hasDriveId = /\/d\/[a-zA-Z0-9_-]{10,}/.test(base);
+  // Already learned Drive is locked down this session → proxy immediately.
+  if(hasDriveId && _imgProxyWorked){
+    el.dataset.proxied = '1';
+    loadImageViaProxy(el).then(ok=>{ if(!ok) placeholderImg(el); });
+    return;
+  }
+  // A freshly uploaded Drive file can take a few seconds to become servable,
+  // so retry the direct URL up to 3× (~1.2/2.4/3.6s) with a fresh ?r= param.
+  if(tries < 3 && /^https?:/i.test(base)){
+    el.dataset.retry = tries + 1;
+    setTimeout(function(){
+      if(!el.isConnected) return;               // view re-rendered meanwhile
+      el.src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'r=' + Date.now();
+    }, 1200 * (tries + 1));
+    return;
+  }
+  // Direct URL exhausted → try the owner-side proxy before giving up.
+  if(hasDriveId){
+    el.dataset.proxied = '1';
+    loadImageViaProxy(el).then(ok=>{ if(!ok) placeholderImg(el); });
+    return;
+  }
+  placeholderImg(el);
+};
+
+// Resolve a stored part/companion ImageURL into a source usable for the item
+// photo AND the A4 PDF: prefer a base64 data URL via the owner proxy — that
+// both dodges the org's Drive-sharing block and keeps the PDF canvas CORS-clean
+// (a remote Drive URL would taint it and break html2canvas). Falls back to the
+// direct URL for non-Drive images or when the proxy isn't available.
+async function resolveDbImageDataUrl(rawUrl){
+  const url = normalizeImageUrl(rawUrl);
+  if(!url || url.indexOf('data:') === 0) return url || '';
+  const id = (String(url).match(/\/d\/([a-zA-Z0-9_-]{10,})/) || [])[1];
+  if(!id) return url;                             // non-Drive image → use as-is
+  if(_imgProxyCache[id]) return _imgProxyCache[id];
+  try{
+    const res = await lookupApiCall('getImageBytes', { id });
+    if(res && res.base64){
+      const dataUrl = 'data:' + (res.mimeType || 'image/jpeg') + ';base64,' + res.base64;
+      _imgProxyCache[id] = dataUrl; _imgProxyWorked = true;
+      return dataUrl;
+    }
+  }catch(e){ /* proxy not deployed / offline */ }
+  return url;                                     // best-effort direct URL
 }
 
 function searchAnyField(list, query, limit){
@@ -7417,12 +7595,12 @@ function renderItemPhoto(idx){
       const f = e.target.files[0];
       if(!f) return;
       try{
-        const { src, w:iw, h:ih } = await compressImage(f);
-        const boxRatio = 4/3, imgRatio = iw/ih;
-        let fw, fh;
-        if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; }
-        else { fh = 1; fw = imgRatio/boxRatio; }
-        it.image = { src, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, _new:true };
+        const { src } = await compressImage(f);
+        // Span the whole 4:3 cell; object-fit:contain then scales the image as
+        // large as it fits while keeping its ORIGINAL aspect ratio (whole image
+        // visible, never cropped or distorted). User can still fine-tune with
+        // the move / resize / crop handles.
+        it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, _new:true };
         // also queue a Drive-quality copy so this photo enriches the DB on Save/Export
         const desc = String(it.description||'').trim();
         const pendingKey = art ? art.toLowerCase() : desc.toLowerCase();
@@ -7443,29 +7621,33 @@ function renderItemPhoto(idx){
 
 /* If the item's part has an image in the DB and the item has no photo yet,
    pull that image in automatically. */
-function maybeAutofillDbImage(idx){
+// Keep the row's photo in sync with its part: when the Article No changes, pull
+// that part's DB image (via the proxy, so it works even when Drive blocks public
+// sharing). A photo the user shot/uploaded is never touched — only auto-filled
+// (fromDb) images are replaced, and a stale auto image is cleared if the new
+// part has none. The image spans the 4:3 cell with object-fit:contain — shown
+// in full at its original aspect ratio (never cropped or stretched).
+async function maybeAutofillDbImage(idx){
   const it = order.items[idx];
   if(!it || it.locked) return;
-  if(it.image && it.image.src) return; // never overwrite a chosen photo
+  if(it.image && it.image.src && !it.image.fromDb) return;   // keep a user photo
   const art = String(it.articleNo||'').trim();
-  if(!art) return;
-  const match = findPart(art);
-  const imgUrl = normalizeImageUrl(match ? match.ImageURL : '');
-  if(!imgUrl) return;
-  const helper = new Image();
-  helper.crossOrigin = 'anonymous';
-  helper.onload = ()=>{
-    if(it.image && it.image.src) return; // race guard
-    const boxRatio = 4/3, imgRatio = helper.width/helper.height;
-    let fw, fh;
-    if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; }
-    else { fh = 1; fw = imgRatio/boxRatio; }
-    it.image = { src: imgUrl, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, fromDb:true };
-    renderItemPhoto(idx);
-    flashStatus('ใส่รูปจากฐานข้อมูลให้อัตโนมัติ');
-  };
-  helper.onerror = ()=>{};
-  helper.src = imgUrl;
+  // already showing this exact article's DB image → nothing to do
+  if(it.image && it.image.fromDb && String(it.image.fromDbArticle||'').toLowerCase() === art.toLowerCase()) return;
+  const match = art ? findPart(art) : null;
+  const raw = match ? match.ImageURL : '';
+  if(!normalizeImageUrl(raw)){
+    if(it.image && it.image.fromDb){ it.image = null; renderItemPhoto(idx); }  // drop stale auto image
+    return;
+  }
+  const src = await resolveDbImageDataUrl(raw);
+  if(!src) return;
+  // guard against the row changing (or a user photo landing) while we fetched
+  if(String(it.articleNo||'').trim().toLowerCase() !== art.toLowerCase()) return;
+  if(it.image && it.image.src && !it.image.fromDb) return;
+  it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, fromDb:true, fromDbArticle:art };
+  renderItemPhoto(idx);
+  flashStatus('ใส่รูปจากฐานข้อมูลให้อัตโนมัติ');
 }
 
 function compressImage(file){
