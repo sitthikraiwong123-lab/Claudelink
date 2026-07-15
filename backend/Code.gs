@@ -496,35 +496,77 @@ function setImageURL(params) {
   return { success: true, updated: false, message: 'ArticleNo not found in sheet' };
 }
 
-// One-shot repair for every part image: re-apply anyone-with-link sharing to
-// each Drive file referenced in the ImageURL column. Fixes rows whose URL was
-// pasted by hand from the Drive app (private file → <img> can never load it)
-// and any app upload whose setSharing call failed. Read-safe on the sheet
-// itself (only Drive permissions are touched). Returns per-row results.
+// Background self-heal for part images (called automatically by the app —
+// there is no user-facing button). Two passes over the Part sheet:
+//   1. Every row WITH an ImageURL: re-apply anyone-with-link sharing to the
+//      Drive file (fixes hand-pasted private links and failed setSharing).
+//   2. Every row WITHOUT an ImageURL: look in the image folder for an upload
+//      whose filename starts with that Article No ("<art>_..." — the app's
+//      own naming convention, incl. a legacy "#<art>_..." variant) and bind
+//      the NEWEST one. This rescues photos that were uploaded but never saved
+//      (upload happens instantly; the URL used to be written only on Save).
+// Returns { checked, fixed, failed, bound, failures } — "fixed"/"bound" count
+// only actual changes, so callers can stay quiet when there was nothing to do.
 function repairImages() {
   const sheet = getSheet(SHEETS.PARTS);
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
-  const imageUrlColIdx = findColIdx(headers, 'ImageURL');
-  if (imageUrlColIdx === -1) return { success: true, checked: 0, fixed: 0, failed: 0 };
-
+  let imageUrlColIdx = findColIdx(headers, 'ImageURL');
   let realArticleNoHeader = 'Article No.';
   Object.keys(PART_HEADER_MAP).forEach(rh => { if (PART_HEADER_MAP[rh] === 'ArticleNo') realArticleNoHeader = rh; });
   const articleNoColIdx = findColIdx(headers, realArticleNoHeader);
+  const lastModColIdx = findColIdx(headers, 'LastModified');
 
-  let checked = 0, fixed = 0, failed = 0;
+  // Folder index is built lazily (only if some row actually needs binding).
+  let folderFiles = null;
+  function folderIndex_() {
+    if (folderFiles) return folderFiles;
+    folderFiles = [];
+    try {
+      if (IMAGE_FOLDER_ID !== 'PASTE_YOUR_DRIVE_FOLDER_ID_HERE') {
+        const it = DriveApp.getFolderById(IMAGE_FOLDER_ID).getFiles();
+        while (it.hasNext()) {
+          const f = it.next();
+          folderFiles.push({ name: String(f.getName()).toLowerCase(), id: f.getId(), created: f.getDateCreated().getTime() });
+        }
+      }
+    } catch (e) { /* folder not configured / inaccessible → nothing to bind */ }
+    return folderFiles;
+  }
+  function findUploadForArticle_(articleNo) {
+    const a = String(articleNo).trim().toLowerCase();
+    if (!a) return null;
+    const hits = folderIndex_().filter(function (f) {
+      return f.name === a || f.name.indexOf(a + '_') === 0 || f.name.indexOf('#' + a + '_') === 0 || f.name.indexOf(a + '.') === 0;
+    });
+    if (!hits.length) return null;
+    hits.sort(function (x, y) { return y.created - x.created; });
+    return hits[0];                                // newest upload wins
+  }
+
+  let checked = 0, fixed = 0, failed = 0, bound = 0;
   const failures = [];
   for (let r = 1; r < data.length; r++) {
-    const url = String(data[r][imageUrlColIdx] || '').trim();
-    if (!url || !driveIdFromUrl_(url)) continue;
-    checked++;
-    if (ensureImageShared_(url)) { fixed++; }
-    else {
-      failed++;
-      failures.push(String(articleNoColIdx !== -1 ? data[r][articleNoColIdx] : ('row ' + (r + 1))));
+    const art = articleNoColIdx !== -1 ? String(data[r][articleNoColIdx] || '').trim() : '';
+    const url = imageUrlColIdx !== -1 ? String(data[r][imageUrlColIdx] || '').trim() : '';
+    if (url && driveIdFromUrl_(url)) {
+      checked++;
+      const res = ensureImageShared_(url);
+      if (res === 'fixed') fixed++;
+      else if (!res) { failed++; failures.push(art || ('row ' + (r + 1))); }
+    } else if (!url && art) {
+      const hit = findUploadForArticle_(art);
+      if (hit) {
+        if (imageUrlColIdx === -1) { imageUrlColIdx = headers.length; sheet.getRange(1, imageUrlColIdx + 1).setValue('ImageURL'); }
+        const newUrl = 'https://lh3.googleusercontent.com/d/' + hit.id;
+        sheet.getRange(r + 1, imageUrlColIdx + 1).setValue(newUrl);
+        ensureImageShared_(newUrl);
+        if (lastModColIdx !== -1) sheet.getRange(r + 1, lastModColIdx + 1).setValue(new Date());
+        bound++;
+      }
     }
   }
-  return { success: true, checked: checked, fixed: fixed, failed: failed, failures: failures.slice(0, 20) };
+  return { success: true, checked: checked, fixed: fixed, failed: failed, bound: bound, failures: failures.slice(0, 20) };
 }
 
 function debugHeaders() {
@@ -716,12 +758,16 @@ function trashDriveImage_(url) {
 // (e.g. .../view?usp=drivesdk on a private file) is stored fine but can NEVER
 // render in an <img> tag for other people — the exact "uploaded but no
 // preview" symptom. Called whenever we store an image URL. Never throws.
+// Returns 'already' (was fine), 'fixed' (sharing applied), or false (failed) —
+// callers that only care about success can treat any truthy value as OK.
 function ensureImageShared_(url) {
   try {
     const id = driveIdFromUrl_(url);
     if (!id) return false;
-    DriveApp.getFileById(id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return true;
+    const file = DriveApp.getFileById(id);
+    if (file.getSharingAccess() === DriveApp.Access.ANYONE_WITH_LINK) return 'already';
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return 'fixed';
   } catch (e) {
     return false;                                 // foreign/missing file → leave as-is
   }

@@ -1871,7 +1871,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         let imageUrl = '';
         if(imageData && articleNo){
           flashStatus('กำลังอัปโหลดรูป...');
-          const filename = articleNo + '_' + partName.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
+          const filename = articleNo.replace(/[^\w.-]/g,'') + '_' + partName.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
           try{
             const up = await lookupApiCall('uploadImage', { base64:imageData.base64, mimeType:'image/jpeg', filename });
             if(up && up.url) imageUrl = up.url;
@@ -1988,8 +1988,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     } else if(dbActiveTab === 'machines'){
       sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddMachine"><span class="ico">＋</span> เพิ่มเครื่องใหม่</button></div>` + renderDbTable(lookupCache.machines);
     } else if(dbActiveTab === 'parts'){
-      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddPart"><span class="ico">＋</span> เพิ่มอะไหล่ใหม่</button><button type="button" class="db-add-btn" id="dbRepairImages" title="ตั้งสิทธิ์แชร์รูปทุกไฟล์ใหม่ ให้รูปที่ไม่ขึ้นกลับมาแสดงได้">🔧 ซ่อมรูป</button></div>`
-        + `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่ · รูปไม่ขึ้น? กด “🔧 ซ่อมรูป”</p>` + renderPartsList(lookupCache.parts);
+      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddPart"><span class="ico">＋</span> เพิ่มอะไหล่ใหม่</button></div>`
+        + `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
     } else if(dbActiveTab === 'sets'){
       sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">ชุดพาร์ทที่ต้องเบิกด้วยกัน · ⭐ = พาร์ทหลัก (ตัวกระตุ้น) · แตะรูปเพื่อดูเต็ม</p>` + renderCompanionSets(lookupCache.companions||[]);
     } else if(dbActiveTab === 'trash'){
@@ -2045,23 +2045,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(addMachineBtn) addMachineBtn.onclick = ()=>openAddMachine();
     const addPartBtn = body.querySelector('#dbAddPart');
     if(addPartBtn) addPartBtn.onclick = ()=>openAddParts();
-    // Parts: repair image sharing (fixes hand-pasted private Drive links, and
-    // any upload whose sharing call failed) then re-sync + re-render.
-    const repairBtn = body.querySelector('#dbRepairImages');
-    if(repairBtn) repairBtn.onclick = async ()=>{
-      if(!confirm('ตั้งสิทธิ์แชร์รูปอะไหล่ทุกไฟล์ใหม่ (anyone with link) เพื่อให้รูปที่ไม่ขึ้นกลับมาแสดง?')) return;
-      repairBtn.disabled = true; repairBtn.textContent = '🔧 กำลังซ่อม...';
-      try{
-        const res = await lookupApiCall('repairImages', {});
-        flashStatus(`ซ่อมรูปแล้ว: ตรวจ ${res.checked||0} · สำเร็จ ${res.fixed||0}` + (res.failed ? ` · แก้ไม่ได้ ${res.failed} (${(res.failures||[]).join(', ')})` : ''));
-        await lookupSync();
-        await renderDbModal();
-      }catch(err){
-        repairBtn.disabled = false; repairBtn.textContent = '🔧 ซ่อมรูป';
-        const m = String(err.message||err);
-        alert('ซ่อมรูปไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่ (มี repairImages)':''));
-      }
-    };
+    // Parts tab visible → kick off the silent background image self-heal
+    // (once per session; see autoRepairImages below).
+    if(dbActiveTab === 'parts') autoRepairImages();
     // Sets: add / edit companion set
     const addSetBtn = body.querySelector('#dbAddSet');
     if(addSetBtn) addSetBtn.onclick = ()=>openCompanionSetEditor(null);
@@ -2069,6 +2055,30 @@ document.addEventListener('DOMContentLoaded', ()=>{
       btn.onclick = ()=>{ const s=(lookupCache.companions||[]).find(x=>String(x.name||'')===btn.dataset.name); openCompanionSetEditor(s||null); };
     });
   }
+
+  // Silent image self-heal — no button, the app fixes itself in the background.
+  // Runs at most once per session, triggered by (a) opening the parts tab or
+  // (b) a thumbnail exhausting its load retries (see dbImgRetry). The backend
+  // repairImages action re-shares every referenced Drive file AND binds parts
+  // that have no ImageURL to their newest matching upload in the Drive folder.
+  // Quiet unless something actually changed; harmless no-op on old backends.
+  let _imgAutoRepairDone = false;
+  async function autoRepairImages(){
+    if(_imgAutoRepairDone) return;
+    _imgAutoRepairDone = true;
+    try{
+      const res = await lookupApiCall('repairImages', {});
+      const changed = (res && ((res.fixed||0) + (res.bound||0))) || 0;
+      if(changed > 0){
+        _imgCacheToken = Date.now();            // changed files → bypass stale cache
+        flashStatus('ซ่อมรูปอัตโนมัติแล้ว '+changed+' รายการ');
+        await lookupSync();                     // pull the newly bound URLs
+        const body = document.getElementById('dbModalBody');
+        if(body && body.offsetParent) await renderDbModal();
+      }
+    }catch(e){ /* repairImages not deployed yet / offline → skip silently */ }
+  }
+  window._onDbImgDead = autoRepairImages;
 
   // Tab-scoped session: once signed in, reuse that identity for every edit /
   // delete / restore in the same tab without re-prompting. The identity lives in
@@ -2148,14 +2158,19 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
     const ov = document.createElement('div');
     ov.className = 'edit-part-modal open';
-    const displayImg = ()=> normalizeImageUrl(newImageValue !== undefined ? newImageValue : origImageRaw) || '';
+    // A newly picked photo is only compressed + previewed locally; the actual
+    // Drive upload happens ONCE inside save(). This is what makes changing an
+    // image REPLACE the old one instead of piling up a new Drive file on every
+    // pick (the old file is trashed by updatePart when the new URL is stored).
+    let pendingImage = null;                  // {src, base64} picked locally, uploaded on Save
 
-    // Guard: an uploaded image reaches the sheet only when the user presses
-    // "บันทึกการแก้ไข". Closing the form after changing the image silently
-    // orphans the upload on Drive — the classic "uploaded but no preview"
-    // trap — so confirm before discarding.
-    const confirmDiscard = ()=> newImageValue === undefined
-      || confirm('รูปที่เปลี่ยนยังไม่ถูกบันทึกลงฐานข้อมูล\nปิดโดยไม่บันทึกใช่หรือไม่? (ต้องกด “บันทึกการแก้ไข” รูปจึงจะแสดงในหน้าอะไหล่)');
+    const displayImg = ()=> pendingImage ? pendingImage.src
+      : (normalizeImageUrl(newImageValue !== undefined ? newImageValue : origImageRaw) || '');
+
+    // Guard: the image change reaches Drive + the sheet only when the user
+    // presses "บันทึกการแก้ไข" — confirm before silently discarding it.
+    const confirmDiscard = ()=> (!pendingImage && newImageValue === undefined)
+      || confirm('รูปที่เปลี่ยนยังไม่ถูกบันทึก\nปิดโดยไม่บันทึกใช่หรือไม่? (ต้องกด “บันทึกการแก้ไข” รูปจึงจะถูกอัปโหลดและแสดงในหน้าอะไหล่)');
 
     function renderEdit(){
       const img = displayImg();
@@ -2200,16 +2215,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const doAdd = ()=>{ const v=addInp.value.trim(); if(v){ aliases.push(v); renderEdit(); } };
       ov.querySelector('.epm-alias-addbtn').onclick = doAdd;
       addInp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doAdd(); } };
-      const imgDel = ov.querySelector('.epm-img-del'); if(imgDel) imgDel.onclick = ()=>{ newImageValue=''; renderEdit(); };
+      const imgDel = ov.querySelector('.epm-img-del'); if(imgDel) imgDel.onclick = ()=>{ pendingImage=null; newImageValue=''; renderEdit(); };
       ov.querySelector('.epm-img-input').onchange = async (e)=>{
         const f=e.target.files[0]; if(!f) return;
         try{
-          flashStatus('กำลังอัปโหลดรูป...');
-          const {base64}=await compressForUpload(f);
-          const filename=(artVal?artVal+'_':'')+descVal.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40)+'.jpg';
-          const up=await lookupApiCall('uploadImage',{base64,mimeType:'image/jpeg',filename});
-          if(up&&up.url){ newImageValue=up.url; flashStatus('อัปโหลดรูปแล้ว (กดบันทึกเพื่อยืนยัน)'); renderEdit(); }
-        }catch(err){ const m=String(err.message||err); flashStatus('อัปโหลดไม่สำเร็จ: '+m+(m.includes('Unknown action')?' → deploy Code.gs ใหม่':'')); }
+          // local preview only — the single Drive upload happens in save()
+          pendingImage = await compressForUpload(f);
+          newImageValue = undefined;              // picking a photo overrides a pending delete
+          flashStatus('แนบรูปแล้ว (กด “บันทึกการแก้ไข” เพื่ออัปโหลดแทนที่รูปเดิม)');
+          renderEdit();
+        }catch(err){ flashStatus('เตรียมรูปไม่สำเร็จ'); }
       };
       ov.querySelector('.epm-restore-open').onclick = renderRestore;
       ov.querySelector('.epm-delete').onclick = doDelete;
@@ -2247,6 +2262,24 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
       setSessionEditor(editor);                 // keep the tab session current
       const btn = ov.querySelector('.epm-save'); if(btn) btn.disabled=true;
+      // Upload the newly picked photo NOW — exactly one Drive file per save.
+      // updatePart then stores this URL and trashes the previous file, so the
+      // image is REPLACED instead of accumulating duplicates on Drive.
+      if(pendingImage){
+        try{
+          flashStatus('กำลังอัปโหลดรูป...');
+          const artClean = (artVal.trim()||origArticleNo).replace(/[^\w.-]/g,'');
+          const filename = (artClean?artClean+'_':'')+descVal.replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40)+'.jpg';
+          const up = await lookupApiCall('uploadImage',{ base64:pendingImage.base64, mimeType:'image/jpeg', filename });
+          if(!up || !up.url) throw new Error('อัปโหลดไม่สำเร็จ (ไม่ได้ URL กลับมา)');
+          newImageValue = up.url;
+        }catch(imgErr){
+          if(btn) btn.disabled=false;
+          const m = String(imgErr.message||imgErr);
+          alert('อัปโหลดรูปไม่สำเร็จ — ยังไม่ได้บันทึก: '+m+'\nลองกดบันทึกอีกครั้ง หรือกด "ลบรูป" เพื่อบันทึกโดยไม่เปลี่ยนรูป');
+          return;
+        }
+      }
       const payload = { origArticleNo, editor, newDescription: descVal, aliases };
       const at = artVal.trim();
       if(at && at.toLowerCase() !== origArticleNo.toLowerCase()) payload.newArticleNo = at;
@@ -2255,6 +2288,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         await lookupApiCall('updatePart', payload);
         part.Description = descVal;
         if(newImageValue !== undefined){ part.ImageURL = newImageValue; _imgCacheToken = Date.now(); }
+        pendingImage = null;                    // consumed by the upload above
         Object.keys(part).filter(k=>/suggestion\s*word/i.test(k)).forEach(k=>{ part[k]=''; });
         aliases.forEach((a,i)=>{ part['Suggestion word'+(i+1)] = a; });
         if(payload.newArticleNo) part.ArticleNo = payload.newArticleNo;
@@ -2583,6 +2617,9 @@ window.dbImgRetry = function(el){
     // final fallback: placeholder styling, stop the lightbox link
     el.classList.add('db-part-noimg'); el.classList.add('noimg');
     el.removeAttribute('src'); el.removeAttribute('data-full');
+    // a genuinely dead image usually means a Drive-permission problem →
+    // wake the background self-heal (once per session, defined in-app)
+    try{ if(window._onDbImgDead) window._onDbImgDead(); }catch(e){}
   }
 };
 
