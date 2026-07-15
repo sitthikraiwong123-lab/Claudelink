@@ -2496,25 +2496,21 @@ function getCompanionsFor(triggerArticleNo){
   });
   return out;
 }
-// Put the set's combined image on the MAIN part (if it has no photo yet).
-function applyCompanionSetImage(idx, set){
+// On "ตอบตกลง" for a companion set, put the SET's combined image (the one added
+// in DB-ชุดเบิก) onto the MAIN part. Fetched via the proxy (works under the org's
+// Drive-sharing block) and fills the 4:3 cell keeping aspect. Overrides an
+// auto-filled part image but never a photo the user shot/uploaded.
+async function applyCompanionSetImage(idx, set){
   const it = order.items[idx];
   if(!it || it.locked) return;
-  if(it.image && it.image.src) return;
-  const url = set && normalizeImageUrl(set.image);
-  if(!url) return;
-  const helper = new Image(); helper.crossOrigin = 'anonymous';
-  helper.onload = ()=>{
-    if(it.image && it.image.src) return;
-    const boxRatio = 4/3, imgRatio = helper.width/helper.height;
-    let fw, fh;
-    if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; } else { fh = 1; fw = imgRatio/boxRatio; }
-    it.image = { src: url, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, fromDb:true };
-    renderItemPhoto(idx);
-    flashStatus('ใส่รูปรวมของชุดให้พาร์ทหลักแล้ว');
-  };
-  helper.onerror = ()=>{};
-  helper.src = url;
+  if(it.image && it.image.src && !it.image.fromDb) return;    // keep a user photo
+  if(!(set && normalizeImageUrl(set.image))) return;
+  const src = await resolveDbImageDataUrl(set.image);
+  if(!src) return;
+  if(it.image && it.image.src && !it.image.fromDb) return;    // user set one meanwhile
+  it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, fromDb:true, fromDbArticle:String(it.articleNo||'').trim() };
+  renderItemPhoto(idx);
+  flashStatus('ใส่รูปรวมของชุดให้พาร์ทหลักแล้ว');
 }
 
 // Called after a part is confirmed on item `idx`. If it triggers companions,
@@ -2679,6 +2675,28 @@ window.dbImgRetry = function(el){
   }
   placeholderImg(el);
 };
+
+// Resolve a stored part/companion ImageURL into a source usable for the item
+// photo AND the A4 PDF: prefer a base64 data URL via the owner proxy — that
+// both dodges the org's Drive-sharing block and keeps the PDF canvas CORS-clean
+// (a remote Drive URL would taint it and break html2canvas). Falls back to the
+// direct URL for non-Drive images or when the proxy isn't available.
+async function resolveDbImageDataUrl(rawUrl){
+  const url = normalizeImageUrl(rawUrl);
+  if(!url || url.indexOf('data:') === 0) return url || '';
+  const id = (String(url).match(/\/d\/([a-zA-Z0-9_-]{10,})/) || [])[1];
+  if(!id) return url;                             // non-Drive image → use as-is
+  if(_imgProxyCache[id]) return _imgProxyCache[id];
+  try{
+    const res = await lookupApiCall('getImageBytes', { id });
+    if(res && res.base64){
+      const dataUrl = 'data:' + (res.mimeType || 'image/jpeg') + ';base64,' + res.base64;
+      _imgProxyCache[id] = dataUrl; _imgProxyWorked = true;
+      return dataUrl;
+    }
+  }catch(e){ /* proxy not deployed / offline */ }
+  return url;                                     // best-effort direct URL
+}
 
 function searchAnyField(list, query, limit){
   const q = (query||'').trim().toLowerCase();
@@ -3134,12 +3152,11 @@ function renderItemPhoto(idx){
       const f = e.target.files[0];
       if(!f) return;
       try{
-        const { src, w:iw, h:ih } = await compressImage(f);
-        const boxRatio = 4/3, imgRatio = iw/ih;
-        let fw, fh;
-        if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; }
-        else { fh = 1; fw = imgRatio/boxRatio; }
-        it.image = { src, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, _new:true };
+        const { src } = await compressImage(f);
+        // Fill the whole 4:3 cell (object-fit:cover keeps the aspect ratio and
+        // crops the overflow — no letterboxing, no distortion). User can still
+        // fine-tune with the move / resize / crop handles.
+        it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, _new:true };
         // also queue a Drive-quality copy so this photo enriches the DB on Save/Export
         const desc = String(it.description||'').trim();
         const pendingKey = art ? art.toLowerCase() : desc.toLowerCase();
@@ -3160,29 +3177,32 @@ function renderItemPhoto(idx){
 
 /* If the item's part has an image in the DB and the item has no photo yet,
    pull that image in automatically. */
-function maybeAutofillDbImage(idx){
+// Keep the row's photo in sync with its part: when the Article No changes, pull
+// that part's DB image (via the proxy, so it works even when Drive blocks public
+// sharing). A photo the user shot/uploaded is never touched — only auto-filled
+// (fromDb) images are replaced, and a stale auto image is cleared if the new
+// part has none. The image fills the whole 4:3 cell (cover) keeping its aspect.
+async function maybeAutofillDbImage(idx){
   const it = order.items[idx];
   if(!it || it.locked) return;
-  if(it.image && it.image.src) return; // never overwrite a chosen photo
+  if(it.image && it.image.src && !it.image.fromDb) return;   // keep a user photo
   const art = String(it.articleNo||'').trim();
-  if(!art) return;
-  const match = findPart(art);
-  const imgUrl = normalizeImageUrl(match ? match.ImageURL : '');
-  if(!imgUrl) return;
-  const helper = new Image();
-  helper.crossOrigin = 'anonymous';
-  helper.onload = ()=>{
-    if(it.image && it.image.src) return; // race guard
-    const boxRatio = 4/3, imgRatio = helper.width/helper.height;
-    let fw, fh;
-    if(imgRatio >= boxRatio){ fw = 1; fh = boxRatio/imgRatio; }
-    else { fh = 1; fw = imgRatio/boxRatio; }
-    it.image = { src: imgUrl, x:(1-fw)/2, y:(1-fh)/2, w:fw, h:fh, objX:50, objY:50, z:1, fromDb:true };
-    renderItemPhoto(idx);
-    flashStatus('ใส่รูปจากฐานข้อมูลให้อัตโนมัติ');
-  };
-  helper.onerror = ()=>{};
-  helper.src = imgUrl;
+  // already showing this exact article's DB image → nothing to do
+  if(it.image && it.image.fromDb && String(it.image.fromDbArticle||'').toLowerCase() === art.toLowerCase()) return;
+  const match = art ? findPart(art) : null;
+  const raw = match ? match.ImageURL : '';
+  if(!normalizeImageUrl(raw)){
+    if(it.image && it.image.fromDb){ it.image = null; renderItemPhoto(idx); }  // drop stale auto image
+    return;
+  }
+  const src = await resolveDbImageDataUrl(raw);
+  if(!src) return;
+  // guard against the row changing (or a user photo landing) while we fetched
+  if(String(it.articleNo||'').trim().toLowerCase() !== art.toLowerCase()) return;
+  if(it.image && it.image.src && !it.image.fromDb) return;
+  it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, fromDb:true, fromDbArticle:art };
+  renderItemPhoto(idx);
+  flashStatus('ใส่รูปจากฐานข้อมูลให้อัตโนมัติ');
 }
 
 function compressImage(file){
