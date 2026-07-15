@@ -2395,11 +2395,19 @@ async function lookupSync(){
   }
 }
 function mergeLookupDelta(list, updates, keyField){
-  const idx = new Map(list.map((r,i)=>[r[keyField], i]));
-  (updates||[]).forEach(u=>{
-    if(idx.has(u[keyField])) list[idx.get(u[keyField])] = u;
-    else list.push(u);
-  });
+  // Normalize the key before comparing: Google Sheets returns a numeric code
+  // (e.g. 46694) as a NUMBER while the app's optimistic entry holds it as a
+  // STRING ("46694"), and raw Map-key equality treats those as different →
+  // the same part gets added twice. Coercing to a trimmed lowercase string
+  // makes them match (also collapses any duplicates already in the cache).
+  const norm = v => String(v==null ? '' : v).trim().toLowerCase();
+  const byKey = new Map();          // normalized key → object (server update wins)
+  const order = [];                 // preserve first-seen display order
+  const put = (obj)=>{ const k = norm(obj[keyField]); if(!byKey.has(k)) order.push(k); byKey.set(k, obj); };
+  list.forEach(put);                // existing entries (dedupes pre-existing copies)
+  (updates||[]).forEach(put);       // server rows override same key, new keys append
+  const out = order.map(k => byKey.get(k));
+  list.length = 0; Array.prototype.push.apply(list, out);
 }
 
 async function lookupFlushOutbox(){
