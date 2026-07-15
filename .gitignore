@@ -1,9 +1,0 @@
-# Claude Code local settings (machine-specific)
-.claude/settings.local.json
-
-# OS / editor noise
-Thumbs.db
-Desktop.ini
-.DS_Store
-*.swp
-*~
