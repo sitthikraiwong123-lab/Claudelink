@@ -74,6 +74,7 @@ function handleRequest(e) {
       case 'deleteAlias':   result = deleteAlias(params); break;
       case 'uploadImage':   result = uploadImage(params); break;
       case 'setImageURL':   result = setImageURL(params); break;
+      case 'getImageBytes': result = getImageBytes(params); break;
       case 'repairImages':  result = repairImages(params); break;
       case 'deleteAlias':   result = deleteAlias(params); break;
       case 'updatePart':    result = updatePart(params); break;
@@ -451,12 +452,28 @@ function uploadImage(params) {
   const bytes = Utilities.base64Decode(base64);
   const blob = Utilities.newBlob(bytes, mimeType, filename);
   const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+  // Try to make it public, but DON'T fail the whole upload if the org's Drive
+  // policy forbids link-sharing (that throws "Access denied: DriveApp." AFTER
+  // the file is already created — the file's fine, only sharing was blocked).
+  // When sharing is blocked the app falls back to the getImageBytes proxy,
+  // which reads the file as the owner and never needs public sharing.
+  const fileId = file.getId();
+  const shared = shareFileAnyone_(file);
 
   // Use the thumbnail-friendly URL format that works reliably in <img> tags
-  const fileId = file.getId();
   const url = 'https://lh3.googleusercontent.com/d/' + fileId;
-  return { success: true, url: url, fileId: fileId };
+  return { success: true, url: url, fileId: fileId, shared: shared };
+}
+
+// Try anyone-with-link, then domain-with-link; never throws. Returns
+// true / 'domain' / false so callers can tell whether public sharing worked.
+function shareFileAnyone_(file) {
+  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); return true; }
+  catch (e1) {
+    try { file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW); return 'domain'; }
+    catch (e2) { return false; }
+  }
 }
 
 // Writes an image URL into the ImageURL column for an existing coded part.
@@ -765,12 +782,32 @@ function ensureImageShared_(url) {
     const id = driveIdFromUrl_(url);
     if (!id) return false;
     const file = DriveApp.getFileById(id);
-    if (file.getSharingAccess() === DriveApp.Access.ANYONE_WITH_LINK) return 'already';
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return 'fixed';
+    const acc = file.getSharingAccess();
+    if (acc === DriveApp.Access.ANYONE_WITH_LINK || acc === DriveApp.Access.DOMAIN_WITH_LINK) return 'already';
+    return shareFileAnyone_(file) ? 'fixed' : false;   // org may block public sharing
   } catch (e) {
     return false;                                 // foreign/missing file → leave as-is
   }
+}
+
+// Image proxy for locked-down Workspace domains. When the org forbids public
+// link-sharing, no lh3/Drive URL can ever render in an <img>, but the web app
+// runs as the file's OWNER and can always read the bytes. Returns the image as
+// base64 so the frontend can show it as a data: URL. Accepts { id } (Drive
+// file id) or { url } (any stored image URL). Size-guarded to protect quota.
+function getImageBytes(params) {
+  var id = String((params && params.id) || '').trim();
+  if (!id && params && params.url) id = driveIdFromUrl_(params.url);
+  if (!id) throw new Error('id or url required');
+  var blob = DriveApp.getFileById(id).getBlob();   // as owner → no sharing needed
+  var bytes = blob.getBytes();
+  if (bytes.length > 8 * 1024 * 1024) return { success: false, error: 'image too large to proxy' };
+  return {
+    success: true,
+    id: id,
+    mimeType: blob.getContentType() || 'image/jpeg',
+    base64: Utilities.base64Encode(bytes)
+  };
 }
 
 function updatePart(params) {

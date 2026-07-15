@@ -2604,23 +2604,72 @@ function normalizeImageUrl(url){
    a fresh ?r= param so the failed response isn't replayed from cache; only
    after all retries fail do we show the placeholder. (Global on window because
    it's called from inline onerror attributes in template strings.) */
+// Owner-side image proxy. In a locked-down Google Workspace, Drive refuses to
+// share files "anyone with link", so no lh3/Drive URL can ever load in an <img>.
+// The backend runs as the file OWNER and can read the bytes regardless, so we
+// fetch them (once per file id, cached) and show them as a data: URL. The first
+// success flips _imgProxyWorked so later images skip the retry wait and proxy
+// straight away.
+const _imgProxyCache = {};
+let _imgProxyWorked = false;
+function applyProxyImg(el, dataUrl){
+  if(!el || !el.isConnected) return;
+  el.classList.remove('db-part-noimg'); el.classList.remove('noimg');
+  el.dataset.proxied = '1';
+  if(el.dataset.full !== undefined) el.dataset.full = dataUrl;
+  el.src = dataUrl;
+}
+async function loadImageViaProxy(el){
+  try{
+    const base = el.dataset.src || '';
+    const id = (String(base).match(/\/d\/([a-zA-Z0-9_-]{10,})/) || [])[1];
+    if(!id) return false;
+    if(_imgProxyCache[id]){ applyProxyImg(el, _imgProxyCache[id]); return true; }
+    const res = await lookupApiCall('getImageBytes', { id });
+    if(res && res.base64){
+      const dataUrl = 'data:' + (res.mimeType || 'image/jpeg') + ';base64,' + res.base64;
+      _imgProxyCache[id] = dataUrl;
+      _imgProxyWorked = true;
+      applyProxyImg(el, dataUrl);
+      return true;
+    }
+  }catch(e){ /* proxy not deployed / too large / offline → placeholder */ }
+  return false;
+}
+function placeholderImg(el){
+  el.classList.add('db-part-noimg'); el.classList.add('noimg');
+  el.removeAttribute('src'); el.removeAttribute('data-full');
+  try{ if(window._onDbImgDead) window._onDbImgDead(); }catch(e){}
+}
+
 window.dbImgRetry = function(el){
+  if(el.dataset.proxied){ placeholderImg(el); return; }   // a proxied data URL failed → give up
   const tries = +(el.dataset.retry || 0);
   const base = el.dataset.src || '';
+  const hasDriveId = /\/d\/[a-zA-Z0-9_-]{10,}/.test(base);
+  // Already learned Drive is locked down this session → proxy immediately.
+  if(hasDriveId && _imgProxyWorked){
+    el.dataset.proxied = '1';
+    loadImageViaProxy(el).then(ok=>{ if(!ok) placeholderImg(el); });
+    return;
+  }
+  // A freshly uploaded Drive file can take a few seconds to become servable,
+  // so retry the direct URL up to 3× (~1.2/2.4/3.6s) with a fresh ?r= param.
   if(tries < 3 && /^https?:/i.test(base)){
     el.dataset.retry = tries + 1;
     setTimeout(function(){
       if(!el.isConnected) return;               // view re-rendered meanwhile
       el.src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'r=' + Date.now();
     }, 1200 * (tries + 1));
-  } else {
-    // final fallback: placeholder styling, stop the lightbox link
-    el.classList.add('db-part-noimg'); el.classList.add('noimg');
-    el.removeAttribute('src'); el.removeAttribute('data-full');
-    // a genuinely dead image usually means a Drive-permission problem →
-    // wake the background self-heal (once per session, defined in-app)
-    try{ if(window._onDbImgDead) window._onDbImgDead(); }catch(e){}
+    return;
   }
+  // Direct URL exhausted → try the owner-side proxy before giving up.
+  if(hasDriveId){
+    el.dataset.proxied = '1';
+    loadImageViaProxy(el).then(ok=>{ if(!ok) placeholderImg(el); });
+    return;
+  }
+  placeholderImg(el);
 };
 
 function searchAnyField(list, query, limit){
