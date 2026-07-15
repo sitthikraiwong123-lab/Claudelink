@@ -380,7 +380,7 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 .photo-canvas:empty::before{content:'\1F4F7';font-size:30px;line-height:1;opacity:.5;}
 .photo-canvas:empty::after{content:'แตะเพื่อเพิ่มรูป';color:#9ca3af;font-size:13px;font-weight:600;}
 .ph-img{position:absolute;border:1px solid rgba(228,29,21,.5);box-shadow:0 1px 4px rgba(0,0,0,.25);touch-action:none;}
-.ph-img img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none;}
+.ph-img img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none;}
 .resize-handle{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;background:var(--red);
   border-radius:3px;cursor:nwse-resize;touch-action:none;}
 .crop-handle{position:absolute;left:-4px;bottom:-4px;width:14px;height:14px;background:#333;
@@ -1115,7 +1115,7 @@ function buildPrintHtml(ord){
     const img = it.image;
     const x=(img.x||0)*100, y=(img.y||0)*100, w=(img.w||0.5)*100, h=(img.h||0.5)*100;
     const ox = img.objX!==undefined ? img.objX : 50, oy = img.objY!==undefined ? img.objY : 50;
-    return `<img src="${img.src}" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:cover;object-position:${ox}% ${oy}%;">`;
+    return `<img src="${img.src}" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:contain;object-position:${ox}% ${oy}%;">`;
   }
   function articleHdr(i){ return `<td class="part-hdr">Article No</td>`; }
   function articleVal(i){ const it = photoItems[i]; return `<td class="part-val">${escHtml(it && it.articleNo ? String(it.articleNo) : '-')}</td>`; }
@@ -2498,7 +2498,8 @@ function getCompanionsFor(triggerArticleNo){
 }
 // On "ตอบตกลง" for a companion set, put the SET's combined image (the one added
 // in DB-ชุดเบิก) onto the MAIN part. Fetched via the proxy (works under the org's
-// Drive-sharing block) and fills the 4:3 cell keeping aspect. Overrides an
+// Drive-sharing block) and spans the 4:3 cell with object-fit:contain (whole
+// image at its original aspect, never cropped). Overrides an
 // auto-filled part image but never a photo the user shot/uploaded.
 async function applyCompanionSetImage(idx, set){
   const it = order.items[idx];
@@ -3153,9 +3154,10 @@ function renderItemPhoto(idx){
       if(!f) return;
       try{
         const { src } = await compressImage(f);
-        // Fill the whole 4:3 cell (object-fit:cover keeps the aspect ratio and
-        // crops the overflow — no letterboxing, no distortion). User can still
-        // fine-tune with the move / resize / crop handles.
+        // Span the whole 4:3 cell; object-fit:contain then scales the image as
+        // large as it fits while keeping its ORIGINAL aspect ratio (whole image
+        // visible, never cropped or distorted). User can still fine-tune with
+        // the move / resize / crop handles.
         it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, _new:true };
         // also queue a Drive-quality copy so this photo enriches the DB on Save/Export
         const desc = String(it.description||'').trim();
@@ -3181,7 +3183,8 @@ function renderItemPhoto(idx){
 // that part's DB image (via the proxy, so it works even when Drive blocks public
 // sharing). A photo the user shot/uploaded is never touched — only auto-filled
 // (fromDb) images are replaced, and a stale auto image is cleared if the new
-// part has none. The image fills the whole 4:3 cell (cover) keeping its aspect.
+// part has none. The image spans the 4:3 cell with object-fit:contain — shown
+// in full at its original aspect ratio (never cropped or stretched).
 async function maybeAutofillDbImage(idx){
   const it = order.items[idx];
   if(!it || it.locked) return;
