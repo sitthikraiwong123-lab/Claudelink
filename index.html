@@ -4727,6 +4727,25 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .btn-outline:hover{background:#fff5f4;border-color:var(--red);}
 .btn-ico{font-size:15px;line-height:1;display:inline-block;}
 .topbar-actions .btn{padding:7px 11px;font-size:12.5px;}
+/* ☰ menu: the top-bar actions collapse into a dropdown. Anchored to .topbar
+   (sticky counts as positioned, so it's the containing block). Deliberately NOT
+   registered with modalOpened(): an item's own handler opens its modal
+   synchronously, and consumeModalHistory()'s async history.back() would race
+   that pushState and unbalance _modalDepth. It dismisses via Esc / tap-outside
+   / picking an item instead. */
+.btn-menu{font-size:16px;line-height:1;}
+.top-menu{position:absolute;top:100%;right:14px;margin-top:6px;z-index:60;
+  background:#fff;border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 6px 20px rgba(0,0,0,.16);min-width:186px;padding:6px;
+  display:none;flex-direction:column;gap:2px;}
+.top-menu.open{display:flex;}
+.tm-item{display:flex;align-items:center;gap:9px;width:100%;justify-content:flex-start;
+  text-align:left;background:none;border:none;border-radius:7px;padding:12px;
+  font-size:13.5px;font-weight:600;color:var(--dark);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;}
+.tm-item:hover{background:#f3f3f4;}
+.tm-item:active{background:#e9e9ea;}
+.tm-item:disabled{opacity:.45;cursor:not-allowed;}
 /* add-row: clear full-width dashed accent action */
 .btn-add-row{width:100%;justify-content:center;border:1.5px dashed var(--red);color:var(--red);
   background:#fff;padding:11px 14px;border-radius:10px;font-weight:700;margin-top:4px;}
@@ -4768,10 +4787,27 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 .btn-del-row{background:none;border:none;color:var(--red);font-size:12px;font-weight:700;padding:2px 4px;}
 .item-grid{display:flex;flex-direction:column;gap:8px;}
 .item-grid label{margin:0;font-size:11.5px;color:var(--gray);font-weight:600;}
+/* Caption styling must live on .fld-cap itself, not be inherited from a <label>
+   wrapper: the Article No row is a <div> (a <button> inside a <label> fires the
+   label's activation and focuses the input), so a label-only rule left its
+   caption at the inherited body font. */
+.item-grid .fld-cap{font-size:11.5px;color:var(--gray);font-weight:600;}
 /* Machine No / Machine Type / Article No: caption + field on ONE line, one field per row */
 .fld-inline{display:flex;align-items:center;gap:10px;}
 .fld-inline .fld-cap{flex-shrink:0;width:98px;}
 .fld-inline > input,.fld-inline .ac-wrap,.fld-inline .mt-wrap{flex:1;min-width:0;}
+/* 👁 "ประวัติการเบิก" — sits BESIDE .ac-wrap (a sibling, never inside it) so the
+   absolutely-positioned .ac-list dropdown stays the width of the input alone.
+   38px matches the input height; the app's controls are ~38px throughout, so a
+   44px target here would sit taller than the field it belongs to. */
+.btn-usage{flex-shrink:0;width:38px;height:38px;padding:0;border:1px solid var(--border);
+  border-radius:9px;background:#fff;color:var(--gray);font-size:15px;line-height:1;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s,transform .05s;
+  -webkit-tap-highlight-color:transparent;}
+.btn-usage:hover:not(:disabled){border-color:var(--red);background:#fff5f4;}
+.btn-usage:active:not(:disabled){transform:scale(.94);}
+.btn-usage:disabled{opacity:.4;cursor:not-allowed;}
 /* Description keeps the caption-above-field stacked layout, full width */
 .fld-stack{display:flex;flex-direction:column;gap:3px;}
 /* Part Name (flex) + Qty (compact) share one line; Description sits full-width below */
@@ -4839,11 +4875,17 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
 .btn-file:active{transform:scale(.97);}
 .btn-clear-box{background:none;border:none;color:var(--gray);font-size:12px;text-decoration:underline;}
 
-.action-bar{
-  position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);
-  display:flex;gap:8px;padding:10px 12px;z-index:60;justify-content:center;
-}
-.action-bar .btn{flex:1;max-width:200px;}
+/* Floating action button: replaces the old fixed Save / Export bar. Tapping it
+   builds the A4 PDF and opens the preview, where the four actions live. */
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  width:56px;height:56px;border-radius:50%;background:var(--red);color:#fff;border:none;
+  font-size:24px;line-height:1;cursor:pointer;z-index:60;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(228,29,21,.4);
+  transition:transform .08s,box-shadow .15s;-webkit-tap-highlight-color:transparent;}
+.fab:hover{box-shadow:0 6px 18px rgba(228,29,21,.5);}
+.fab:active{transform:scale(.93);}
+.fab:disabled{opacity:.55;cursor:progress;}
 
 .status-msg{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(10px);
   background:var(--dark);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;
@@ -4896,6 +4938,20 @@ details.addr-details summary{cursor:pointer;font-size:12.5px;color:var(--gray);f
   padding:5px 12px;font-size:12px;font-weight:600;}
 #emailDraftText{width:100%;min-height:160px;box-sizing:border-box;border:1px solid var(--border);
   border-radius:8px;padding:10px;font-size:13px;line-height:1.5;font-family:inherit;resize:vertical;color:#222;}
+/* The four actions live under the preview: decide what to do AFTER seeing the
+   PDF. 2 columns so all four fit without scrolling on a phone. */
+.pm-menu{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;
+  background:#fff;border-top:1px solid var(--border);flex-shrink:0;
+  padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));}
+.pm-menu-item{display:flex;align-items:center;justify-content:center;gap:7px;
+  border:1px solid var(--border);background:#fff;border-radius:9px;padding:12px 8px;
+  font-size:12.5px;font-weight:600;color:var(--dark);cursor:pointer;line-height:1.2;
+  transition:background .15s,border-color .15s,transform .05s;-webkit-tap-highlight-color:transparent;}
+.pm-menu-item:hover:not(:disabled){background:#f3f3f4;border-color:#c7c7c7;}
+.pm-menu-item:active:not(:disabled){transform:scale(.97);}
+.pm-menu-item:disabled{opacity:.4;cursor:not-allowed;}
+.pm-menu-item.primary{border-color:var(--red);color:var(--red);}
+.pm-menu-item.primary:hover:not(:disabled){background:#fff5f4;border-color:var(--red);}
 
 .preview-filename{font-size:12.5px;color:var(--gray);margin-bottom:10px;word-break:break-all;}
 .preview-actions-row{display:flex;gap:10px;flex-wrap:wrap;}
@@ -5006,7 +5062,6 @@ table.pphoto tr td:last-child{ border-right:none !important; }
     <div class="pdf-modal-bar">
       <div class="pm-title" id="pdfModalTitle">Preview PDF</div>
       <div class="pm-actions">
-        <button id="pdfModalDownload">ดาวน์โหลด</button>
         <button class="pm-close" id="pdfModalClose">✕</button>
       </div>
     </div>
@@ -5020,6 +5075,12 @@ table.pphoto tr td:last-child{ border-right:none !important; }
         <textarea id="emailDraftText" readonly></textarea>
       </div>
     </div>
+    <div class="pm-menu" role="menu">
+      <button class="pm-menu-item" id="pmSaveDraft" role="menuitem">💾 Save to draft</button>
+      <button class="pm-menu-item" id="pmSavePdf" role="menuitem">⬇ Save PDF</button>
+      <button class="pm-menu-item primary" id="pmSendEmail" role="menuitem">✉ Send to email</button>
+      <button class="pm-menu-item" id="pmShare" role="menuitem" title="ส่งไปยังแชท / แอปอื่น">📤 Share</button>
+    </div>
   </div>
 
 </div>
@@ -5030,10 +5091,13 @@ table.pphoto tr td:last-child{ border-right:none !important; }
     <div><h1>Export / Warranty Order Form</h1><div style="font-size:10.5px;color:var(--gray);margin-top:2px;letter-spacing:.03em;">v2.7.5 · 05-Jul-2026</div></div>
   </div>
   <div class="topbar-actions">
-    <button class="btn" id="btnHistory">ประวัติ</button>
-    <button class="btn" id="lookupSyncRefresh" title="ซิงค์ฐานข้อมูล Machine/Part">⟳ ซิงค์</button>
-    <button class="btn" id="btnViewDb" title="ดูข้อมูล Database ที่ซิงค์มา">📋 ดู DB</button>
-    <button class="btn" id="btnNew">+ ใหม่</button>
+    <button class="btn btn-menu" id="btnMenu" aria-label="เมนู" aria-haspopup="true" aria-expanded="false" aria-controls="topMenu">☰</button>
+    <div class="top-menu" id="topMenu" role="menu" aria-labelledby="btnMenu">
+      <button class="tm-item" id="btnHistory" role="menuitem">🕘 ประวัติ</button>
+      <button class="tm-item" id="lookupSyncRefresh" role="menuitem" title="ซิงค์ฐานข้อมูล Machine/Part">⟳ ซิงค์</button>
+      <button class="tm-item" id="btnViewDb" role="menuitem" title="ดูข้อมูล Database ที่ซิงค์มา">📋 ดู DB</button>
+      <button class="tm-item" id="btnNew" role="menuitem">＋ ใหม่</button>
+    </div>
   </div>
 </div>
 
@@ -5083,10 +5147,7 @@ table.pphoto tr td:last-child{ border-right:none !important; }
 
 </div>
 
-<div class="action-bar">
-  <button class="btn btn-outline" id="btnSave">💾 Save</button>
-  <button class="btn btn-primary" id="btnExport">✉ Export PDF → Email</button>
-</div>
+<button class="fab" id="btnFab" title="สร้าง PDF A4 แล้วเลือกบันทึก / ส่ง" aria-label="สร้าง PDF A4 แล้วเลือกบันทึก หรือ ส่ง">📄</button>
 
 <div class="status-msg" id="statusMsg"></div>
 
@@ -5562,7 +5623,17 @@ function buildPrintHtml(ord){
     return `<img src="${img.src}" style="max-width:100%;max-height:50mm;width:auto;height:auto;display:inline-block;vertical-align:middle;">`;
   }
   function articleHdr(i){ return `<td class="part-hdr">Article No</td>`; }
-  function articleVal(i){ const it = photoItems[i]; return `<td class="part-val">${escHtml(it && it.articleNo ? String(it.articleNo) : '-')}</td>`; }
+  function articleVal(i){
+    const it = photoItems[i];
+    let val = '-';
+    if(it && Array.isArray(it.setArticles) && it.setArticles.length){
+      // Companion set was accepted → list every code in the set.
+      val = it.setArticles.map(a=>'#'+a).join(', ');
+    } else if(it && it.articleNo){
+      val = String(it.articleNo);
+    }
+    return `<td class="part-val">${escHtml(val)}</td>`;
+  }
 
   return `
   <div class="pdoc">
@@ -5643,7 +5714,7 @@ function defaultOrder(){
     invoiceAddress: DEFAULT_ADDRESS,
     shippingAddress: DEFAULT_ADDRESS,
     customer: '',
-    items: [ {machineNo:'', machineType:'', articleNo:'', description:'', qty:'', qtyUnit:'pcs', itemDesc:'', image:null} ],
+    items: [ {machineNo:'', machineType:'', articleNo:'', description:'', qty:1, qtyUnit:'pcs', itemDesc:'', image:null} ],
     comments: ''
   };
 }
@@ -6640,6 +6711,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
             <label>Predict words (คำค้นหา)</label>
             <div class="epm-alias-tags">${aliasTags}</div>
             <div class="epm-alias-add"><input type="text" class="epm-alias-input" placeholder="เพิ่มคำค้นหา"><button type="button" class="btn epm-alias-addbtn">เพิ่ม</button></div>
+            <button type="button" class="btn epm-usage-open" style="font-size:12px;">👁 ประวัติการเบิก (ใช้ไปที่ไหนบ้าง)</button>
             <button type="button" class="btn epm-restore-open" style="font-size:12px;">🕘 ประวัติ / กู้คืนข้อมูล</button>
             <button type="button" class="btn btn-danger epm-delete" style="font-size:12px;">🗑 ลบอะไหล่นี้ (ย้ายไปถังขยะ)</button>
           </div>
@@ -6670,10 +6742,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
           renderEdit();
         }catch(err){ flashStatus('เตรียมรูปไม่สำเร็จ'); }
       };
+      ov.querySelector('.epm-usage-open').onclick = ()=>openUsageModal(origArticleNo);
       ov.querySelector('.epm-restore-open').onclick = renderRestore;
       ov.querySelector('.epm-delete').onclick = doDelete;
       ov.querySelector('.epm-save').onclick = save;
     }
+
 
     // Soft delete: back up the whole row to the RecycleBin tab server-side, then
     // remove it from the live list. Recoverable from the ถังขยะ tab.
@@ -6973,7 +7047,15 @@ function maybeSuggestCompanions(idx){
   const set = getCompanionSetFor(trigger);
   showCompanionPrompt(trigger, comps).then(yes=>{
     if(yes){
-      addCompanionRows(idx, comps);
+      const setName = set && set.name ? String(set.name) : '';
+      addCompanionRows(idx, comps, setName);
+      // Remember the whole set on the main part so the PDF's Article No cell can
+      // list every code in the set (e.g. #46694, #35414, …) instead of only the
+      // main one. Only set when accepted — declining leaves the single code.
+      if(set && Array.isArray(set.parts) && set.parts.length){
+        order.items[idx].setArticles = set.parts.map(p=>String(p||'').trim()).filter(Boolean);
+        order.items[idx].setName = setName;
+      }
       applyCompanionSetImage(idx, set); // combined image → main part's photo
     }
   });
@@ -6981,7 +7063,7 @@ function maybeSuggestCompanions(idx){
 
 // Adds companion parts as new, locked rows right after the source row, reusing
 // its Machine No / Machine Type. Respects the MAX_ITEMS cap.
-function addCompanionRows(srcIdx, comps){
+function addCompanionRows(srcIdx, comps, setName){
   const src = order.items[srcIdx] || {};
   let added = 0, skipped = 0;
   comps.forEach(c=>{
@@ -6991,7 +7073,8 @@ function addCompanionRows(srcIdx, comps){
     order.items.push({
       machineNo: src.machineNo||'', machineType: src.machineType||'',
       articleNo: c.articleNo, description: c.description,
-      qty:'', qtyUnit:'pcs', itemDesc:'', locked: true
+      qty:1, qtyUnit:'pcs', itemDesc:'', locked: true,
+      setName: setName || ''
     });
     added++;
   });
@@ -7420,6 +7503,64 @@ function bindTopFields(){
   custWrap.appendChild(buildComboBox(CUSTOMERS, order.customer, v=>{ order.customer = v; }, '- เลือกลูกค้า -'));
 }
 
+/* Renders the PartUsage ledger rows. Shared so the ledger looks identical
+   wherever it's shown (item-row 👁 button and the part editor). */
+function renderUsageRows(rows){
+  if(!rows.length){
+    return '<div class="db-empty">ยังไม่มีประวัติการเบิก<br><span style="font-size:11px;">' +
+      'ระบบเริ่มเก็บตั้งแต่ตอนกด “✉ Export PDF → Email” (ไม่ได้เก็บย้อนหลังใบเก่า)</span></div>';
+  }
+  const totalQty = rows.reduce((s,r)=>{ const n = parseFloat(r.Qty); return s + (isNaN(n)?0:n); }, 0);
+  return `<div class="epm-note">เบิกไปแล้ว <b>${rows.length}</b> ครั้ง · รวม <b>${totalQty}</b> ชิ้น/ชุด</div>` +
+    `<div class="epm-restore-list">` + rows.map(r=>{
+      const when = r.Timestamp ? new Date(r.Timestamp).toLocaleString('th-TH') : '-';
+      const machine = [r.MachineType, r.MachineNo].filter(Boolean).join(' · ') || '-';
+      const qty = [r.Qty, r.Unit].filter(v=>v!=='' && v!=null).join(' ');
+      return `<div class="epm-restore-card">
+        <div class="rc-meta">${escHtml(when)} · ${escHtml(r.Type||'-')}${r.RecordedBy?' · '+escHtml(r.RecordedBy):''}</div>
+        <div><b>${escHtml(r.Customer||'-')}</b></div>
+        <div>🖥 ${escHtml(machine)}</div>
+        <div>จำนวน ${escHtml(qty||'-')}${r.SetName?' · ชุด: '+escHtml(r.SetName):''}</div>
+        ${r.Note?'<div style="color:var(--gray);">📝 '+escHtml(r.Note)+'</div>':''}
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+/* "ประวัติการเบิก" for one Article No — which customer / machine did this part
+   go to? Standalone (IIFE scope) so BOTH the item-row 👁 button and the part
+   editor can open it. It mounts its own .edit-part-modal, so opening it on top
+   of the edit form is safe: closeTopmostModalDom() dismisses the topmost one
+   first, leaving the edit form (and any unsaved photo) untouched underneath. */
+async function openUsageModal(articleNo){
+  const art = String(articleNo||'').trim();
+  if(!art){ flashStatus('ใส่ Article No ก่อน จึงจะดูประวัติการเบิกได้'); return; }
+  const ov = document.createElement('div');
+  ov.className = 'edit-part-modal open';
+  ov.innerHTML = `<div class="edit-part-dialog">
+    <div class="epm-head"><span>ประวัติการเบิก #${escHtml(art)}</span><button type="button" class="epm-x">✕</button></div>
+    <div class="epm-body"><div class="db-empty">กำลังโหลด...</div></div>
+    <div class="epm-actions"><button type="button" class="btn epm-close">ปิด</button></div>
+  </div>`;
+  ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+  ov.querySelector('.epm-close').onclick = ()=>userDismissTopModal();
+  ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+  document.body.appendChild(ov);
+  modalOpened();
+
+  const bodyEl = ov.querySelector('.epm-body');
+  let rows = [];
+  try{
+    const res = await lookupApiCall('getPartUsage', { articleNo: art, limit: 100 });
+    rows = res.rows || [];
+  }catch(err){
+    const m = String(err.message||err);
+    bodyEl.innerHTML = '<div class="db-status-line err">โหลดไม่สำเร็จ: ' + escHtml(m) +
+      (m.indexOf('Unknown action') >= 0 ? ' → ต้อง Deploy Code.gs ใหม่ (ยังไม่มี getPartUsage)' : '') + '</div>';
+    return;
+  }
+  bodyEl.innerHTML = renderUsageRows(rows);
+}
+
 /* ---------------- items table ---------------- */
 function renderItems(){
   const list = document.getElementById('itemsList');
@@ -7430,14 +7571,14 @@ function renderItems(){
     if(it.locked){
       // Companion part added via "เบิกคู่" — read-only, not editable, but removable.
       row.innerHTML = `
-        <div class="item-row-head"><span class="locked-badge">🔒 พาร์ทแนะนำ (ล็อก)</span><button type="button" class="btn-del-row" data-idx="${idx}">ลบ</button></div>
+        <div class="item-row-head"><span class="locked-badge">🔒 พาร์ทแนะนำ (แก้ Qty ได้)</span><button type="button" class="btn-del-row" data-idx="${idx}">ลบ</button></div>
         <div class="item-grid">
           <label class="fld-inline"><span class="fld-cap">Machine No*</span><input type="text" value="${escAttr(it.machineNo)}" readonly tabindex="-1"></label>
           <label class="fld-inline"><span class="fld-cap">Machine Type*</span><input type="text" value="${escAttr(it.machineType)}" readonly tabindex="-1"></label>
-          <label class="fld-inline"><span class="fld-cap">Article No</span><input type="text" value="${escAttr(it.articleNo)}" readonly tabindex="-1"></label>
+          <div class="fld-inline"><span class="fld-cap">Article No</span><input type="text" value="${escAttr(it.articleNo)}" readonly tabindex="-1"><button type="button" class="btn-usage f-usage" data-idx="${idx}" title="ดูประวัติการเบิก: พาร์ทนี้เคยเบิกให้ลูกค้า/เครื่องรุ่นไหน" aria-label="ดูประวัติการเบิกของพาร์ทนี้"${String(it.articleNo||'').trim()?'':' disabled'}>👁</button></div>
           <div class="pname-qty-row">
             <label class="fld-stack pname-fld"><span class="fld-cap">Part Name</span><input type="text" value="${escAttr(it.description)}" readonly tabindex="-1"></label>
-            <label class="fld-stack qty-fld"><span class="fld-cap">Qty</span><div class="qty-inputs"><input type="number" value="${escAttr(it.qty)}" readonly tabindex="-1"><select disabled tabindex="-1"><option value="pcs"${it.qtyUnit!=='set'?' selected':''}>pcs</option><option value="set"${it.qtyUnit==='set'?' selected':''}>set</option></select></div></label>
+            <label class="fld-stack qty-fld"><span class="fld-cap">Qty</span><div class="qty-inputs"><input type="number" class="f-qty" data-idx="${idx}" value="${escAttr(it.qty)}" min="0"><select class="f-qtyunit" data-idx="${idx}"><option value="pcs"${it.qtyUnit!=='set'?' selected':''}>pcs</option><option value="set"${it.qtyUnit==='set'?' selected':''}>set</option></select></div></label>
           </div>
           <label class="fld-stack"><span class="fld-cap">Description</span><input type="text" value="${escAttr(it.itemDesc)}" placeholder="e.g. damaged at left side" readonly tabindex="-1"></label>
         </div>`;
@@ -7447,7 +7588,7 @@ function renderItems(){
       <div class="item-grid">
         <label class="fld-inline"><span class="fld-cap">Machine No*</span><div class="ac-wrap"><input type="text" class="f-machineNo" data-idx="${idx}" value="${escAttr(it.machineNo)}" autocomplete="off"><div class="ac-list" id="machineAc${idx}"></div></div></label>
         <label class="fld-inline"><span class="fld-cap">Machine Type*</span><div class="mt-wrap" data-idx="${idx}"></div></label>
-        <label class="fld-inline"><span class="fld-cap">Article No</span><div class="ac-wrap"><input type="text" class="f-articleNo" data-idx="${idx}" value="${escAttr(it.articleNo)}" autocomplete="off"><div class="ac-list" id="partAc${idx}"></div></div></label>
+        <div class="fld-inline"><span class="fld-cap">Article No</span><div class="ac-wrap"><input type="text" class="f-articleNo" data-idx="${idx}" value="${escAttr(it.articleNo)}" autocomplete="off"><div class="ac-list" id="partAc${idx}"></div></div><button type="button" class="btn-usage f-usage" data-idx="${idx}" title="ดูประวัติการเบิก: พาร์ทนี้เคยเบิกให้ลูกค้า/เครื่องรุ่นไหน" aria-label="ดูประวัติการเบิกของพาร์ทนี้"${String(it.articleNo||'').trim()?'':' disabled'}>👁</button></div>
         <div class="pname-qty-row">
           <label class="fld-stack pname-fld"><span class="fld-cap">Part Name</span><div class="ac-wrap"><input type="text" class="f-description" data-idx="${idx}" value="${escAttr(it.description)}" autocomplete="off"><div class="ac-list" id="descAc${idx}"></div></div></label>
           <label class="fld-stack qty-fld"><span class="fld-cap">Qty</span><div class="qty-inputs"><input type="number" class="f-qty" data-idx="${idx}" value="${escAttr(it.qty)}" min="0"><select class="f-qtyunit" data-idx="${idx}"><option value="pcs"${it.qtyUnit!=='set'?' selected':''}>pcs</option><option value="set"${it.qtyUnit==='set'?' selected':''}>set</option></select></div></label>
@@ -7487,6 +7628,9 @@ function renderItems(){
     el.oninput = e=>{
       order.items[idx].articleNo = e.target.value;
       renderPartSuggestions(ac, idx, e.target.value);
+      // keep 👁 in step with the field — renderItems() doesn't re-run per keystroke
+      const ub = list.querySelector('.f-usage[data-idx="'+idx+'"]');
+      if(ub) ub.disabled = !String(e.target.value||'').trim();
     };
     el.onfocus = e=>renderPartSuggestions(ac, idx, e.target.value);
     el.onblur = ()=>{
@@ -7511,6 +7655,10 @@ function renderItems(){
   });
   // Qty (number) + unit (pcs/set) + free-text item description — plain fields,
   // no autocomplete, just mirror the value into the data model.
+  list.querySelectorAll('.f-usage').forEach(el=>{
+    const idx = +el.dataset.idx;
+    el.onclick = ()=>{ const it = order.items[idx]; openUsageModal(it && it.articleNo); };
+  });
   list.querySelectorAll('.f-qty').forEach(el=>{
     const idx = +el.dataset.idx;
     el.oninput = e=>{ order.items[idx].qty = e.target.value; };
@@ -7538,7 +7686,7 @@ function escAttr(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('btnAddRow').onclick = ()=>{
     if(order.items.length >= MAX_ITEMS) return;
-    order.items.push({machineNo:'',machineType:'',articleNo:'',description:'',qty:'',qtyUnit:'pcs',itemDesc:'',image:null});
+    order.items.push({machineNo:'',machineType:'',articleNo:'',description:'',qty:1,qtyUnit:'pcs',itemDesc:'',image:null});
     renderItems();
   };
 });
@@ -8060,6 +8208,37 @@ function resetPdfPreview(){
   if(card) card.style.display = 'none';
 }
 
+/* Part usage ledger: record WHERE each part went (customer / machine) once the
+   order is actually exported — an export is the real requisition, whereas a
+   Save is just a draft. Sent via the outbox helper so it survives being
+   offline. The backend upserts by orderId, so re-exporting the same order
+   replaces its rows instead of duplicating them. Locked companion rows are
+   included: they were requisitioned too. */
+async function recordOrderPartUsage(){
+  const items = (order.items||[])
+    .filter(it => it && String(it.articleNo||'').trim())
+    .map(it => ({
+      articleNo: String(it.articleNo).trim(),
+      partName: String(it.description||''),
+      machineNo: String(it.machineNo||''),
+      machineType: String(it.machineType||''),
+      qty: (it.qty === '' || it.qty == null) ? '' : it.qty,
+      unit: String(it.qtyUnit||''),
+      note: String(it.itemDesc||''),
+      setName: String(it.setName||'')
+    }));
+  if(!items.length) return;
+  try{
+    await lookupQueueOrSend('recordPartUsage', {
+      orderId: order.id,
+      type: order.type || '',
+      customer: order.customer || '',
+      recordedBy: getSessionEditor() || '',
+      items
+    });
+  }catch(e){ console.error('recordPartUsage failed', e); }
+}
+
 async function exportPdf(){
   try{ await saveOrder(); } catch(e){ console.error(e); }
 
@@ -8102,6 +8281,9 @@ async function exportPdf(){
       try{ card.scrollIntoView({ behavior:'smooth', block:'start' }); } catch(e){}
     }
     openPdfPreview();
+    // NB: the usage ledger is NOT written here — the ☰ FAB previews on every
+    // tap, and merely looking at a PDF isn't a requisition. It's written by the
+    // actions that actually send the PDF out (see commitPdfAction).
   } catch(e){
     console.error('exportPdf failed', e);
     alert('Export PDF ไม่สำเร็จ: ' + (e && e.message ? e.message : e));
@@ -8128,21 +8310,33 @@ function downloadPdfPreview(){
   a.click();
   a.remove();
 }
+/* The PDF has actually left the app (downloaded / emailed / shared) — THAT is the
+   requisition, so the usage ledger is written here rather than on preview.
+   Safe to call repeatedly: the backend upserts by orderId. */
+function commitPdfAction(){ recordOrderPartUsage(); }
+
+function pdfSubject(){
+  return [(order.type||'Warranty'), 'Part Order', order.customer ? '- '+order.customer : '']
+    .filter(Boolean).join(' ').trim();
+}
+async function currentPdfFile(){
+  try{
+    const blob = await (await fetch(_pdfPreviewUrl)).blob();
+    return new File([blob], _pdfPreviewFilename || 'export_order.pdf', { type:'application/pdf' });
+  }catch(e){ return null; }
+}
+
 /* Adaptive email: on phones (and modern desktops) share the actual PDF file so
    Outlook attaches it automatically; otherwise download the PDF and open a
    pre-filled Outlook/mail draft for the user to attach it. */
 async function emailCurrentPdf(){
   if(!_pdfPreviewUrl) return;
-  const subject = [(order.type||'Warranty'), 'Part Order', order.customer ? '- '+order.customer : ''].filter(Boolean).join(' ').trim();
+  const subject = pdfSubject();
   const body = _emailDraftText || '';
-  let file = null;
-  try{
-    const blob = await (await fetch(_pdfPreviewUrl)).blob();
-    file = new File([blob], _pdfPreviewFilename || 'export_order.pdf', { type:'application/pdf' });
-  }catch(e){ /* ignore, fall back below */ }
+  const file = await currentPdfFile();
 
   if(file && navigator.canShare && navigator.canShare({ files:[file] })){
-    try{ await navigator.share({ files:[file], title: subject, text: body }); return; }
+    try{ await navigator.share({ files:[file], title: subject, text: body }); commitPdfAction(); return; }
     catch(err){ if(err && err.name === 'AbortError') return; /* user cancelled */ }
   }
   // Fallback (desktop): download the file + open a pre-filled mail draft to attach it.
@@ -8151,12 +8345,37 @@ async function emailCurrentPdf(){
   const a = document.createElement('a');
   a.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body + note);
   document.body.appendChild(a); a.click(); a.remove();
+  commitPdfAction();
   flashStatus('ดาวน์โหลด PDF แล้ว — แนบไฟล์ลงอีเมลที่เปิดขึ้น');
 }
-/* Merged action: Save + Export PDF + create the Outlook draft. */
-async function saveExportEmail(){
-  await exportPdf();               // saves the order, builds the PDF, shows the preview
-  if(_pdfPreviewUrl) await emailCurrentPdf();
+
+/* Share to a chat / any other app. Same Web Share plumbing as the email action,
+   but without the mail framing — and no mailto fallback, since a browser that
+   can't share files has nothing to hand the PDF to but a download. */
+async function sharePdf(){
+  if(!_pdfPreviewUrl) return;
+  const file = await currentPdfFile();
+  if(file && navigator.canShare && navigator.canShare({ files:[file] })){
+    try{ await navigator.share({ files:[file], title: pdfSubject(), text: _emailDraftText || '' }); commitPdfAction(); }
+    catch(err){ if(!(err && err.name === 'AbortError')) flashStatus('แชร์ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 5000); }
+    return;
+  }
+  downloadPdfPreview();
+  commitPdfAction();
+  flashStatus('เบราว์เซอร์นี้ส่งไฟล์ต่อให้แอปอื่นไม่ได้ — ดาวน์โหลด PDF ให้แล้ว ส่งต่อเองได้เลย', 5500);
+}
+
+function savePdfToDevice(){
+  if(!_pdfPreviewUrl) return;
+  downloadPdfPreview();
+  commitPdfAction();
+  flashStatus('ดาวน์โหลด PDF แล้ว');
+}
+
+/* Just keep it as a draft — no PDF leaves the app, so nothing is logged. */
+async function saveDraftFromPreview(){
+  await saveOrder();
+  userDismissTopModal();
 }
 
 /* ---------------- modal dismissal: Esc (desktop), Back button (mobile), tap-outside ----------------
@@ -8196,7 +8415,41 @@ window.addEventListener('popstate', ()=>{
   if(_modalDepth>0){ _modalDepth--; closeTopmostModalDom(); }
 });
 window.addEventListener('keydown', (e)=>{
-  if(e.key==='Escape' && _modalDepth>0){ e.preventDefault(); userDismissTopModal(); }
+  if(e.key!=='Escape') return;
+  if(closeTopMenu()){ e.preventDefault(); return; }   // ☰ menu is the lightest layer
+  if(_modalDepth>0){ e.preventDefault(); userDismissTopModal(); }
+});
+
+/* ---- ☰ top-bar menu (ประวัติ / ซิงค์ / ดู DB / ใหม่) ----
+   The items keep their original ids, so their existing handlers are untouched. */
+function closeTopMenu(){
+  const m = document.getElementById('topMenu');
+  if(!m || !m.classList.contains('open')) return false;
+  m.classList.remove('open');
+  const b = document.getElementById('btnMenu');
+  if(b) b.setAttribute('aria-expanded','false');
+  return true;
+}
+function toggleTopMenu(){
+  const m = document.getElementById('topMenu');
+  if(!m) return;
+  if(closeTopMenu()) return;
+  m.classList.add('open');
+  const b = document.getElementById('btnMenu');
+  if(b) b.setAttribute('aria-expanded','true');
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const b = document.getElementById('btnMenu');
+  const m = document.getElementById('topMenu');
+  if(!b || !m) return;
+  b.onclick = toggleTopMenu;
+  // Capture: hide the menu BEFORE the item's own onclick opens its modal.
+  m.addEventListener('click', (e)=>{ if(e.target.closest('.tm-item')) closeTopMenu(); }, true);
+  document.addEventListener('click', (e)=>{
+    if(!m.classList.contains('open')) return;
+    if(e.target.closest('#topMenu') || e.target.closest('#btnMenu')) return;
+    closeTopMenu();
+  });
 });
 
 /* ---------------- Tab-scoped editor session ----------------
@@ -8257,11 +8510,20 @@ function fullRender(){
 
 document.addEventListener('DOMContentLoaded', ()=>{
   fullRender();
-  document.getElementById('btnSave').onclick = saveOrder;
   document.getElementById('btnNew').onclick = ()=>{
     if(confirm('สร้างใบสั่งใหม่? ข้อมูลที่ยังไม่บันทึกจะหายไป')) newOrder();
   };
-  document.getElementById('btnExport').onclick = saveExportEmail;
+  // 📄 FAB: build the A4 PDF and show it. What to do with it is chosen from the
+  // menu under the preview. Disabled while rendering — html2canvas takes a beat.
+  const fab = document.getElementById('btnFab');
+  fab.onclick = async ()=>{
+    fab.disabled = true;
+    try{ await exportPdf(); } finally { fab.disabled = false; }
+  };
+  document.getElementById('pmSaveDraft').onclick = saveDraftFromPreview;
+  document.getElementById('pmSavePdf').onclick = savePdfToDevice;
+  document.getElementById('pmSendEmail').onclick = emailCurrentPdf;
+  document.getElementById('pmShare').onclick = sharePdf;
   document.getElementById('btnCloseHistory').onclick = ()=>toggleHistory(false);
   const histOverlay = document.querySelector('.overlay');
   if(histOverlay) histOverlay.onclick = ()=>toggleHistory(false);
@@ -8270,7 +8532,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('pdfModalClose').onclick = ()=>userDismissTopModal();
   const pdfModalEl = document.getElementById('pdfModal');
   pdfModalEl.addEventListener('click', (e)=>{ if(e.target === pdfModalEl) userDismissTopModal(); });
-  document.getElementById('pdfModalDownload').onclick = downloadPdfPreview;
   document.getElementById('emailCopyBtn').onclick = async ()=>{
     const ta = document.getElementById('emailDraftText');
     try{
