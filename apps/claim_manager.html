@@ -181,10 +181,37 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
 
 .field{display:grid;gap:5px;margin-bottom:14px}
 .field label{font-size:11px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.4px}
-.field input,.field select,.field textarea{border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:14px;
+.field input,.field select,.field textarea,.field .rte{border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:14px;
   font-family:inherit;color:var(--ink);outline:none;background:var(--white);transition:border-color .18s;width:100%}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--red)}
+.field input:focus,.field select:focus,.field textarea:focus,.field .rte:focus{border-color:var(--red)}
 .field textarea{min-height:64px;resize:vertical}
+.field .rte{min-height:64px;overflow-y:auto;line-height:1.4}
+.field .rte:empty:before{content:attr(data-ph);color:var(--mute);pointer-events:none}
+.field .rte b,.field .rte strong{font-weight:700}
+.field .rte i,.field .rte em{font-style:italic}
+.field .rte u{text-decoration:underline}
+
+/* ===== floating rich-text format toolbar ===== */
+.rte-toolbar{position:fixed;z-index:1200;display:none;align-items:center;gap:2px;background:#222;color:#fff;
+  border-radius:10px;padding:5px;box-shadow:0 8px 22px rgba(0,0,0,.32);transform:translate(-50%,-100%)}
+.rte-toolbar.show{display:flex}
+.rte-btn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-family:inherit}
+.rte-btn:hover,.rte-btn.active{background:#444}
+.rte-btn.rb-b{font-weight:800}
+.rte-btn.rb-i{font-style:italic}
+.rte-btn.rb-u{text-decoration:underline}
+.rte-swatch{width:18px;height:18px;border-radius:4px;border:1.5px solid #fff;display:block}
+.rte-sep{width:1px;height:20px;background:#444;margin:0 3px}
+.rte-colors{position:fixed;z-index:1201;display:none;background:#fff;color:var(--ink);border-radius:10px;
+  padding:10px;box-shadow:0 8px 22px rgba(0,0,0,.28);width:176px}
+.rte-colors.show{display:block}
+.rte-colors-title{font-size:10px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.rte-colors-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:8px}
+.rte-color-cell{width:18px;height:18px;border-radius:4px;cursor:pointer;border:1px solid rgba(0,0,0,.15)}
+.rte-color-cell:hover{transform:scale(1.15)}
+.rte-more{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid);cursor:pointer;padding-top:6px;border-top:1px solid var(--line)}
+.rte-more input[type=color]{width:22px;height:22px;border:none;padding:0;background:none;cursor:pointer}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:480px){.row2{grid-template-columns:1fr}}
 .sw{position:relative}
@@ -411,7 +438,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
   .toolbar > .btn-red{display:none}            /* use the FAB instead */
   .search-wrap{max-width:none}
   /* prevent iOS zoom-on-focus: inputs must be >=16px */
-  .field input,.field select,.field textarea,.hs-field input,.search-wrap input,.exp-row input,.exp-row textarea{font-size:16px}
+  .field input,.field select,.field textarea,.field .rte,.hs-field input,.search-wrap input,.exp-row input,.exp-row textarea{font-size:16px}
   /* roomier tap targets */
   .btn{padding:11px 16px}.btn-sm{padding:9px 13px}.btn-xs{padding:8px 11px}
   .month-tab{padding:10px 18px}
@@ -621,6 +648,22 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
 </div>
 
 
+<!-- rich-text format popup (shows on text selection inside .rte fields) -->
+<div class="rte-toolbar" id="rteToolbar">
+  <button type="button" class="rte-btn rb-b" onmousedown="rteCmd(event,'bold')" aria-label="ตัวหนา">B</button>
+  <button type="button" class="rte-btn rb-i" onmousedown="rteCmd(event,'italic')" aria-label="ตัวเอียง">I</button>
+  <button type="button" class="rte-btn rb-u" onmousedown="rteCmd(event,'underline')" aria-label="ขีดเส้นใต้">U</button>
+  <div class="rte-sep"></div>
+  <button type="button" class="rte-btn" id="rteColorBtn" onmousedown="rteToggleColors(event)" aria-label="สีตัวอักษร">
+    <span class="rte-swatch" id="rteSwatch" style="background:#d81f2a"></span>
+  </button>
+</div>
+<div class="rte-colors" id="rteColors">
+  <div class="rte-colors-title">Standard Colors</div>
+  <div class="rte-colors-grid" id="rteColorsGrid"></div>
+  <label class="rte-more">🎨 More Colors…<input type="color" id="rteColorPicker" onmousedown="event.stopPropagation()" onchange="rteApplyColor(this.value)"></label>
+</div>
+
 <!-- ENTRY MODAL -->
 <div class="modal-ov" id="entryModal">
   <div class="modal-box">
@@ -630,7 +673,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
         <div class="field"><label>Date</label><input id="fDate" type="date" onchange="onDateChange()"></div>
         <div class="field"><label>Doc No.</label><input id="fDoc" type="text" placeholder="auto"></div>
       </div>
-      <div class="field"><label>Descriptions</label><textarea id="fDesc" placeholder="Description of expense…"></textarea></div>
+      <div class="field"><label>Descriptions</label><div class="rte" id="fDesc" contenteditable="true" data-ph="Description of expense…"></div></div>
       <div class="row2">
         <div class="field"><label>Ref. Inv</label><input id="fRef" type="text"></div>
         <div class="field"><label>Customer</label><input id="fCustomer" list="customerList" type="text" autocomplete="off" placeholder="เลือกหรือพิมพ์ชื่อลูกค้า"><datalist id="customerList"></datalist></div>
@@ -881,6 +924,98 @@ function fmtB(n){ const v=parseFloat(n); if(isNaN(v)||v===0) return ""; return f
 function fmtAmt(n){ const v=parseFloat(n); if(isNaN(v)||v===0) return ""; return v<0?`(${fmt(-v)})`:fmt(v); }
 function isDeduct(n){ return (parseFloat(n)||0)<0; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])); }
+
+/* ═══════ RICH-TEXT FORMAT TOOLBAR (bold/italic/underline/color) ═══════
+   Floating popup shown when text is selected inside a .rte contenteditable field. */
+const RTE_COLORS=["#1a1a1a","#d81f2a","#a8151f","#d97706","#16a34a","#1a56db","#7c3aed","#ffffff"];
+let rteTarget=null, rteSavedRange=null;
+function rteInitColorGrid(){
+  const g=document.getElementById("rteColorsGrid"); if(!g||g.childElementCount) return;
+  g.innerHTML=RTE_COLORS.map(c=>`<span class="rte-color-cell" style="background:${c}" onmousedown="event.preventDefault();rteApplyColor('${c}')"></span>`).join("");
+}
+function rteSaveSelection(){
+  const sel=window.getSelection(); if(sel && sel.rangeCount) rteSavedRange=sel.getRangeAt(0).cloneRange();
+}
+function rteRestoreSelection(){
+  if(!rteSavedRange) return;
+  const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(rteSavedRange);
+}
+function rtePositionToolbar(){
+  const sel=window.getSelection(); if(!sel || !sel.rangeCount) return;
+  const rect=sel.getRangeAt(0).getBoundingClientRect(); if(!rect || (!rect.width && !rect.height)) return;
+  const tb=document.getElementById("rteToolbar");
+  const left=Math.min(Math.max(rect.left+rect.width/2,70),window.innerWidth-70);
+  const top=Math.max(rect.top-8,44);
+  tb.style.left=left+"px"; tb.style.top=top+"px";
+  tb.classList.add("show");
+  document.getElementById("rteColors").classList.remove("show");
+}
+function rteHideToolbar(){
+  document.getElementById("rteToolbar").classList.remove("show");
+  document.getElementById("rteColors").classList.remove("show");
+}
+function rteOnSelectionChange(){
+  const sel=window.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount){ rteHideToolbar(); return; }
+  const node=sel.anchorNode; const el=node && (node.nodeType===1?node:node.parentElement);
+  const field=el && el.closest && el.closest(".rte");
+  if(!field){ rteHideToolbar(); return; }
+  rteTarget=field; rtePositionToolbar();
+}
+document.addEventListener("selectionchange",rteOnSelectionChange);
+document.addEventListener("mousedown",e=>{
+  if(!e.target.closest("#rteToolbar") && !e.target.closest("#rteColors")) rteHideToolbar();
+});
+function rteCmd(ev,cmd){
+  ev.preventDefault();
+  if(rteTarget) rteTarget.focus();
+  document.execCommand(cmd,false,null);
+  rtePositionToolbar();
+}
+function rteToggleColors(ev){
+  ev.preventDefault();
+  rteInitColorGrid();
+  rteSaveSelection();
+  const colors=document.getElementById("rteColors"), tb=document.getElementById("rteToolbar");
+  const showing=colors.classList.contains("show");
+  colors.classList.toggle("show",!showing);
+  if(!showing){ colors.style.left=tb.style.left; colors.style.top=(parseFloat(tb.style.top)+34)+"px"; }
+}
+function rteApplyColor(color){
+  if(rteTarget) rteTarget.focus();
+  rteRestoreSelection();
+  document.execCommand("foreColor",false,color);
+  document.getElementById("rteSwatch").style.background=color;
+  document.getElementById("rteColors").classList.remove("show");
+}
+/* whitelist-sanitize contenteditable output before it's persisted, so pasted content can't smuggle in scripts/styles */
+const RTE_ALLOWED_TAGS={B:1,STRONG:1,I:1,EM:1,U:1,FONT:1,SPAN:1,BR:1,DIV:1};
+function rteSanitize(html){
+  const tmp=document.createElement("div"); tmp.innerHTML=html||"";
+  (function walk(node){
+    [...node.childNodes].forEach(child=>{
+      if(child.nodeType===3) return; // text node, fine
+      if(child.nodeType!==1 || !RTE_ALLOWED_TAGS[child.tagName]){
+        const text=document.createTextNode(child.textContent||"");
+        node.replaceChild(text,child); return;
+      }
+      [...child.attributes].forEach(attr=>{
+        const ok=(attr.name==="color") || (attr.name==="style" && /^(\s*color\s*:\s*#?[0-9a-zA-Z(),.\s%]+;?\s*)*$/.test(attr.value));
+        if(!ok) child.removeAttribute(attr.name);
+      });
+      walk(child);
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
+function fDescSetHtml(html){
+  const el=document.getElementById("fDesc"); el.innerHTML=rteSanitize(html||"");
+}
+function fDescGetHtml(){ return rteSanitize(document.getElementById("fDesc").innerHTML); }
+function fDescGetPlain(){ return document.getElementById("fDesc").innerText.trim(); }
+/* render a saved description, preferring the rich-formatted version when present */
+function descDisplay(en){ return en.descHtml?rteSanitize(en.descHtml):esc(en.desc||""); }
+
 function fmtDateDD(d){ if(!d) return ""; const p=d.split("-"); if(p.length<3) return d; return p[2]+"-"+p[1]+"-"+p[0].slice(2); }
 /* แปลงวันที่ระหว่างรูปแบบเก็บ "2026.04.28" (จุด) กับรูปแบบ input calendar "2026-04-28" (ISO) */
 function dotToISO(s){ if(!s) return ""; const t=String(s).trim().replace(/[.\/]/g,"-"); const p=t.split("-"); if(p.length<3) return ""; const y=p[0], mo=("0"+p[1]).slice(-2), d=("0"+p[2]).slice(-2); return (y.length===4)?`${y}-${mo}-${d}`:""; }
@@ -1040,7 +1175,7 @@ function renderTable(){
     const ded=isDeduct(en.amount);
     return `<tr${ded?' style="color:#c0392b"':''}>
       <td style="white-space:nowrap">${dcell}</td><td class="ctr">${esc(en.docNo||"")}</td>
-      <td class="desc-cell">${esc(en.desc||"")}</td><td class="ctr">${esc(en.refInv||"")}</td>
+      <td class="desc-cell">${descDisplay(en)}</td><td class="ctr">${esc(en.refInv||"")}</td>
       <td>${esc(en.customer||"")}</td><td>${esc(en.vendor||"")}${en.payee?`<div style="font-size:10.5px;color:#7a5c00;background:#fff7dd;border-radius:6px;padding:1px 6px;display:inline-block;margin-left:4px">💸 ${esc(en.payee)}</div>`:""}</td>
       <td class="num">${fmtAmt(en.amount)}</td><td class="num">${en.balance!=null?fmt(en.balance):""}</td>
       <td class="ctr">${rcptBadge(en)}</td>
@@ -1050,7 +1185,7 @@ function renderTable(){
   if(cl) cl.innerHTML=rows.map(en=>`
     <div class="ecard" onclick="openEditEntry('${en.id}')"${isDeduct(en.amount)?' style="color:#c0392b"':''}>
       <div class="ec-top"><span class="ec-date">${esc(fmtDateDD(en.date))}${en.docNo?` · #${esc(en.docNo)}`:""}</span><span class="ec-amt">${fmtAmt(en.amount)}</span></div>
-      <div class="ec-desc">${esc(en.desc||"(ไม่มีคำอธิบาย)")}</div>
+      <div class="ec-desc">${en.desc?descDisplay(en):"(ไม่มีคำอธิบาย)"}</div>
       <div class="ec-meta">${[en.customer,en.vendor,en.refInv?("Ref "+en.refInv):""].filter(Boolean).map(esc).join(" · ")}${en.payee?`<span style="color:#7a5c00;background:#fff7dd;border-radius:6px;padding:1px 6px;margin-left:6px;font-size:11px">💸 ${esc(en.payee)}</span>`:""}</div>
       <div class="ec-bot"><span class="ec-bal">คงเหลือ ${en.balance!=null?fmt(en.balance):"—"}</span>${rcptBadge(en)}</div>
     </div>`).join("");
@@ -1113,7 +1248,7 @@ function openAddEntry(){
   document.getElementById("entryTitle").textContent="Add Entry";
   document.getElementById("entryDelBtn").style.display="none";
   document.getElementById("fDate").value=new Date().toISOString().slice(0,10);
-  document.getElementById("fDoc").value=""; document.getElementById("fDesc").value="";
+  document.getElementById("fDoc").value=""; fDescSetHtml("");
   document.getElementById("fRef").value=""; document.getElementById("fCustomer").value=CUSTOMERS[0];
   document.getElementById("fVendor").value=""; document.getElementById("fAmount").value="";
   const fp=document.getElementById("fPayee"); if(fp) fp.value=""; closePayeeDD();
@@ -1129,7 +1264,7 @@ function openEditEntry(id){
   document.getElementById("entryTitle").textContent="Edit Entry";
   document.getElementById("entryDelBtn").style.display="inline-flex";
   document.getElementById("fDate").value=en.date||""; document.getElementById("fDoc").value=en.docNo||"";
-  document.getElementById("fDesc").value=en.desc||""; document.getElementById("fRef").value=en.refInv||"";
+  fDescSetHtml(en.descHtml||esc(en.desc||"")); document.getElementById("fRef").value=en.refInv||"";
   document.getElementById("fCustomer").value=en.customer||"";
   document.getElementById("fVendor").value=en.vendor||""; document.getElementById("fAmount").value=en.amount||"";
   const fp2=document.getElementById("fPayee"); if(fp2) fp2.value=en.payee||""; closePayeeDD();
@@ -1166,8 +1301,9 @@ function saveEntry(){
   if(customer && !allCustomers().includes(customer)){ state.customers.push(customer); populateCustomers(); }
   const payee=(document.getElementById("fPayee")?document.getElementById("fPayee").value:"").trim();
   if(payee && !payeeList().includes(payee)){ state.payees.push(payee); }
+  const descPlain=fDescGetPlain(), descHtmlRaw=fDescGetHtml();
   const data={ date, docNo:document.getElementById("fDoc").value.trim()||nextDocNo(m,date),
-    desc:document.getElementById("fDesc").value.trim(), refInv:document.getElementById("fRef").value.trim(),
+    desc:descPlain, descHtml:descPlain?descHtmlRaw:"", refInv:document.getElementById("fRef").value.trim(),
     customer, vendor, amount, payee, rcptKind:state.rcptKind,
     taxPdfs:state.rcptKind==="tax"?state.taxPdfs.map(x=>({...x})):[],
     taxImgs:state.rcptKind==="tax"?state.taxImgs.map(x=>({...x})):[],
@@ -1612,7 +1748,7 @@ window.addEventListener("resize",()=>{
 /* ═══════ V6 BUILDER ═══════ */
 let v6={ formType:FORM_TYPES[0], imgs:[] }; let exps=[]; let _v6seq=0;
 function openV6(){
-  const date=document.getElementById("fDate").value, desc=document.getElementById("fDesc").value.trim(), amt=document.getElementById("fAmount").value;
+  const date=document.getElementById("fDate").value, desc=fDescGetPlain(), amt=document.getElementById("fAmount").value;
   if(state.receiptMeta){
     v6.formType=state.receiptMeta.formType||FORM_TYPES[0];
     document.getElementById("vType").value=state.receiptMeta.type||"Office";
@@ -2602,7 +2738,7 @@ function monthGuardConfirm(){
   if(diff===-1){
     // บิลตกค้างจากเดือนที่แล้ว -> เก็บไว้เดือนนี้ + เติมหมายเหตุท้าย description
     const fd=document.getElementById("fDesc");
-    if(fd && !/lacking bill/i.test(fd.value)) fd.value=(fd.value.trim()+" (Lacking bill from last month)").trim();
+    if(fd && !/lacking bill/i.test(fd.innerText)) fd.innerHTML=(fd.innerHTML+" (Lacking bill from last month)").trim();
     state._monthGuardOk=true; saveEntry(); return;
   }
   if(diff===1){
