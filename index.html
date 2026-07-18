@@ -1695,6 +1695,9 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
   border-radius:10px;padding:5px;box-shadow:0 8px 22px rgba(0,0,0,.32);transform:translate(-50%,-100%)}
 .rte-toolbar.show{display:flex}
 .rte-toolbar.below{transform:translate(-50%,0)}
+/* มือถือ: dock ใต้ช่อง (in-flow) — ไม่พึ่ง position:fixed ที่เพี้ยนตอนคีย์บอร์ดเปิด และไม่ชนกับ native callout */
+.rte-toolbar.docked{position:static;transform:none;margin-top:6px;width:max-content;box-shadow:0 3px 10px rgba(0,0,0,.22)}
+.rte-colors.docked{position:static;transform:none;margin-top:6px}
 .rte-btn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:#fff;cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:14px;font-family:inherit;-webkit-user-select:none;user-select:none}
 .rte-btn:hover,.rte-btn.active{background:#444}
@@ -2461,8 +2464,35 @@ function rteHideToolbar(){
   document.getElementById("rteToolbar").classList.remove("show");
   document.getElementById("rteColors").classList.remove("show");
 }
+/* มือถือ (pointer หยาบ): ใช้ docked bar ที่โผล่ตอนโฟกัสช่องแทน floating popup —
+   selection popup บนมือถือชนกับ native callout (Copy/Paste) และ fixed position เพี้ยนตอนคีย์บอร์ดเปิด */
+const RTE_TOUCH=window.matchMedia && matchMedia("(pointer: coarse)").matches;
+function rteDock(field){
+  const tb=document.getElementById("rteToolbar");
+  field.parentNode.insertBefore(tb,field.nextSibling);
+  tb.classList.remove("below"); tb.style.left=""; tb.style.top="";
+  tb.classList.add("docked","show");
+}
+function rteUndock(){
+  const tb=document.getElementById("rteToolbar"), colors=document.getElementById("rteColors");
+  tb.classList.remove("docked","show"); colors.classList.remove("docked","show");
+  document.body.appendChild(tb); document.body.appendChild(colors);
+}
+document.addEventListener("focusin",e=>{
+  if(!RTE_TOUCH) return;
+  const f=e.target.closest && e.target.closest(".rich-field");
+  if(f){ rteTarget=f; rteDock(f); }
+});
+document.addEventListener("focusout",e=>{
+  if(!RTE_TOUCH) return;
+  if(e.target.closest && e.target.closest(".rich-field")){
+    setTimeout(()=>{ const ae=document.activeElement;
+      if(!ae || !ae.closest || (!ae.closest(".rich-field") && !ae.closest("#rteColors"))) rteUndock(); },80);
+  }
+});
 function rteOnSelectionChange(){
-  // debounce กันกระพริบระหว่างลากเลือก (มือถือยิง selectionchange ถี่มาก)
+  if(RTE_TOUCH) return;                       // มือถือใช้ docked bar — ไม่ต้อง float ตาม selection
+  // debounce กันกระพริบระหว่างลากเลือก
   clearTimeout(_rteSelTimer);
   _rteSelTimer=setTimeout(()=>{
     const sel=window.getSelection();
@@ -2475,13 +2505,14 @@ function rteOnSelectionChange(){
 }
 document.addEventListener("selectionchange",rteOnSelectionChange);
 document.addEventListener("mousedown",e=>{
-  if(!e.target.closest("#rteToolbar") && !e.target.closest("#rteColors")) rteHideToolbar();
+  if(!e.target.closest("#rteToolbar") && !e.target.closest("#rteColors") && !e.target.closest(".rich-field")) rteHideToolbar();
 });
 function rteExec(cmd){
   if(cmd==="color"){ rteToggleColors(); return; }
   if(rteTarget) rteTarget.focus();
-  document.execCommand(cmd,false,null);
-  rtePositionToolbar();
+  document.execCommand(cmd,false,null);          // selection ยุบ = toggle สไตล์ตอนพิมพ์ต่อ (พฤติกรรมปกติของ execCommand)
+  const tb=document.getElementById("rteToolbar");
+  if(!tb.classList.contains("docked")) rtePositionToolbar();
 }
 function rteToggleColors(){
   rteInitColorGrid();
@@ -2490,9 +2521,15 @@ function rteToggleColors(){
   const showing=colors.classList.contains("show");
   colors.classList.toggle("show",!showing);
   if(!showing){
-    const r=tb.getBoundingClientRect();
-    const cx=Math.min(Math.max(r.left+r.width/2,96),window.innerWidth-96);
-    colors.style.left=cx+"px"; colors.style.top=Math.min(r.bottom+6,window.innerHeight-40)+"px";
+    if(tb.classList.contains("docked")){          // มือถือ: วาง popup สีต่อท้าย bar แบบ in-flow
+      tb.parentNode.insertBefore(colors,tb.nextSibling);
+      colors.classList.add("docked"); colors.style.left=""; colors.style.top="";
+    } else {
+      colors.classList.remove("docked");
+      const r=tb.getBoundingClientRect();
+      const cx=Math.min(Math.max(r.left+r.width/2,96),window.innerWidth-96);
+      colors.style.left=cx+"px"; colors.style.top=Math.min(r.bottom+6,window.innerHeight-40)+"px";
+    }
   }
 }
 function rteApplyColor(color){
@@ -2513,7 +2550,13 @@ function rteBindToolbarEvents(){
     const cell=e.target.closest(".rte-color-cell");
     if(cell){ e.preventDefault(); rteApplyColor(cell.getAttribute("data-color")); }
   };
-  [tb,colors].forEach(el=>{ el.addEventListener("mousedown",press); el.addEventListener("touchend",press); });
+  // touchstart: preventDefault อย่างเดียว (Android เคลียร์ selection ตั้งแต่ touchstart) — สั่งงานจริงตอน touchend
+  const guard=e=>{ if(e.target.closest(".rte-btn")||e.target.closest(".rte-color-cell")) e.preventDefault(); };
+  [tb,colors].forEach(el=>{
+    el.addEventListener("mousedown",press);
+    el.addEventListener("touchstart",guard,{passive:false});
+    el.addEventListener("touchend",press);
+  });
 }
 document.addEventListener("DOMContentLoaded",rteBindToolbarEvents);
 /* whitelist-sanitize: เก็บเฉพาะ tag/attribute ที่อนุญาต — เรียกตอน paste, input, และซ้ำตอน render/export เป็นด่านสอง */
