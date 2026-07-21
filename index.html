@@ -4744,7 +4744,11 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .pend-card{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--border);
   border-left:3px solid #ef9f27;border-radius:0 9px 9px 0;padding:10px;}
 .pend-thumb{width:60px;height:60px;}
-.pend-thumb.noimg{display:flex;align-items:center;justify-content:center;font-size:22px;color:#bbb;cursor:default;}
+.pend-thumb.noimg{display:flex;align-items:center;justify-content:center;font-size:22px;color:#bbb;}
+.pend-thumb-wrap{position:relative;display:inline-block;flex-shrink:0;cursor:pointer;}
+.pend-thumb-wrap .pend-thumb{cursor:pointer;}
+.pend-thumb-wrap .pend-thumb.noimg{border:1.5px dashed #d8b06a;background:#fdf6e9;}
+.pend-thumb-cam{position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.28);}
 .pend-main{flex:1;min-width:0;}
 .pend-name{font-weight:700;font-size:13.5px;color:var(--dark);word-break:break-word;}
 .pend-meta{font-size:11.5px;color:var(--gray);margin-top:2px;}
@@ -4794,6 +4798,61 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .epm-restore-card{border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:12.5px;}
 .epm-restore-card .rc-meta{color:var(--gray);font-size:11px;margin-bottom:4px;}
 .epm-restore-card .btn{margin-top:7px;padding:5px 10px;font-size:12px;}
+/* ---- combobox filter (search + slideable chips + selectable dropdown) ---- */
+.cbx{position:relative;margin-bottom:12px;}
+.cbx-field{display:flex;align-items:center;gap:7px;background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:0 8px 0 12px;transition:border-color .18s,box-shadow .18s;}
+.cbx-field:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(228,29,21,.1);}
+.cbx-ico{font-size:14px;color:#9ca3af;flex-shrink:0;}
+.cbx-input{flex:1;border:none;outline:none;background:none;font-size:14px;padding:11px 0;min-width:0;color:var(--dark);}
+.cbx-input::placeholder{color:#b0b5bf;}
+.cbx-clear,.cbx-caret{border:none;background:none;cursor:pointer;flex-shrink:0;color:#9ca3af;display:flex;align-items:center;justify-content:center;}
+.cbx-clear{font-size:13px;width:26px;height:26px;border-radius:50%;display:none;}
+.cbx-clear.show{display:flex;} .cbx-clear:hover{background:#f3f4f6;color:var(--red);}
+.cbx-caret{font-size:11px;width:26px;height:26px;border-radius:7px;transition:transform .2s,background .15s;}
+.cbx-caret:hover{background:#f3f4f6;color:var(--red);}
+.cbx.open .cbx-caret{transform:rotate(180deg);color:var(--red);}
+.cbx-chips{display:flex;gap:6px;overflow-x:auto;padding:8px 1px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.cbx-chips::-webkit-scrollbar{display:none;}
+.cbx-chip{flex-shrink:0;padding:5px 13px;border-radius:16px;font-size:12px;font-weight:600;border:1.5px solid #e5e7eb;background:#fff;color:#475467;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.cbx-chip:active{transform:scale(.94);}
+.cbx-chip.on{background:var(--red);color:#fff;border-color:var(--red);box-shadow:0 2px 8px rgba(228,29,21,.3);}
+.cbx-menu{position:absolute;top:calc(100% + 5px);left:0;right:0;max-height:250px;overflow-y:auto;background:#fff;border:1.5px solid #e6e8ec;border-radius:12px;box-shadow:0 12px 34px rgba(16,24,40,.16);z-index:40;display:none;padding:5px;-webkit-overflow-scrolling:touch;}
+.cbx.open .cbx-menu{display:block;}
+.cbx-opt{padding:10px 12px;font-size:13.5px;border-radius:8px;cursor:pointer;color:var(--dark);display:flex;align-items:center;gap:8px;transition:background .12s;}
+.cbx-opt:active,.cbx-opt.hi{background:#fef2f2;color:var(--red);}
+.cbx-opt .cbx-tag{font-size:10px;font-weight:700;color:#98a2b3;margin-left:auto;flex-shrink:0;}
+.cbx-group-label{position:sticky;top:0;background:#faf5f5;color:#b0454a;font-size:10.5px;font-weight:800;padding:6px 12px 4px;letter-spacing:.3px;}
+.cbx-cat{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 12px;font-size:14px;font-weight:600;border-radius:8px;cursor:pointer;color:var(--dark);transition:background .12s;}
+.cbx-cat:active{background:#fef2f2;color:var(--red);}
+.cbx-cat-count{font-size:12px;font-weight:700;color:#c0c4cc;flex-shrink:0;}
+.cbx-cat:active .cbx-cat-count{color:var(--red);}
+.cbx-back{position:sticky;top:0;background:#fff;border-bottom:1px solid #f0dede;color:var(--red);font-weight:700;font-size:12.5px;padding:9px 12px;cursor:pointer;margin-bottom:2px;}
+.cbx-back:active{background:#fef2f2;}
+.cbx-empty{padding:16px;text-align:center;color:#98a2b3;font-size:12.5px;}
+/* ---- Log summary stats + table ---- */
+.log-summary{display:flex;gap:10px;margin-bottom:12px;}
+.log-summary .log-stat{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;background:linear-gradient(135deg,#fff5f5,#fff);border:1.5px solid #fde0df;border-radius:12px;padding:11px 8px;}
+.log-stat-num{font-size:21px;font-weight:800;color:var(--red);line-height:1.1;}
+.log-stat-label{font-size:10.5px;color:#98a2b3;font-weight:600;}
+.log-tbl-wrap{border:1px solid #e6e8ec;border-radius:12px;overflow:hidden;background:#fff;}
+.log-tbl-scroll{overflow:auto;max-height:56vh;-webkit-overflow-scrolling:touch;}
+.log-tbl{border-collapse:collapse;width:100%;min-width:560px;font-size:12.5px;}
+.log-tbl thead th{position:sticky;top:0;background:#faf5f5;color:#6d4a48;font-weight:700;font-size:11px;text-align:left;padding:9px 11px;white-space:nowrap;border-bottom:2px solid #f0dede;z-index:1;}
+.log-tbl tbody td{padding:9px 11px;border-bottom:1px solid #f1f2f4;vertical-align:middle;white-space:nowrap;color:#374151;}
+.log-tbl tbody tr:nth-child(even){background:#fbfbfc;}
+.log-tbl tbody tr:hover{background:#fff6f5;}
+.log-tbl tbody tr:last-child td{border-bottom:none;}
+.log-tbl .lt-date{color:#98a2b3;font-size:11.5px;}
+.log-tbl .lt-cust{font-weight:700;color:#101828;}
+.log-tbl .lt-art{font-weight:700;color:var(--red);font-size:11.5px;background:#fef2f2;padding:1px 6px;border-radius:5px;}
+.log-tbl .lt-part{max-width:170px;overflow:hidden;text-overflow:ellipsis;}
+.log-tbl .lt-type{font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap;}
+.lt-type-warranty{background:#fef3c7;color:#92400e;} .lt-type-export{background:#dbeafe;color:#1e40af;} .lt-type-other{background:#f3f4f6;color:#374151;}
+.log-tbl .lt-qty{font-weight:700;color:#101828;text-align:right;}
+.log-tbl .lt-actions{white-space:nowrap;text-align:center;}
+.lt-btn{border:1px solid var(--border);background:#fff;border-radius:7px;width:28px;height:28px;font-size:13px;cursor:pointer;margin:0 1px;transition:background .12s,border-color .12s;}
+.lt-btn.lt-edit:hover{background:#fff5f4;border-color:var(--red);}
+.lt-btn.lt-del:hover{background:#fee2e2;border-color:#ef4444;}
 /* companion-set editor */
 .cset-parts{display:flex;flex-direction:column;gap:6px;}
 .cset-part-row{display:flex;align-items:center;gap:8px;background:#f7f7f8;border-radius:8px;padding:6px 9px;font-size:13px;}
@@ -4872,13 +4931,17 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 #dbModalBody .db-empty{ background:#fff; border-color:#e6e8ec; color:#667085; }
 
 /* "เพิ่มรายการใหม่" toolbar + button */
-.db-add-bar{ display:flex; justify-content:flex-end; margin-bottom:12px; }
-.db-add-btn{ display:inline-flex; align-items:center; gap:7px; background:var(--red); color:#fff; border:none;
-  border-radius:10px; padding:10px 16px; font-size:13px; font-weight:700; box-shadow:0 2px 8px rgba(228,29,21,.28);
+.db-add-bar{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.db-add-btn{ display:inline-flex; align-items:center; gap:6px; background:var(--red); color:#fff; border:none;
+  border-radius:10px; padding:9px 14px; font-size:12.5px; font-weight:700; box-shadow:0 2px 8px rgba(228,29,21,.28);
   transition:transform .12s, box-shadow .15s; }
 .db-add-btn:hover{ box-shadow:0 5px 15px rgba(228,29,21,.38); }
 .db-add-btn:active{ transform:scale(.97); }
 .db-add-btn .ico{ font-size:16px; line-height:1; }
+.db-export-btn.db-add-btn{ background:#fff; color:var(--red); border:1.5px solid var(--red); box-shadow:none; }
+.db-export-btn.db-add-btn:hover{ background:#fef2f2; box-shadow:0 3px 10px rgba(228,29,21,.15); }
+.db-count-line{ font-size:12px; color:var(--gray); margin:0 0 10px; }
+.db-count-line .db-count{ color:var(--red); }
 
 /* add-machine form (inside the shared .edit-part-modal shell) */
 .addm-form{ display:flex; flex-direction:column; gap:13px; }
@@ -4985,19 +5048,46 @@ input,select,textarea{font-family:inherit;font-size:14px;}
    that pushState and unbalance _modalDepth. It dismisses via Esc / tap-outside
    / picking an item instead. */
 .btn-menu{font-size:16px;line-height:1;}
-.top-menu{position:absolute;top:100%;right:14px;margin-top:6px;z-index:60;
-  background:#fff;border:1px solid var(--border);border-radius:10px;
-  box-shadow:0 6px 20px rgba(0,0,0,.16);min-width:186px;padding:6px;
-  display:none;flex-direction:column;gap:2px;}
+.top-menu{position:absolute;top:100%;right:14px;margin-top:8px;z-index:60;
+  background:#fff;border:1px solid var(--border);border-radius:13px;
+  box-shadow:0 12px 32px rgba(0,0,0,.17);min-width:236px;padding:7px;
+  display:none;flex-direction:column;gap:1px;}
 .top-menu.open{display:flex;}
-.tm-item{display:flex;align-items:center;gap:9px;width:100%;justify-content:flex-start;
-  text-align:left;background:none;border:none;border-radius:7px;padding:12px;
+/* section caption — groups the menu into คำสั่ง / ฐานข้อมูล / ตั้งค่า / ผู้ดูแลระบบ */
+.tm-label{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:#9a9a9e;padding:9px 12px 5px;user-select:none;}
+.tm-item{display:flex;align-items:center;gap:10px;width:100%;justify-content:flex-start;
+  text-align:left;background:none;border:none;border-radius:8px;padding:10px 12px;
   font-size:13.5px;font-weight:600;color:var(--dark);cursor:pointer;
   -webkit-tap-highlight-color:transparent;}
 .tm-item:hover{background:#f3f3f4;}
 .tm-item:active{background:#e9e9ea;}
 .tm-item:disabled{opacity:.45;cursor:not-allowed;}
-.tm-sep{height:1px;background:var(--border);margin:4px 8px;} /* groups: order / database / settings */
+.tm-ic{flex:none;width:19px;text-align:center;font-size:14px;line-height:1;}
+.tm-txt{flex:1;min-width:0;}
+.tm-val{flex:none;font-size:11.5px;font-weight:700;color:var(--gray);}
+.tm-chev{flex:none;font-size:17px;line-height:1;color:#b6b6ba;}
+/* pill switch — replaces the old "เปิดอยู่ ✅" text so state reads at a glance */
+.tm-sw{flex:none;width:33px;height:19px;border-radius:10px;background:#d2d2d6;
+  position:relative;transition:background .16s;}
+.tm-sw::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .16s;}
+.tm-sw.on{background:var(--green);}
+.tm-sw.on::after{transform:translateX(14px);}
+.tm-sep{height:1px;background:var(--border);margin:5px 8px;}
+/* settings sub-page rows (Power Automate) — reuses the .edit-part-dialog shell */
+.sp-row{display:flex;align-items:center;gap:11px;padding:11px 12px;
+  border:1px solid var(--border);border-radius:10px;background:#fff;width:100%;
+  text-align:left;font:inherit;color:var(--dark);cursor:pointer;}
+.sp-row:disabled{opacity:.5;cursor:not-allowed;}
+.sp-row .sp-txt{flex:1;min-width:0;}
+.sp-row .sp-txt b{display:block;font-size:13px;font-weight:700;}
+.sp-row .sp-txt span{display:block;font-size:11px;color:var(--gray);margin-top:2px;line-height:1.4;}
+.sp-status{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
+  padding:10px 12px;border-radius:10px;line-height:1.4;}
+.sp-status.on{background:#eaf7ef;color:var(--green);}
+.sp-status.off{background:#f5f5f6;color:var(--gray);}
+.sp-status.warn{background:#fff7ed;color:var(--amber);}
 /* add-row: clear full-width dashed accent action */
 .btn-add-row{width:100%;justify-content:center;border:1.5px dashed var(--red);color:var(--red);
   background:#fff;padding:11px 14px;border-radius:10px;font-weight:700;margin-top:4px;}
@@ -5233,20 +5323,26 @@ html[lang="en"] .photo-canvas:empty::after{content:'Tap to add photo';} /* CSS-g
 #emailDraftText{width:100%;min-height:160px;box-sizing:border-box;border:1px solid var(--border);
   border-radius:8px;padding:10px;font-size:13px;line-height:1.5;font-family:inherit;resize:vertical;color:#222;}
 /* The actions live under the preview: decide what to do AFTER seeing the PDF.
-   Save PDF spans the first row; the 2-column grid keeps the rest on one screen. */
-.pm-menu{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px;
+   Default state = two equal buttons (⬇ Save PDF | 📤 Share). When a Power User
+   enables ✉ Send to email it slots in as a full-width primary CTA on the top
+   row, so both the 2-button and 3-button layouts stay balanced. */
+.pm-menu{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:12px 14px;
   background:#fff;border-top:1px solid var(--border);flex-shrink:0;
-  padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));}
-.pm-menu-item{display:flex;align-items:center;justify-content:center;gap:7px;
-  border:1px solid var(--border);background:#fff;border-radius:9px;padding:12px 8px;
-  font-size:12.5px;font-weight:600;color:var(--dark);cursor:pointer;line-height:1.2;
-  transition:background .15s,border-color .15s,transform .05s;-webkit-tap-highlight-color:transparent;}
-.pm-menu-item:hover:not(:disabled){background:#f3f3f4;border-color:#c7c7c7;}
+  padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+.pm-menu-item{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;
+  border:1.5px solid var(--border);background:#fff;border-radius:12px;padding:13px 10px;
+  font-size:13px;font-weight:700;color:var(--dark);cursor:pointer;line-height:1.15;
+  transition:background .15s,border-color .15s,transform .06s,box-shadow .15s;-webkit-tap-highlight-color:transparent;}
+.pm-menu-item .pmi-ic{font-size:17px;line-height:1;}
+.pm-menu-item:hover:not(:disabled){background:#f7f7f8;border-color:#bdbdbd;}
 .pm-menu-item:active:not(:disabled){transform:scale(.97);}
 .pm-menu-item:disabled{opacity:.4;cursor:not-allowed;}
-.pm-menu-item.primary{border-color:var(--red);color:var(--red);}
-.pm-menu-item.primary:hover:not(:disabled){background:#fff5f4;border-color:var(--red);}
 .pm-menu-item.pm-full{grid-column:1 / -1;}
+/* primary = filled red CTA — the main action when ✉ Send to email is enabled */
+.pm-menu-item.primary{background:var(--red);border-color:var(--red);color:#fff;
+  box-shadow:0 3px 10px rgba(228,29,21,.26);}
+.pm-menu-item.primary:hover:not(:disabled){background:#c9160f;border-color:#c9160f;}
+.pm-menu-item.primary:active:not(:disabled){transform:scale(.98);}
 
 .preview-filename{font-size:12.5px;color:var(--gray);margin-bottom:10px;word-break:break-all;}
 .preview-actions-row{display:flex;gap:10px;flex-wrap:wrap;}
@@ -5371,9 +5467,9 @@ table.pphoto tr td:last-child{ border-right:none !important; }
       </div>
     </div>
     <div class="pm-menu" role="menu">
-      <button class="pm-menu-item pm-full" id="pmSavePdf" role="menuitem">⬇ Save PDF</button>
-      <button class="pm-menu-item primary" id="pmSendEmail" role="menuitem">✉ Send to email</button>
-      <button class="pm-menu-item" id="pmShare" role="menuitem" title="ส่งไปยังแชท / แอปอื่น">📤 Share</button>
+      <button class="pm-menu-item primary pm-full" id="pmSendEmail" role="menuitem"><span class="pmi-ic">✉</span><span>Send to email</span></button>
+      <button class="pm-menu-item" id="pmSavePdf" role="menuitem"><span class="pmi-ic">⬇</span><span>Save PDF</span></button>
+      <button class="pm-menu-item" id="pmShare" role="menuitem" title="ส่งไปยังแชท / แอปอื่น"><span class="pmi-ic">📤</span><span>Share</span></button>
     </div>
   </div>
 
@@ -5388,19 +5484,27 @@ table.pphoto tr td:last-child{ border-right:none !important; }
     <button class="btn btn-menu" id="btnMenu" aria-label="เมนู" aria-haspopup="true" aria-expanded="false" aria-controls="topMenu">☰</button>
     <div class="top-menu" id="topMenu" role="menu" aria-labelledby="btnMenu">
       <!-- ใบสั่ง -->
-      <button class="tm-item" id="btnNew" role="menuitem">＋ ใหม่</button>
-      <button class="tm-item" id="btnHistory" role="menuitem">📝 Draft</button>
+      <div class="tm-label">คำสั่ง</div>
+      <button class="tm-item" id="btnNew" role="menuitem"><span class="tm-ic">＋</span><span class="tm-txt">ใหม่</span></button>
+      <button class="tm-item" id="btnHistory" role="menuitem"><span class="tm-ic">📝</span><span class="tm-txt">Draft</span></button>
       <div class="tm-sep" role="separator"></div>
+      <div class="tm-label">ฐานข้อมูล</div>
       <!-- ฐานข้อมูล -->
-      <button class="tm-item" id="btnViewDb" role="menuitem" title="ดูข้อมูล Database ที่ซิงค์มา">📋 Data Base</button>
-      <button class="tm-item" id="lookupSyncRefresh" role="menuitem" title="ซิงค์ฐานข้อมูล Machine/Part">⟳ ซิงค์</button>
+      <button class="tm-item" id="btnViewDb" role="menuitem" title="ดูข้อมูล Database ที่ซิงค์มา"><span class="tm-ic">📋</span><span class="tm-txt">Data Base</span></button>
+      <button class="tm-item" id="btnViewLog" role="menuitem" title="ประวัติการเบิกอะไหล่ทั้งหมด"><span class="tm-ic">📊</span><span class="tm-txt">Log</span></button>
+      <button class="tm-item" id="lookupSyncRefresh" role="menuitem" title="ซิงค์ฐานข้อมูล Machine/Part"><span class="tm-ic">⟳</span><span class="tm-txt">ซิงค์</span></button>
       <div class="tm-sep" role="separator"></div>
       <!-- ตั้งค่า -->
-      <button class="tm-item" id="btnLang" role="menuitem" title="สลับภาษา UI — บิล PDF เป็นภาษาอังกฤษเสมอ">🌐 ภาษา: TH</button>
-      <button class="tm-item" id="btnRunNumEdit" role="menuitem" style="display:none;" title="แก้เลขที่เอกสาร — ใช้ได้เมื่อ Running number เปิดอยู่">✏️ แก้เลขที่เอกสาร</button>
-      <button class="tm-item" id="btnPowerUser" role="menuitem" title="ล็อกอินเพื่อเปิด-ปิดฟังก์ชันขั้นสูง">🔑 Power User</button>
-      <button class="tm-item" id="btnFmtToggle" role="menuitem" style="display:none;" title="เปิด-ปิด toolbar จัดข้อความ (B/I/U/สี) ในช่อง Description">🛠 Format toolbar: ปิด</button>
-      <button class="tm-item" id="btnRunNumToggle" role="menuitem" style="display:none;" title="เปิด-ปิดการรันเลขที่เอกสาร (TL{ปี}-{เลข}) — ตั้งค่าเป็นกลาง มีผลกับทุกคน">🔢 Running number: ปิด</button>
+      <div class="tm-label">ตั้งค่า</div>
+      <button class="tm-item" id="btnLang" role="menuitem" title="สลับภาษา UI — บิล PDF เป็นภาษาอังกฤษเสมอ"><span class="tm-ic">🌐</span><span class="tm-txt" id="btnLangTxt">ภาษา</span><span class="tm-val" id="btnLangVal">TH</span></button>
+      <button class="tm-item" id="btnRunNumEdit" role="menuitem" style="display:none;" title="แก้เลขที่เอกสาร — ใช้ได้เมื่อ Running number เปิดอยู่"><span class="tm-ic">✏️</span><span class="tm-txt">แก้เลขที่เอกสาร</span></button>
+      <button class="tm-item" id="btnPowerUser" role="menuitem" title="ล็อกอินเพื่อเปิด-ปิดฟังก์ชันขั้นสูง"><span class="tm-ic">🔑</span><span class="tm-txt" id="btnPowerUserTxt">Power User</span><span class="tm-val" id="btnPowerUserVal"></span></button>
+      <!-- ผู้ดูแลระบบ (โผล่เมื่อล็อกอิน Power User) -->
+      <div class="tm-sep tm-admin" role="separator" style="display:none;"></div>
+      <div class="tm-label tm-admin" style="display:none;">ผู้ดูแลระบบ</div>
+      <button class="tm-item tm-admin" id="btnFmtToggle" role="menuitem" style="display:none;" title="เปิด-ปิด toolbar จัดข้อความ (B/I/U/สี) ในช่อง Description"><span class="tm-ic">🛠</span><span class="tm-txt">Format toolbar</span><span class="tm-sw" id="swFmt"></span></button>
+      <button class="tm-item tm-admin" id="btnRunNumToggle" role="menuitem" style="display:none;" title="เปิด-ปิดการรันเลขที่เอกสาร (TL{ปี}-{เลข}) — ตั้งค่าเป็นกลาง มีผลกับทุกคน"><span class="tm-ic">🔢</span><span class="tm-txt">Running number</span><span class="tm-sw" id="swRun"></span></button>
+      <button class="tm-item tm-admin" id="btnPowerAutomate" role="menuitem" style="display:none;" title="ตั้งค่า Power Automate — เปิด-ปิดส่งตรง, ลิงก์ Flow, อีเมลผู้รับ"><span class="tm-ic">⚡</span><span class="tm-txt">Power Automate</span><span class="tm-val" id="paMenuVal">ปิด</span><span class="tm-chev">›</span></button>
     </div>
   </div>
 </div>
@@ -6165,9 +6269,17 @@ let lookupOnline = navigator.onLine;
    flips a flag once and every device picks it up on next load — no per-device
    drift. Cached in lkv for instant/offline start; refreshed on load and after
    each sync. See getAppSettings/setAppSettings/reserveExportNumber in Code.gs. */
-const DEFAULT_APP_SETTINGS = { fmtToolbar:false, runNumberEnabled:false, runPrefix:'TL', runYear:(new Date()).getFullYear(), runNext:1 };
+// hideSendEmail defaults TRUE: ✉ Send to email is HIDDEN out of the box and a
+// Power User reveals it from the ⚡ Power Automate page (that switch is the only
+// place it's controlled). Only ⬇ Save PDF / 📤 Share show until then.
+const DEFAULT_APP_SETTINGS = { fmtToolbar:false, runNumberEnabled:false, paSend:false, paUrl:'', hideSendEmail:true, runPrefix:'TL', runYear:(new Date()).getFullYear(), runNext:1 };
 let appSettings = Object.assign({}, DEFAULT_APP_SETTINGS);
 function fmtToolbarOn(){ return !!appSettings.fmtToolbar; }
+function paSendOn(){ return !!appSettings.paSend; }
+function hideSendEmailOn(){ return !!appSettings.hideSendEmail; }
+/* Flow URL is editable in-app (⚡ settings page) and shared via appSettings;
+   the built-in constant is only the fallback when nothing has been saved. */
+function paSendUrl(){ return String(appSettings.paUrl || '').trim() || POWER_AUTOMATE_SEND_URL; }
 function runNumberEnabled(){ return !!appSettings.runNumberEnabled; }
 function pad3(n){ return ('000' + (parseInt(n,10)||1)).slice(-3); }
 function runNumberPreview(){
@@ -6183,6 +6295,11 @@ function applyAppSettings(){
   try{ refreshPowerMenuUI(); }catch(e){}
   try{ renderRunNumber(); }catch(e){}
   try{ if(!fmtToolbarOn()) fmtHideAll(); }catch(e){}
+  // ✉ Send to email can be hidden app-wide from the ⚡ settings page
+  try{
+    const se = document.getElementById('pmSendEmail');
+    if(se) se.style.display = hideSendEmailOn() ? 'none' : '';
+  }catch(e){}
 }
 async function loadAppSettings(){
   try{ const cached = await lkvGet('appSettings'); if(cached) appSettings = Object.assign({}, DEFAULT_APP_SETTINGS, cached); }catch(e){}
@@ -6465,7 +6582,40 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Tabs: รออัพเดทเข้า DB | เครื่อง | อะไหล่ | ชุดเบิก | ถังขยะ
   // ============================================================
   let dbActiveTab = 'pending'; // pending | machines | parts | sets | trash
+  let _dbSearchQuery = { machines:'', parts:'', sets:'' };
   let _pendingPartsCache = [];  // last getPendingParts result (also read by the resolve/discard handlers)
+
+  async function loadPendingParts(){
+    try{
+      const res = await lookupApiCall('getPendingParts', {});
+      if(res && res.rows) _pendingPartsCache = res.rows;
+    }catch(e){}
+  }
+  window._loadPendingParts = loadPendingParts;
+  window._getPendingPartsCache = ()=> _pendingPartsCache;
+  window._openResolvePending = async (row)=>{
+    const editor = await ensureSignedIn();
+    if(editor) openResolvePending(row, editor);
+  };
+  window._autoResolvePending = async (pendingRow, articleNo, partName)=>{
+    const editor = await ensureSignedIn();
+    if(!editor) return;
+    const reqName = String(pendingRow.RequisitionName||'').trim();
+    const desc = partName || reqName;
+    const dup = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === articleNo.toLowerCase());
+    if(!dup){
+      await lookupQueueOrSend('recordNew', {type:'Part', data:{
+        ArticleNo: articleNo, Description: desc, ImageURL: String(pendingRow.ImageURL||'')
+      }});
+    }
+    if(reqName && reqName.toLowerCase() !== desc.toLowerCase()){
+      await lookupQueueOrSend('recordNew', {type:'Part', data:{ ArticleNo: articleNo, Description: reqName }});
+    }
+    try{ await lookupApiCall('deletePendingPart', { pendingId: pendingRow.PendingId }); }catch(e){}
+    _pendingPartsCache = (_pendingPartsCache||[]).filter(r => String(r.PendingId) !== String(pendingRow.PendingId));
+    flashStatus('อัพเดทเข้า DB แล้ว: #' + articleNo);
+    lookupSync();
+  };
 
   function escDb(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -6492,9 +6642,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
     return `<div class="db-table-wrap" style="overflow:auto;"><table class="db-table">${head}${body}</table></div>${more}`;
   }
 
-  // Cache-buster token: bumped whenever a part image is added/replaced/removed
-  // so the browser re-fetches the changed image instead of serving a stale one.
-  // It stays constant between changes, so normal caching still applies otherwise.
+  function renderMachinesList(machines){
+    if(!machines || !machines.length) return '<div class="db-empty">ไม่มีข้อมูล (0 แถว)</div>';
+    const html = machines.slice(0, 100).map(m => {
+      const no = String(m.MachineNumber||'');
+      return `<div class="db-part-card">
+        <div class="db-part-info" style="flex:1;">
+          <div class="part-alias-no" style="font-weight:700;">#${escDb(no)}</div>
+          <div class="part-alias-desc">${escDb(m.MachineType||'-')}</div>
+          <div style="font-size:12px;color:var(--gray);">${escDb(m.CustomerName||'-')}</div>
+        </div>
+        <button type="button" class="db-edit-btn db-mc-edit" data-machineno="${escAttr(no)}" title="แก้ไข">✎</button>
+      </div>`;
+    }).join('');
+    const more = machines.length > 100 ? `<div class="db-status-line">...และอีก ${machines.length - 100} เครื่อง</div>` : '';
+    return `<div class="db-part-list">${html}</div>${more}`;
+  }
+
   let _imgCacheToken = '';
 
   // Shared part-thumbnail renderer. Every view (parts list, kit editor, kit
@@ -6738,6 +6902,83 @@ document.addEventListener('DOMContentLoaded', ()=>{
     return out.sort((a,b)=>a.localeCompare(b));
   }
 
+  function openEditMachine(machineNo, signedInEditor){
+    const machine = lookupCache.machines.find(m => String(m.MachineNumber||'').trim().toLowerCase() === String(machineNo).trim().toLowerCase());
+    if(!machine){ flashStatus('ไม่พบเครื่อง'); return; }
+    let editor = (signedInEditor || getSessionEditor() || '').trim();
+    const origNo = String(machine.MachineNumber||'');
+    let noVal = origNo;
+    let customerVal = String(machine.CustomerName||'');
+    let typeVal = String(machine.MachineType||'');
+
+    const custOpts = mergeAutocomplete(CUSTOMERS, dbDistinctValues(lookupCache.machines, 'CustomerName'));
+    const typeOpts = mergeAutocomplete(MACHINE_TYPES, dbDistinctValues(lookupCache.machines, 'MachineType'));
+
+    const ov = document.createElement('div');
+    ov.className = 'edit-part-modal open';
+
+    function renderEdit(){
+      ov.innerHTML = `
+        <div class="edit-part-dialog">
+          <div class="epm-head"><span>แก้ไขเครื่องจักร</span><button type="button" class="epm-x">✕</button></div>
+          <div class="epm-body">
+            <div class="epm-signed">✅ ผู้แก้ไข: <span class="who">${escDb(editor||'-')}</span><button type="button" class="epm-changeuser chg">เปลี่ยนผู้ใช้</button></div>
+            <div class="addm-form">
+              <label>Customer Name<div class="addm-cust"></div></label>
+              <label>Machine No <span class="req">*</span><input type="text" class="addm-no" value="${escAttr(noVal)}" autocomplete="off"></label>
+              <label>Machine Type / Model<div class="addm-type"></div></label>
+            </div>
+          </div>
+          <div class="epm-actions">
+            <button type="button" class="btn epm-cancel">ยกเลิก</button>
+            <button type="button" class="btn btn-primary epm-save">บันทึกการแก้ไข</button>
+          </div>
+        </div>`;
+      const custBox = buildComboBox(custOpts, customerVal, v=>{ customerVal = v; }, '- เลือก/พิมพ์ชื่อลูกค้า -');
+      const typeBox = buildComboBox(typeOpts, typeVal, v=>{ typeVal = v; }, '- เลือก/พิมพ์รุ่นเครื่อง -');
+      ov.querySelector('.addm-cust').appendChild(custBox);
+      ov.querySelector('.addm-type').appendChild(typeBox);
+      const noInp = ov.querySelector('.addm-no');
+      noInp.oninput = ()=>{ noVal = noInp.value; };
+      ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+      ov.querySelector('.epm-cancel').onclick = ()=>userDismissTopModal();
+      const chgBtn = ov.querySelector('.epm-changeuser');
+      if(chgBtn) chgBtn.onclick = async ()=>{ const e2 = await requireEditorSignIn(); if(e2){ editor = e2; renderEdit(); } };
+      ov.querySelector('.epm-save').onclick = save;
+    }
+
+    async function save(){
+      editor = (editor||'').trim();
+      if(!editor){ alert('กรุณาลงชื่อผู้แก้ไขก่อน'); return; }
+      noVal = (noVal||'').trim(); customerVal = (customerVal||'').trim(); typeVal = (typeVal||'').trim();
+      if(!noVal){ alert('กรุณากรอก Machine No'); return; }
+      setSessionEditor(editor);
+      const btn = ov.querySelector('.epm-save'); if(btn) btn.disabled=true;
+      const payload = { origMachineNo: origNo, editor };
+      if(noVal.toLowerCase() !== origNo.toLowerCase()) payload.newMachineNo = noVal;
+      if(customerVal !== String(machine.CustomerName||'')) payload.newCustomerName = customerVal;
+      if(typeVal !== String(machine.MachineType||'')) payload.newMachineType = typeVal;
+      try{
+        await lookupApiCall('updateMachine', payload);
+        machine.MachineNumber = noVal;
+        machine.CustomerName = customerVal;
+        machine.MachineType = typeVal;
+        lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
+        flashStatus('บันทึกการแก้ไขเครื่องแล้ว');
+        userDismissTopModal();
+        await renderDbModal();
+      }catch(err){
+        if(btn) btn.disabled=false;
+        const m=String(err.message||err);
+        alert('บันทึกไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่':''));
+      }
+    }
+
+    renderEdit();
+    document.body.appendChild(ov);
+    modalOpened();
+  }
+
   // ----- Add a new MACHINE (Customer / Machine No / Machine Type) -----
   function openAddMachine(){
     let customer = '', machineNo = '', machineType = '';
@@ -6950,9 +7191,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
     const cards = rows.map(r => {
       const img = normalizeImageUrl(r.ImageURL||'');
-      const thumb = img
-        ? `<img class="db-part-thumb pend-thumb" src="${escAttr(img)}" data-src="${escAttr(img)}" data-full="${escAttr(img)}" onerror="dbImgRetry(this)">`
+      // Thumbnail doubles as an image picker: tap to add (or replace) a photo so
+      // whoever requisitions this part next sees it. Wrapped in a <label> so the
+      // tap opens the hidden file input directly.
+      const inner = img
+        ? `<img class="db-part-thumb pend-thumb" src="${escAttr(img)}" data-src="${escAttr(img)}" onerror="dbImgRetry(this)">`
         : `<div class="db-part-thumb pend-thumb noimg">📷</div>`;
+      const thumb = `<label class="pend-thumb-wrap" title="แตะเพื่อ${img?'เปลี่ยน':'เพิ่ม'}รูป">${inner}<span class="pend-thumb-cam">📷</span><input type="file" accept="image/*" class="pend-img-input" data-id="${escAttr(r.PendingId)}" hidden></label>`;
       const machine = [r.MachineType, r.MachineNo].filter(Boolean).join(' · ') || '-';
       const when = r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString('th-TH') : '';
       return `<div class="pend-card">
@@ -6987,31 +7232,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
     ov.innerHTML = `<div class="edit-part-dialog">
       <div class="epm-head"><span>เติมรหัส → บันทึกเข้า Data Base</span><button type="button" class="epm-x">✕</button></div>
       <div class="epm-body">
-        <div class="epm-note">พาร์ทนี้ถูกเบิกไปแล้วแต่ยังไม่มีใน Data Base — ใส่ Article No ที่ถูกต้องเพื่อบันทึกเข้าระบบ</div>
+        <div class="epm-note">มี Article No แล้ว → กดบันทึกเข้า Data Base · ยังไม่มีก็กดบันทึกเก็บรูป/ชื่อไว้ในคิวรออัพเดทได้ (ใส่รหัสทีหลัง)</div>
         <div class="epm-signed">✅ ผู้แก้ไข: <span class="who">${escDb(editor||'-')}</span></div>
         <div class="pend-ctx">
-          ${img ? `<img class="epm-img-preview pend-ctx-img" src="${escAttr(img)}" data-src="${escAttr(img)}" data-full="${escAttr(img)}" onerror="dbImgRetry(this)">`
-                : `<div class="epm-img-preview noimg">📷</div>`}
+          <label class="rp-img-wrap pend-thumb-wrap" title="แตะเพื่อ${img?'เปลี่ยน':'เพิ่ม'}รูป">
+            <span class="rp-img-slot">${img ? `<img class="epm-img-preview" src="${escAttr(img)}" onerror="dbImgRetry(this)">` : `<div class="epm-img-preview noimg">📷</div>`}</span>
+            <span class="pend-thumb-cam">📷</span>
+            <input type="file" accept="image/*" class="rp-img-input" hidden>
+          </label>
           <div class="pend-ctx-lines">
             <div><b>ชื่อตอนเบิก:</b> ${escDb(reqName||'-')}</div>
             <div><b>ลูกค้า:</b> ${escDb(row.Customer||'-')}</div>
             <div><b>เครื่อง:</b> ${escDb(machine)}</div>
           </div>
         </div>
-        <label>Article No (รหัสที่ถูกต้อง) *<input type="text" class="rp-article" placeholder="เช่น 46694" autocomplete="off"></label>
+        <label>Article No (ใส่ทีหลังได้)<input type="text" class="rp-article" placeholder="เช่น 46694 · เว้นว่างได้" autocomplete="off"></label>
         <label>ชื่อพาร์ทที่จะบันทึก<input type="text" class="rp-name" value="${escAttr(reqName)}"></label>
         <div class="epm-note" style="margin-top:2px;">ชื่อตอนเบิก “${escDb(reqName)}” จะถูกเก็บเป็นคำค้นหาให้อัตโนมัติ</div>
       </div>
       <div class="epm-actions">
         <button type="button" class="btn rp-cancel">ยกเลิก</button>
-        <button type="button" class="btn btn-primary rp-save">บันทึกเข้า Data Base</button>
+        <button type="button" class="btn btn-primary rp-save">บันทึก</button>
       </div>
     </div>`;
     ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
     ov.querySelector('.rp-cancel').onclick = ()=>userDismissTopModal();
     ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
-    const ctxImg = ov.querySelector('.pend-ctx-img');
-    if(ctxImg) ctxImg.onclick = ()=>openImageLightbox(ctxImg.dataset.full);
     document.body.appendChild(ov);
     modalOpened();
 
@@ -7019,19 +7265,69 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const nameInp = ov.querySelector('.rp-name');
     setTimeout(()=>artInp.focus(), 30);
 
+    // Image can be added / replaced right here — the 📷 preview is a file picker.
+    let imageUrl = String(row.ImageURL||'');
+    function renderImg(){
+      const slot = ov.querySelector('.rp-img-slot'); if(!slot) return;
+      const u = normalizeImageUrl(imageUrl||'');
+      slot.innerHTML = u
+        ? `<img class="epm-img-preview" src="${escAttr(u)}" onerror="dbImgRetry(this)">`
+        : `<div class="epm-img-preview noimg">📷</div>`;
+    }
+    ov.querySelector('.rp-img-input').onchange = async (e)=>{
+      const f = e.target.files && e.target.files[0]; if(!f) return;
+      try{
+        flashStatus('กำลังอัปโหลดรูป...');
+        const { base64 } = await compressForUpload(f);
+        const filename = 'pending_' + String(reqName||'part').replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
+        const up = await lookupApiCall('uploadImage', { base64, mimeType:'image/jpeg', filename });
+        if(up && up.url){ imageUrl = up.url; row.ImageURL = up.url; renderImg(); flashStatus('เพิ่มรูปแล้ว ✓'); }
+      }catch(err){
+        const m = String(err.message||err);
+        flashStatus('อัปโหลดไม่สำเร็จ: ' + m + (m.includes('Unknown action') ? ' → deploy Code.gs ใหม่' : ''));
+      }
+    };
+
     ov.querySelector('.rp-save').onclick = async ()=>{
       const articleNo = artInp.value.trim();
       const partName = nameInp.value.trim() || reqName;
-      if(!articleNo){ alert('กรุณาใส่ Article No'); artInp.focus(); return; }
+      const btn = ov.querySelector('.rp-save');
+
+      // No Article No yet → keep it in the pending queue, just save the (possibly
+      // new) image / name. Nothing is written to the Data Base until a code exists.
+      if(!articleNo){
+        btn.disabled = true;
+        try{
+          await lookupApiCall('addPendingPart', {
+            requisitionName: partName, imageURL: imageUrl,
+            machineNo: row.MachineNo, machineType: row.MachineType,
+            customer: row.Customer, orderId: row.OrderId, recordedBy: row.RecordedBy
+          });
+          // Renaming makes a new queue entry (keyed by name); drop the old one.
+          if(reqName && partName.toLowerCase() !== reqName.toLowerCase()){
+            await lookupApiCall('deletePendingPart', { pendingId: row.PendingId });
+          }
+          flashStatus('บันทึกไว้ในคิวรออัพเดทแล้ว (ยังไม่มีรหัส)');
+          userDismissTopModal();
+          try{ const res = await lookupApiCall('getPendingParts', {}); _pendingPartsCache = (res && res.rows) || _pendingPartsCache; }catch(e){}
+          await renderDbModal();
+        }catch(err){
+          btn.disabled = false;
+          const m = String(err.message||err);
+          alert('บันทึกไม่สำเร็จ: ' + m + (m.indexOf('Unknown action')>=0 ? '\n→ ต้อง Deploy Code.gs ใหม่' : ''));
+        }
+        return;
+      }
+
       // The code may already exist — then this was just an unrecognised NAME for
       // a part we already have, so attach the name rather than duplicate the part.
       const dup = lookupCache.parts.find(p => String(p.ArticleNo).trim().toLowerCase() === articleNo.toLowerCase());
       if(dup && !confirm(`รหัส #${articleNo} มีอยู่แล้วใน Data Base:\n“${dup.Description||'-'}”\n\nจะไม่สร้างพาร์ทซ้ำ แต่จะเพิ่ม “${reqName}” เป็นคำค้นหาให้พาร์ทนี้แทน — ใช่หรือไม่?`)) return;
-      const btn = ov.querySelector('.rp-save'); btn.disabled = true;
+      btn.disabled = true;
       try{
         if(!dup){
           await lookupQueueOrSend('recordNew', {type:'Part', data:{
-            ArticleNo: articleNo, Description: partName, ImageURL: String(row.ImageURL||'')
+            ArticleNo: articleNo, Description: partName, ImageURL: String(imageUrl||'')
           }});
         }
         if(reqName && reqName.toLowerCase() !== partName.toLowerCase()){
@@ -7108,18 +7404,66 @@ document.addEventListener('DOMContentLoaded', ()=>{
       ? `<div class="db-status-line err">⚠ ${escDb(lookupLastError)}</div>`
       : `<div class="db-status-line">ซิงค์ล่าสุด: ${lookupCache.syncedAt ? new Date(lookupCache.syncedAt).toLocaleString('th-TH') : '-'}</div>`;
 
+    function uniqueVals(list,field){ const s=new Set(); list.forEach(r=>{const v=String(r[field]||'').trim(); if(v)s.add(v);}); return [...s].sort(); }
+
+    function filterList(list, tab, fields){
+      const q = (_dbSearchQuery[tab]||'').trim().toLowerCase();
+      if(!q) return list;
+      return list.filter(r=>{
+        const hay = fields.map(f=>String(r[f]||'')).join(' ').toLowerCase();
+        return q.split(/\s+/).every(w=>hay.includes(w));
+      });
+    }
+
+    // per-tab filter config, used to mount a shared combobox + partial refresh
+    const FILTER_CFG = {
+      machines: { data:()=>lookupCache.machines, fields:['MachineNumber','CustomerName','MachineType'],
+        groups:()=>[
+          { label:'รุ่นเครื่อง', values:uniqueVals(lookupCache.machines,'MachineType') },
+          { label:'หมายเลขเครื่อง', values:uniqueVals(lookupCache.machines,'MachineNumber') },
+          { label:'ลูกค้า', values:uniqueVals(lookupCache.machines,'CustomerName') },
+        ],
+        chips:()=>uniqueVals(lookupCache.machines,'MachineType'),
+        placeholder:'ค้นหาเครื่อง... (หมายเลข, รุ่น, ลูกค้า)', render:renderMachinesList },
+      parts: { data:()=>lookupCache.parts, fields:['ArticleNo','Description'],
+        groups:()=>[
+          { label:'ชื่ออะไหล่', values:uniqueVals(lookupCache.parts,'Description') },
+          { label:'Article No', values:uniqueVals(lookupCache.parts,'ArticleNo') },
+        ],
+        chips:()=>uniqueVals(lookupCache.parts,'Description'),
+        placeholder:'ค้นหาอะไหล่... (Article No, ชื่อ)', render:renderPartsList },
+      sets: { data:()=>lookupCache.companions||[], fields:['name'],
+        values:()=>uniqueVals(lookupCache.companions||[],'name'),
+        chips:()=>uniqueVals(lookupCache.companions||[],'name'),
+        placeholder:'ค้นหาชุดเบิก...', render:renderCompanionSets },
+    };
+
     let sectionHtml = '';
     if(dbActiveTab === 'pending'){
       sectionHtml = renderPendingTable(pending);
     } else if(dbActiveTab === 'machines'){
-      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddMachine"><span class="ico">＋</span> เพิ่มเครื่องใหม่</button></div>` + renderDbTable(lookupCache.machines);
+      const cfg = FILTER_CFG.machines;
+      const filtered = filterList(cfg.data(), 'machines', cfg.fields);
+      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddMachine"><span class="ico">＋</span> เพิ่มเครื่องใหม่</button><button type="button" class="db-add-btn db-export-btn" data-tab="machines">📥 Export</button></div>`
+        + `<div class="db-filter-host" data-tab="machines"></div>`
+        + `<p class="db-count-line">กด ✎ เพื่อแก้ไขเครื่องจักร · แสดง <b class="db-count">${filtered.length}</b>/${cfg.data().length}</p>`
+        + `<div class="db-list-host">${renderMachinesList(filtered)}</div>`;
     } else if(dbActiveTab === 'parts'){
-      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddPart"><span class="ico">＋</span> เพิ่มอะไหล่ใหม่</button></div>`
-        + `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่</p>` + renderPartsList(lookupCache.parts);
+      const cfg = FILTER_CFG.parts;
+      const filtered = filterList(cfg.data(), 'parts', cfg.fields);
+      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn" id="dbAddPart"><span class="ico">＋</span> เพิ่มอะไหล่ใหม่</button><button type="button" class="db-add-btn db-export-btn" data-tab="parts">📥 Export</button></div>`
+        + `<div class="db-filter-host" data-tab="parts"></div>`
+        + `<p class="db-count-line">แตะรูปเพื่อดูเต็ม · กด ✎ เพื่อแก้ไขอะไหล่ · แสดง <b class="db-count">${filtered.length}</b>/${cfg.data().length}</p>`
+        + `<div class="db-list-host">${renderPartsList(filtered)}</div>`;
     } else if(dbActiveTab === 'sets'){
-      sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">ชุดพาร์ทที่ต้องเบิกด้วยกัน · ⭐ = พาร์ทหลัก (ตัวกระตุ้น) · แตะรูปเพื่อดูเต็ม</p>` + renderCompanionSets(lookupCache.companions||[]);
+      const cfg = FILTER_CFG.sets;
+      const filtered = filterList(cfg.data(), 'sets', cfg.fields);
+      sectionHtml = `<div class="db-add-bar"><button type="button" class="db-add-btn db-export-btn" data-tab="sets">📥 Export</button></div>`
+        + `<div class="db-filter-host" data-tab="sets"></div>`
+        + `<p class="db-count-line">ชุดพาร์ทที่ต้องเบิกด้วยกัน · ⭐ = พาร์ทหลัก · แสดง <b class="db-count">${filtered.length}</b>/${cfg.data().length}</p>`
+        + `<div class="db-list-host">${renderCompanionSets(filtered)}</div>`;
     } else if(dbActiveTab === 'trash'){
-      sectionHtml = `<p style="font-size:12px;color:var(--gray);margin:0 0 10px;">อะไหล่ที่ถูกลบ (สำรองไว้) · กด “กู้คืน” เพื่อนำกลับเข้าฐานข้อมูล</p>` + await renderRecycleBin();
+      sectionHtml = `<p class="db-count-line">อะไหล่ที่ถูกลบ (สำรองไว้) · กด "กู้คืน" เพื่อนำกลับเข้าฐานข้อมูล</p>` + await renderRecycleBin();
     }
 
     body.innerHTML = syncLine + renderDbTabs(pending) + `<div class="db-section-body">${sectionHtml}</div>`;
@@ -7128,6 +7472,47 @@ document.addEventListener('DOMContentLoaded', ()=>{
     body.querySelectorAll('.db-tab').forEach(btn=>{
       btn.onclick = async ()=>{ dbActiveTab = btn.dataset.tab; await renderDbModal(); };
     });
+    // Wires the per-row handlers (thumbnail lightbox + ✎ edit) for a list of
+    // cards. Called after the initial render AND after every filter refresh, so
+    // freshly-rendered rows always respond. Scoped so a partial refresh only
+    // re-wires the swapped list, not the whole modal.
+    function wireDbListItems(scope){
+      scope.querySelectorAll('.db-part-thumb[data-full]').forEach(el=>{ el.onclick = ()=>openImageLightbox(el.dataset.full); });
+      scope.querySelectorAll('.db-edit-btn:not(.db-set-edit):not(.db-mc-edit)').forEach(btn=>{
+        btn.onclick = async ()=>{ const editor = await ensureSignedIn(); if(!editor) return; openEditPart(btn.dataset.articleno, editor); };
+      });
+      scope.querySelectorAll('.db-mc-edit').forEach(btn=>{
+        btn.onclick = async ()=>{ const editor = await ensureSignedIn(); if(!editor) return; openEditMachine(btn.dataset.machineno, editor); };
+      });
+      scope.querySelectorAll('.db-set-edit').forEach(btn=>{
+        btn.onclick = ()=>{ const s=(lookupCache.companions||[]).find(x=>String(x.name||'')===btn.dataset.name); openCompanionSetEditor(s||null); };
+      });
+      const addSetBtn2 = scope.querySelector('#dbAddSet');
+      if(addSetBtn2) addSetBtn2.onclick = ()=>openCompanionSetEditor(null);
+    }
+    // DB tab search: mount the shared combobox and refresh only the list on change
+    const filterHost = body.querySelector('.db-filter-host');
+    if(filterHost){
+      const tab = filterHost.dataset.tab;
+      const cfg = FILTER_CFG[tab];
+      const listHost = body.querySelector('.db-list-host');
+      const countEl = body.querySelector('.db-count');
+      const combo = buildFilterCombo({
+        placeholder: cfg.placeholder,
+        groups: cfg.groups ? cfg.groups() : null,
+        values: cfg.values ? cfg.values() : null,
+        chips: cfg.chips(),
+        initial: _dbSearchQuery[tab] || '',
+        onChange: (v)=>{
+          _dbSearchQuery[tab] = v;
+          const filtered = filterList(cfg.data(), tab, cfg.fields);
+          listHost.innerHTML = cfg.render(filtered);
+          if(countEl) countEl.textContent = filtered.length;
+          wireDbListItems(listHost);
+        }
+      });
+      filterHost.appendChild(combo);
+    }
     // Pending queue: fill in the code (→ Data Base) / discard
     body.querySelectorAll('.pend-resolve').forEach(btn=>{
       btn.onclick = async ()=>{
@@ -7140,21 +7525,37 @@ document.addEventListener('DOMContentLoaded', ()=>{
     body.querySelectorAll('.pend-discard').forEach(btn=>{
       btn.onclick = ()=>discardPendingPart(btn.dataset.id);
     });
-    body.querySelectorAll('.pend-thumb[data-full]').forEach(el=>{
-      el.onclick = ()=>openImageLightbox(el.dataset.full);
-    });
-    // Parts: tap thumbnail → full-image lightbox (closes via Esc/Back/tap-outside)
-    body.querySelectorAll('.db-part-thumb[data-full]').forEach(el=>{
-      el.onclick = ()=>openImageLightbox(el.dataset.full);
-    });
-    // Parts: edit (✎) → sign-in gate → audited edit form (exclude set-edit buttons)
-    body.querySelectorAll('.db-edit-btn:not(.db-set-edit)').forEach(btn=>{
-      btn.onclick = async ()=>{
-        const editor = await ensureSignedIn();
-        if(!editor) return;                       // cancelled the sign-in → stay put
-        openEditPart(btn.dataset.articleno, editor);
+    // Pending queue: tap thumbnail → add / replace the part's photo. Re-saves the
+    // pending row with all its existing context plus the new image (upsert by
+    // name), so nothing is lost and the picture is ready for the next requisition.
+    body.querySelectorAll('.pend-img-input').forEach(inp=>{
+      inp.onchange = async (e)=>{
+        const f = e.target.files && e.target.files[0]; if(!f) return;
+        const row = (_pendingPartsCache||[]).find(r => String(r.PendingId) === inp.dataset.id);
+        if(!row) return;
+        try{
+          flashStatus('กำลังอัปโหลดรูป...');
+          const { base64 } = await compressForUpload(f);
+          const filename = 'pending_' + String(row.RequisitionName||'part').replace(/[^a-zA-Z0-9ก-๙]/g,'_').slice(0,40) + '.jpg';
+          const up = await lookupApiCall('uploadImage', { base64, mimeType:'image/jpeg', filename });
+          if(up && up.url){
+            await lookupApiCall('addPendingPart', {
+              requisitionName: row.RequisitionName, imageURL: up.url,
+              machineNo: row.MachineNo, machineType: row.MachineType,
+              customer: row.Customer, orderId: row.OrderId, recordedBy: row.RecordedBy
+            });
+            row.ImageURL = up.url;                    // keep cache in sync
+            flashStatus('เพิ่มรูปแล้ว ✓');
+            await renderDbModal();
+          }
+        }catch(err){
+          const m = String(err.message||err);
+          flashStatus('อัปโหลดไม่สำเร็จ: ' + m + (m.includes('Unknown action') ? ' → deploy Code.gs ใหม่' : ''));
+        }
       };
     });
+    // Parts/machines/sets list rows: thumbnail lightbox + ✎ edit (initial render)
+    wireDbListItems(body);
     // Recycle bin: restore a soft-deleted part (also gated by sign-in)
     body.querySelectorAll('.trash-restore-btn').forEach(btn=>{
       btn.onclick = async ()=>{
@@ -7182,11 +7583,34 @@ document.addEventListener('DOMContentLoaded', ()=>{
     // Parts tab visible → kick off the silent background image self-heal
     // (once per session; see autoRepairImages below).
     if(dbActiveTab === 'parts') autoRepairImages();
-    // Sets: add / edit companion set
-    const addSetBtn = body.querySelector('#dbAddSet');
-    if(addSetBtn) addSetBtn.onclick = ()=>openCompanionSetEditor(null);
-    body.querySelectorAll('.db-set-edit').forEach(btn=>{
-      btn.onclick = ()=>{ const s=(lookupCache.companions||[]).find(x=>String(x.name||'')===btn.dataset.name); openCompanionSetEditor(s||null); };
+    // (Sets add/edit + list-row ✎ handlers are wired by wireDbListItems above.)
+    body.querySelectorAll('.db-export-btn').forEach(btn=>{
+      btn.onclick = ()=>{
+        const tab = btn.dataset.tab;
+        const stamp = new Date().toISOString().slice(0,10);
+        // Export honours the current filter — export exactly what's on screen.
+        const q = (_dbSearchQuery[tab]||'').trim();
+        if(tab==='machines'){
+          const data = filterList(lookupCache.machines, 'machines', FILTER_CFG.machines.fields);
+          downloadExcel(data,
+            [{key:'MachineNumber',label:'หมายเลขเครื่อง',width:130},{key:'MachineType',label:'รุ่นเครื่อง',width:150},{key:'CustomerName',label:'ลูกค้า',width:150}],
+            'machines-'+stamp, 'รายการเครื่องจักร'+(q?' ('+q+')':''));
+        } else if(tab==='parts'){
+          const data = filterList(lookupCache.parts, 'parts', FILTER_CFG.parts.fields);
+          const cols = [{key:'ArticleNo',label:'Article No',width:100},{key:'Description',label:'รายละเอียด',width:240}];
+          const sample = lookupCache.parts[0]||{};
+          Object.keys(sample).filter(k=>/suggestion\s*word/i.test(k)).forEach((k,i)=>cols.push({key:k,label:'คำค้นหา '+(i+1),width:130}));
+          if(sample.ImageURL!==undefined) cols.push({key:'ImageURL',label:'URL รูปภาพ',width:220});
+          downloadExcel(data, cols, 'parts-'+stamp, 'รายการอะไหล่'+(q?' ('+q+')':''));
+        } else if(tab==='sets'){
+          const sets = filterList(lookupCache.companions||[], 'sets', FILTER_CFG.sets.fields);
+          const maxParts = sets.reduce((m,s)=>Math.max(m,(s.parts||[]).length),0);
+          const cols = [{key:'name',label:'ชื่อชุด',width:180},{key:'image',label:'URL รูปภาพ',width:220}];
+          for(let i=0;i<maxParts;i++) cols.push({key:'_p'+i,label:i===0?'พาร์ทหลัก':'พาร์ท '+(i+1),width:110});
+          const flat = sets.map(s=>{const o={name:s.name,image:s.image||''}; (s.parts||[]).forEach((p,i)=>{o['_p'+i]=p;}); return o;});
+          downloadExcel(flat, cols, 'sets-'+stamp, 'รายการชุดเบิก'+(q?' ('+q+')':''));
+        }
+      };
     });
   }
 
@@ -7373,11 +7797,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     async function doDelete(){
       editor = (editor||'').trim();
       if(!editor){ alert('กรุณาลงชื่อผู้แก้ไขก่อน'); return; }
-      if(!confirm(`ต้องการลบอะไหล่ #${origArticleNo} ?\n\nระบบจะย้ายไปที่ถังขยะ (สำรองข้อมูลเดิมไว้) และกู้คืนได้ภายหลัง`)) return;
+      const label = origArticleNo ? `#${origArticleNo}` : `"${descVal}"`;
+      if(!confirm(`ต้องการลบอะไหล่ ${label} ?\n\nระบบจะย้ายไปที่ถังขยะ (สำรองข้อมูลเดิมไว้) และกู้คืนได้ภายหลัง`)) return;
       const btn = ov.querySelector('.epm-delete'); if(btn) btn.disabled=true;
       try{
-        await lookupApiCall('softDeletePart', { articleNo: origArticleNo, editor });
-        const i = lookupCache.parts.findIndex(p => String(p.ArticleNo).trim().toLowerCase() === origArticleNo.trim().toLowerCase());
+        await lookupApiCall('softDeletePart', { articleNo: origArticleNo, description: descVal, editor });
+        const i = origArticleNo
+          ? lookupCache.parts.findIndex(p => String(p.ArticleNo).trim().toLowerCase() === origArticleNo.trim().toLowerCase())
+          : lookupCache.parts.findIndex(p => !String(p.ArticleNo||'').trim() && String(p.Description||'').trim().toLowerCase() === descVal.trim().toLowerCase());
         if(i >= 0) lookupCache.parts.splice(i, 1);
         lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet('cache', lookupCache);
         flashStatus('ย้ายอะไหล่ไปถังขยะแล้ว · กู้คืนได้ในแท็บ “ถังขยะ”');
@@ -7491,6 +7918,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('dbModal').classList.add('open');
     modalOpened();
   };
+  const btnViewLog = document.getElementById('btnViewLog');
+  if(btnViewLog) btnViewLog.onclick = ()=>openLogModal();
   const dbModalClose = document.getElementById('dbModalClose');
   if(dbModalClose) dbModalClose.onclick = ()=>userDismissTopModal();
   const dbModalEl = document.getElementById('dbModal');
@@ -7526,6 +7955,7 @@ async function lookupSync(){
     lookupCache.cacheVersion = LOOKUP_CACHE_VERSION; await lkvSet("cache", lookupCache);
     lookupLastError = null;
     setLookupSyncUI('อัปเดตล่าสุด ' + new Date(lookupCache.syncedAt).toLocaleTimeString('th-TH') + ' · เครื่อง ' + lookupCache.machines.length + ' / อะไหล่ ' + lookupCache.parts.length, 'ok');
+    if(window._loadPendingParts) window._loadPendingParts();
   }catch(err){
     lookupLastError = err.message;
     setLookupSyncUI('ซิงค์ไม่สำเร็จ: ' + err.message, 'err');
@@ -7897,8 +8327,13 @@ function findMatchedAliasText(record, query){
 }
 function renderPartSuggestions(ac, idx, query){
   const results = searchAnyField(lookupCache.parts, query, 8);
-  if(!results.length){ ac.classList.remove('show'); ac.innerHTML=''; return; }
-  ac.innerHTML = results.map((p,i) => {
+  const q = (query||'').trim().toLowerCase();
+  const pendingMatches = !q ? [] : (window._getPendingPartsCache ? window._getPendingPartsCache() : []).filter(r=>{
+    const name = String(r.RequisitionName||'').toLowerCase();
+    return q.split(/\s+/).every(w => name.includes(w));
+  }).slice(0, 4);
+  if(!results.length && !pendingMatches.length){ ac.classList.remove('show'); ac.innerHTML=''; return; }
+  const dbHtml = results.map((p,i) => {
     const aliasMatch = findMatchedAliasText(p, query);
     const mainText = aliasMatch || p.Description || '-';
     const subText = aliasMatch
@@ -7915,9 +8350,36 @@ function renderPartSuggestions(ac, idx, query){
       </div>
     </div>`;
   }).join('');
+  const pendHtml = pendingMatches.map((r,i) => {
+    const imgUrl = normalizeImageUrl(r.ImageURL||'');
+    const imgTag = imgUrl
+      ? `<img src="${escAttr(imgUrl)}" onerror="this.style.display='none'">`
+      : '';
+    const machine = [r.MachineType, r.MachineNo].filter(Boolean).join(' · ');
+    return `<div class="ac-item ac-pending" data-pi="${i}">
+      <div class="ac-item-img">
+        ${imgTag}
+        <div><div class="ac-main">${escAttr(r.RequisitionName||'-')}</div><div class="ac-sub" style="color:#d97706;">⏳ รอเติมรหัส${machine ? ' · '+escAttr(machine) : ''}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  ac.innerHTML = dbHtml + (pendHtml ? (dbHtml ? '<div style="border-top:1px solid #e5e7eb;margin:2px 0;"></div>' : '') + pendHtml : '');
   ac.classList.add('show');
-  ac.querySelectorAll('.ac-item').forEach((el,i)=>{
+  ac.querySelectorAll('.ac-item:not(.ac-pending)').forEach((el,i)=>{
     el.onmousedown = ev=>{ ev.preventDefault(); selectPartSuggestion(idx, results[i]); ac.classList.remove('show'); };
+  });
+  ac.querySelectorAll('.ac-pending').forEach((el,i)=>{
+    el.onmousedown = ev=>{
+      ev.preventDefault();
+      ac.classList.remove('show');
+      const pend = pendingMatches[i];
+      order.items[idx].description = String(pend.RequisitionName||'');
+      order.items[idx].descriptionHtml = '';
+      order.items[idx]._pendingPartRef = pend;
+      renderItems();
+      flashField(`.f-description[data-idx="${idx}"]`);
+      autofillFromPending(idx, pend);   // pull the photo + machine context too
+    };
   });
 }
 function selectPartSuggestion(idx, p){
@@ -7934,6 +8396,28 @@ function selectPartSuggestion(idx, p){
   flashField(`.f-description[data-idx="${idx}"]`);
   maybeAutofillDbImage(idx);
   maybeSuggestCompanions(idx);
+}
+
+/* When a still-codeless part is chosen from the ⏳ "รอเติมรหัส" suggestions, pull
+   ONLY the photo captured with it — the machine/customer on a pending record is
+   just where it was first seen and shouldn't override the current order. The
+   image is kept (not treated as a replaceable DB image) so a later code lookup
+   with no picture can't drop it. */
+async function autofillFromPending(idx, pend){
+  const it = order.items[idx];
+  if(!it || it.locked || !pend) return;
+  const raw = pend.ImageURL || '';
+  if(!normalizeImageUrl(raw)) return;
+  // don't overwrite a real user photo the row might already have
+  if(it.image && it.image.src && !it.image.fromDb && !it.image.fromPending) return;
+  const keyName = String(it.description||'');
+  const src = await resolveDbImageDataUrl(raw);
+  if(!src) return;
+  if(order.items[idx] !== it || String(it.description||'') !== keyName) return; // row changed while fetching
+  if(it.image && it.image.src && !it.image.fromDb && !it.image.fromPending) return;
+  it.image = { src, x:0, y:0, w:1, h:1, objX:50, objY:50, z:1, fromDb:false, fromPending:true };
+  renderItemPhoto(idx);
+  flashStatus('ดึงรูป + ข้อมูลจากคิวรอเติมรหัสให้อัตโนมัติ');
 }
 
 /* Called when a Machine No field loses focus: auto-fill Machine Type + Customer if known,
@@ -8000,18 +8484,19 @@ function onArticleNoEntered(idx, articleNo){
       order.items[idx].descriptionHtml = '';
       renderItems();
       if(canonical) flashField(`.f-description[data-idx="${idx}"]`);
-      return;
-    }
-    if(canonical && currentDesc.toLowerCase() !== canonical.toLowerCase()){
-      recordPartAliasIfNew(articleNo, currentDesc); // save what was typed as an alias, if it's genuinely new
-      order.items[idx].description = canonical;     // then switch the field to the real name
+    } else if(canonical && currentDesc.toLowerCase() !== canonical.toLowerCase()){
+      recordPartAliasIfNew(articleNo, currentDesc);
+      order.items[idx].description = canonical;
       order.items[idx].descriptionHtml = '';
       renderItems();
       flashField(`.f-description[data-idx="${idx}"]`);
-      return;
     }
   }
-  // New parts are detected and recorded at Save/Export time (not on blur)
+  const pendRef = order.items[idx]._pendingPartRef;
+  if(pendRef && window._autoResolvePending){
+    delete order.items[idx]._pendingPartRef;
+    window._autoResolvePending(pendRef, articleNo, currentDesc);
+  }
   renderAliasAddRow(idx);
 }
 
@@ -8065,7 +8550,7 @@ function flashField(selector){
     lookupCache.companions = stored.companions || [];
     lookupCache.syncedAt = stored.syncedAt || 0;
   }
-  if(lookupOnline) { lookupSync(); lookupFlushOutbox(); }
+  if(lookupOnline) { lookupSync(); lookupFlushOutbox(); if(window._loadPendingParts) window._loadPendingParts(); }
 })();
 
 /* ---------------- state ---------------- */
@@ -8093,6 +8578,103 @@ function buildComboBox(baseOptions, value, onChange, placeholder){
   inp.addEventListener('change', ()=>onChange(inp.value));
   wrap.appendChild(inp); wrap.appendChild(dl);
   wrap.setValue = (v)=>{ inp.value = v || ''; };
+  return wrap;
+}
+
+/* Reusable filter combobox: a rounded search field (type to filter) + a row of
+   slide-able quick-pick chips + a caret that opens a scrollable dropdown of every
+   existing value (also type-filterable). Used by every search box so the whole
+   app searches the same way. onChange(value) fires debounced while typing, and
+   immediately on chip/option/clear. Built with DOM nodes (no innerHTML for the
+   dynamic values) so it can't be broken by quoting. */
+function buildFilterCombo(opts){
+  opts = opts || {};
+  // Either a flat `values` list, or labelled `groups` [{label, values:[]}] that
+  // render as sections in the dropdown (e.g. หมายเลขเครื่อง / รุ่นเครื่อง / ลูกค้า).
+  const groups = (opts.groups || []).map(g=>({ label:String(g.label||''), values:(g.values||[]).map(v=>String(v)) })).filter(g=>g.values.length);
+  const values = groups.length ? groups.reduce((a,g)=>a.concat(g.values),[]) : (opts.values || []).map(v=>String(v));
+  const chips  = (opts.chips  || values).map(v=>String(v));
+  const wrap = document.createElement('div');
+  wrap.className = 'cbx';
+  const field = document.createElement('div'); field.className = 'cbx-field';
+  const ico = document.createElement('span'); ico.className = 'cbx-ico'; ico.textContent = '🔍';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.className = 'cbx-input'; inp.autocomplete = 'off';
+  inp.placeholder = opts.placeholder || 'ค้นหา...';
+  inp.value = opts.initial || '';
+  const clearBtn = document.createElement('button'); clearBtn.type='button'; clearBtn.className='cbx-clear'; clearBtn.textContent='✕'; clearBtn.title='ล้าง';
+  const caret = document.createElement('button'); caret.type='button'; caret.className='cbx-caret'; caret.textContent='▾'; caret.title='เลือกจากรายการ';
+  field.append(ico, inp, clearBtn, caret);
+  const chipRow = document.createElement('div'); chipRow.className = 'cbx-chips';
+  const menu = document.createElement('div'); menu.className = 'cbx-menu';
+  wrap.append(field, chipRow, menu);
+
+  function fire(){
+    clearBtn.classList.toggle('show', !!inp.value.trim());
+    const cur = inp.value.trim().toLowerCase();
+    chipRow.querySelectorAll('.cbx-chip').forEach(c=>c.classList.toggle('on', c.dataset.val.toLowerCase()===cur && cur!==''));
+    if(opts.onChange) opts.onChange(inp.value);
+  }
+  // slide-able quick chips
+  chips.slice(0, opts.chipCount||14).forEach(v=>{
+    const c = document.createElement('button'); c.type='button'; c.className='cbx-chip'; c.dataset.val=v; c.textContent=v;
+    c.onclick = ()=>{ const on = inp.value.trim().toLowerCase()===v.toLowerCase(); inp.value = on?'':v; wrap.classList.remove('open'); fire(); };
+    chipRow.appendChild(c);
+  });
+  if(!chipRow.children.length) chipRow.style.display = 'none';
+  // Dropdown. When grouped, it's a two-level drill-down: first pick a heading
+  // (รุ่นเครื่อง / หมายเลขเครื่อง / ลูกค้า ...), then it shows ONLY that
+  // heading's values to choose from. Typing in the field searches across every
+  // value at once (flat), each tagged with its heading.
+  let _drill = null; // index of the drilled-into group, or null = heading list
+  function addOpt(v, tag){
+    const o = document.createElement('div'); o.className='cbx-opt'; o.textContent=v;
+    if(tag){ const t=document.createElement('span'); t.className='cbx-tag'; t.textContent=tag; o.appendChild(t); }
+    o.onmousedown = e=>{ e.preventDefault(); inp.value=v; wrap.classList.remove('open'); _drill=null; fire(); };
+    menu.appendChild(o);
+  }
+  function renderMenu(){
+    const q = inp.value.trim().toLowerCase();
+    menu.textContent = '';
+    // grouped + not searching → drill-down
+    if(groups.length && !q){
+      if(_drill == null){
+        groups.forEach((g,gi)=>{
+          const row = document.createElement('div'); row.className='cbx-cat';
+          const nm = document.createElement('span'); nm.textContent = g.label;
+          const ct = document.createElement('span'); ct.className='cbx-cat-count'; ct.textContent = g.values.length + ' ›';
+          row.append(nm, ct);
+          row.onmousedown = e=>{ e.preventDefault(); _drill = gi; renderMenu(); };
+          menu.appendChild(row);
+        });
+      } else {
+        const g = groups[_drill];
+        const back = document.createElement('div'); back.className='cbx-back'; back.textContent = '‹ ' + g.label;
+        back.onmousedown = e=>{ e.preventDefault(); _drill = null; renderMenu(); };
+        menu.appendChild(back);
+        if(!g.values.length){ const e=document.createElement('div'); e.className='cbx-empty'; e.textContent='ไม่มีข้อมูล'; menu.appendChild(e); }
+        g.values.forEach(v=>addOpt(v));
+      }
+      return;
+    }
+    // searching, or ungrouped → flat list
+    _drill = null;
+    const src = groups.length
+      ? groups.reduce((a,g)=>a.concat(g.values.map(v=>({v:v,tag:g.label}))),[])
+      : values.map(v=>({v:v}));
+    const list = q ? src.filter(o=>o.v.toLowerCase().includes(q)) : src;
+    list.slice(0,80).forEach(o=>addOpt(o.v, o.tag));
+    if(!list.length){ const e=document.createElement('div'); e.className='cbx-empty'; e.textContent='ไม่พบข้อมูล'; menu.appendChild(e); }
+    if(list.length>80){ const m=document.createElement('div'); m.className='cbx-empty'; m.textContent='…และอีก '+(list.length-80)+' รายการ (พิมพ์เพื่อค้นหา)'; menu.appendChild(m); }
+  }
+  let _t=null;
+  inp.oninput = ()=>{ clearTimeout(_t); _t=setTimeout(fire, 220); clearBtn.classList.toggle('show', !!inp.value.trim()); if(wrap.classList.contains('open')) renderMenu(); };
+  caret.onclick = ()=>{ const open = !wrap.classList.contains('open'); wrap.classList.toggle('open', open); if(open){ _drill=null; renderMenu(); inp.focus(); } };
+  clearBtn.onclick = ()=>{ inp.value=''; wrap.classList.remove('open'); _drill=null; fire(); inp.focus(); };
+  inp.onblur = ()=>{ setTimeout(()=>wrap.classList.remove('open'), 170); };
+  if(inp.value.trim()) clearBtn.classList.add('show');
+  wrap.getValue = ()=>inp.value;
+  wrap.focusEnd = ()=>{ inp.focus(); try{ inp.setSelectionRange(inp.value.length, inp.value.length); }catch(e){} };
   return wrap;
 }
 
@@ -8127,22 +8709,106 @@ function bindTopFields(){
 function renderUsageRows(rows){
   if(!rows.length){
     return '<div class="db-empty">ยังไม่มีประวัติการเบิก<br><span style="font-size:11px;">' +
-      'ระบบเริ่มเก็บตั้งแต่ตอนกด “✉ Export PDF → Email” (ไม่ได้เก็บย้อนหลังใบเก่า)</span></div>';
+      'ระบบเริ่มเก็บตั้งแต่ตอนกด "✉ Export PDF → Email" (ไม่ได้เก็บย้อนหลังใบเก่า)</span></div>';
   }
-  const totalQty = rows.reduce((s,r)=>{ const n = parseFloat(r.Qty); return s + (isNaN(n)?0:n); }, 0);
-  return `<div class="epm-note">เบิกไปแล้ว <b>${rows.length}</b> ครั้ง · รวม <b>${totalQty}</b> ชิ้น/ชุด</div>` +
-    `<div class="epm-restore-list">` + rows.map(r=>{
-      const when = r.Timestamp ? new Date(r.Timestamp).toLocaleString('th-TH') : '-';
-      const machine = [r.MachineType, r.MachineNo].filter(Boolean).join(' · ') || '-';
-      const qty = [r.Qty, r.Unit].filter(v=>v!=='' && v!=null).join(' ');
+  const seen = new Set();
+  const unique = rows.filter(r=>{
+    const key = (r.Customer||'').toLowerCase() + '|' + (r.MachineType||'').toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return `<div class="epm-note">ใช้กับ <b>${unique.length}</b> ลูกค้า/รุ่น (จาก ${rows.length} ครั้งที่เบิก)</div>` +
+    `<div class="epm-restore-list">` + unique.map(r=>{
       return `<div class="epm-restore-card">
-        <div class="rc-meta">${escHtml(when)} · ${escHtml(r.Type||'-')}${r.RecordedBy?' · '+escHtml(r.RecordedBy):''}</div>
         <div><b>${escHtml(r.Customer||'-')}</b></div>
-        <div>🖥 ${escHtml(machine)}</div>
-        <div>จำนวน ${escHtml(qty||'-')}${r.SetName?' · ชุด: '+escHtml(r.SetName):''}</div>
-        ${r.Note?'<div style="color:var(--gray);">📝 '+escHtml(r.Note)+'</div>':''}
+        <div>🖥 ${escHtml(r.MachineType||'-')}</div>
       </div>`;
     }).join('') + `</div>`;
+}
+/* Full usage ledger as a scrollable table (used by the 📊 Log modal). Sticky
+   header, zebra rows; scrolls sideways on narrow phones so every column stays
+   readable. Summary stat pills sit above. */
+function renderUsageRowsFull(rows, editable){
+  if(!rows.length) return '<div class="db-empty">ไม่มีข้อมูล</div>';
+  const totalQty = rows.reduce((s,r)=>{ const n = parseFloat(r.Qty); return s + (isNaN(n)?0:n); }, 0);
+  const customers = new Set(rows.map(r=>r.Customer).filter(Boolean));
+  const summary = `<div class="log-summary">
+    <div class="log-stat"><div class="log-stat-num">${rows.length}</div><div class="log-stat-label">รายการ</div></div>
+    <div class="log-stat"><div class="log-stat-num">${totalQty}</div><div class="log-stat-label">ชิ้น/ชุด</div></div>
+    <div class="log-stat"><div class="log-stat-num">${customers.size}</div><div class="log-stat-label">ลูกค้า</div></div>
+  </div>`;
+  const typeCls = t => { const l=(t||'').toLowerCase(); return l.includes('warranty')?'lt-type-warranty':l.includes('export')?'lt-type-export':'lt-type-other'; };
+  const body = rows.map(r=>{
+    const when = r.Timestamp ? new Date(r.Timestamp).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '-';
+    const machine = [r.MachineType, r.MachineNo].filter(Boolean).join(' · ') || '-';
+    const qty = [r.Qty, r.Unit].filter(v=>v!=='' && v!=null).join(' ') || '-';
+    const actions = editable
+      ? `<td class="lt-actions"><button type="button" class="lt-btn lt-edit" data-uid="${r._uid}" title="แก้ไข">✎</button><button type="button" class="lt-btn lt-del" data-uid="${r._uid}" title="ลบ">🗑</button></td>`
+      : '';
+    return `<tr>
+      <td class="lt-date">${escHtml(when)}</td>
+      <td><span class="lt-type ${typeCls(r.Type)}">${escHtml(r.Type||'-')}</span></td>
+      <td class="lt-cust">${escHtml(r.Customer||'-')}</td>
+      <td><span class="lt-art">#${escHtml(r.ArticleNo||'-')}</span></td>
+      <td class="lt-part" title="${escAttr(r.PartName||'')}">${escHtml(r.PartName||'-')}</td>
+      <td>${escHtml(machine)}</td>
+      <td class="lt-qty">${escHtml(qty)}</td>
+      <td>${escHtml(r.RecordedBy||'-')}</td>
+      ${actions}
+    </tr>`;
+  }).join('');
+  return summary + `<div class="log-tbl-wrap"><div class="log-tbl-scroll"><table class="log-tbl">
+    <thead><tr>
+      <th>วันที่</th><th>ประเภท</th><th>ลูกค้า</th><th>Article</th><th>ชื่ออะไหล่</th><th>เครื่อง</th><th>จำนวน</th><th>ผู้บันทึก</th>${editable?'<th>จัดการ</th>':''}
+    </tr></thead>
+    <tbody>${body}</tbody>
+  </table></div></div>`;
+}
+
+/* Export a formatted Excel file. Builds a styled HTML table that Excel/Sheets
+   opens as a real worksheet — bold red header, banded rows, borders, a title
+   and an export-stamp — so the download looks tidy with zero libraries. Saved
+   as .xls with the MS-Excel MIME type. columns: [{key,label,fmt?,align?,width?}]. */
+function downloadExcel(rows, columns, filename, title){
+  if(!rows.length){ flashStatus('ไม่มีข้อมูลให้ Export'); return; }
+  const esc = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const ncol = columns.length;
+  const thBase = 'background:#E41D15;color:#ffffff;font-weight:bold;border:1px solid #b71812;padding:7px 10px;text-align:left;mso-number-format:\\@;';
+  const th = columns.map(c=>{
+    const w = c.width ? 'width:'+c.width+'px;' : '';
+    return `<th style="${thBase}${w}">${esc(c.label||c.key)}</th>`;
+  }).join('');
+  const body = rows.map((r,i)=>{
+    const bg = i%2 ? 'background:#fdeceb;' : 'background:#ffffff;';
+    const tds = columns.map(c=>{
+      const val = typeof c.fmt==='function' ? c.fmt(r) : r[c.key];
+      const align = c.align ? 'text-align:'+c.align+';' : '';
+      return `<td style="border:1px solid #e2c9c8;padding:5px 10px;vertical-align:top;mso-number-format:\\@;${bg}${align}">${esc(val)}</td>`;
+    }).join('');
+    return '<tr>'+tds+'</tr>';
+  }).join('');
+  const titleRow = title
+    ? `<tr><td colspan="${ncol}" style="font-size:15pt;font-weight:bold;color:#E41D15;padding:6px 10px;">${esc(title)}</td></tr>` : '';
+  const stamp = `<tr><td colspan="${ncol}" style="font-size:9pt;color:#8a8a8a;padding:2px 10px;">ส่งออกเมื่อ ${esc(new Date().toLocaleString('th-TH'))} · รวม ${rows.length} รายการ</td></tr>`;
+  const sheetName = esc((title||filename||'Sheet').slice(0,28));
+  const html = '﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
+    + '<head><meta charset="UTF-8">'
+    + '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
+    + '<x:Name>'+sheetName+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
+    + '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
+    + '<style>table{border-collapse:collapse;font-family:Calibri,Tahoma,sans-serif;font-size:11pt;}</style></head>'
+    + '<body><table border="0" cellspacing="0" cellpadding="0">'
+    + titleRow + stamp + '<tr><td></td></tr>'
+    + '<thead><tr>'+th+'</tr></thead><tbody>'+body+'</tbody>'
+    + '</table></body></html>';
+  const blob = new Blob([html], {type:'application/vnd.ms-excel;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (filename||'export')+'.xls';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  flashStatus('Export เสร็จแล้ว ('+rows.length+' รายการ)');
 }
 
 /* "ประวัติการเบิก" for one Article No — which customer / machine did this part
@@ -8150,13 +8816,15 @@ function renderUsageRows(rows){
    editor can open it. It mounts its own .edit-part-modal, so opening it on top
    of the edit form is safe: closeTopmostModalDom() dismisses the topmost one
    first, leaving the edit form (and any unsaved photo) untouched underneath. */
-async function openUsageModal(articleNo){
+async function openUsageModal(articleNo, partName){
   const art = String(articleNo||'').trim();
-  if(!art){ flashStatus('ใส่ Article No ก่อน จึงจะดูประวัติการเบิกได้'); return; }
+  const name = String(partName||'').trim();
+  if(!art && !name){ flashStatus('ใส่รหัสหรือชื่ออะไหล่ก่อน จึงจะดูประวัติการเบิกได้'); return; }
+  const heading = art ? '#'+escHtml(art) : escHtml(name);
   const ov = document.createElement('div');
   ov.className = 'edit-part-modal open';
   ov.innerHTML = `<div class="edit-part-dialog">
-    <div class="epm-head"><span>ประวัติการเบิก #${escHtml(art)}</span><button type="button" class="epm-x">✕</button></div>
+    <div class="epm-head"><span>ประวัติการเบิก ${heading}</span><button type="button" class="epm-x">✕</button></div>
     <div class="epm-body"><div class="db-empty">กำลังโหลด...</div></div>
     <div class="epm-actions"><button type="button" class="btn epm-close">ปิด</button></div>
   </div>`;
@@ -8169,7 +8837,8 @@ async function openUsageModal(articleNo){
   const bodyEl = ov.querySelector('.epm-body');
   let rows = [];
   try{
-    const res = await lookupApiCall('getPartUsage', { articleNo: art, limit: 100 });
+    const q = art ? { articleNo: art, limit: 100 } : { name: name, limit: 100 };
+    const res = await lookupApiCall('getPartUsage', q);
     rows = res.rows || [];
   }catch(err){
     const m = String(err.message||err);
@@ -8178,6 +8847,166 @@ async function openUsageModal(articleNo){
     return;
   }
   bodyEl.innerHTML = renderUsageRows(rows);
+}
+
+async function openLogModal(){
+  const ov = document.createElement('div');
+  ov.className = 'edit-part-modal open';
+  ov.innerHTML = `<div class="edit-part-dialog" style="max-width:640px;">
+    <div class="epm-head"><span>📊 ประวัติการเบิกทั้งหมด</span><button type="button" class="epm-x">✕</button></div>
+    <div class="epm-body">
+      <div class="log-filter-host"></div>
+      <div class="log-body"><div class="db-empty">กำลังโหลด...</div></div>
+    </div>
+    <div class="epm-actions"><button type="button" class="btn btn-primary log-export" style="border:1.5px solid var(--red);background:#fff;color:var(--red);">📥 Export Excel</button><button type="button" class="btn epm-close">ปิด</button></div>
+  </div>`;
+  ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+  ov.querySelector('.epm-close').onclick = ()=>userDismissTopModal();
+  ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+  document.body.appendChild(ov);
+  modalOpened();
+
+  const bodyEl = ov.querySelector('.log-body');
+  const filterHost = ov.querySelector('.log-filter-host');
+  let allRows = [];
+  let _filteredRows = [];
+  try{
+    const res = await lookupApiCall('getAllPartUsage', { limit: 500 });
+    allRows = res.rows || [];
+  }catch(err){
+    const m = String(err.message||err);
+    bodyEl.innerHTML = '<div class="db-status-line err">โหลดไม่สำเร็จ: ' + escHtml(m) +
+      (m.includes('Unknown action') ? ' → ต้อง Deploy Code.gs ใหม่' : '') + '</div>';
+    return;
+  }
+  allRows.forEach((r,i)=>{ r._uid = i; });     // stable handle for edit/delete lookups
+  const uniq = f => [...new Set(allRows.map(r=>String(r[f]||'').trim()).filter(Boolean))].sort();
+  let _lastQuery = '';
+  function renderFiltered(v){
+    if(v !== undefined) _lastQuery = v;
+    const q = (_lastQuery||'').trim().toLowerCase();
+    _filteredRows = !q ? allRows : allRows.filter(r=>{
+      const hay = [r.Customer,r.ArticleNo,r.PartName,r.MachineType,r.MachineNo,r.Type,r.RecordedBy].join(' ').toLowerCase();
+      return q.split(/\s+/).every(w=>hay.includes(w));
+    });
+    bodyEl.innerHTML = renderUsageRowsFull(_filteredRows, true);
+    wireLogRowActions();
+  }
+  const matchOf = r => ({ OrderId:r.OrderId, ArticleNo:r.ArticleNo, PartName:r.PartName });
+  function wireLogRowActions(){
+    bodyEl.querySelectorAll('.lt-del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const r = allRows.find(x=>String(x._uid)===btn.dataset.uid);
+        if(!r) return;
+        if(!confirm(`ลบรายการนี้ออกจากประวัติ?\n\n${r.Customer||'-'} · #${r.ArticleNo||'-'} ${r.PartName||''}\n(ลบเฉพาะประวัติ ไม่กระทบ Data Base)`)) return;
+        btn.disabled = true;
+        try{
+          const res = await lookupApiCall('deletePartUsage', { row:r._row, match:matchOf(r) });
+          if(res && res.success===false) throw new Error(res.error||'ลบไม่สำเร็จ');
+          allRows = allRows.filter(x=>x!==r);
+          flashStatus('ลบรายการแล้ว');
+          renderFiltered();
+        }catch(err){
+          btn.disabled = false;
+          const m = String(err.message||err);
+          alert('ลบไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่':''));
+        }
+      };
+    });
+    bodyEl.querySelectorAll('.lt-edit').forEach(btn=>{
+      btn.onclick = ()=>{
+        const r = allRows.find(x=>String(x._uid)===btn.dataset.uid);
+        if(r) openLogEditModal(r, ()=>renderFiltered());
+      };
+    });
+  }
+  // shared combobox: type to search, chips for quick picks, caret for grouped list
+  const combo = buildFilterCombo({
+    placeholder: 'ค้นหา... (ชื่อพาร์ท, ลูกค้า, รุ่น, Article No)',
+    groups: [
+      { label:'ลูกค้า', values: uniq('Customer') },
+      { label:'รุ่นเครื่อง', values: uniq('MachineType') },
+      { label:'หมายเลขเครื่อง', values: uniq('MachineNo') },
+      { label:'ประเภท', values: uniq('Type') },
+    ],
+    chips: uniq('Type').concat(uniq('Customer')),
+    onChange: renderFiltered
+  });
+  filterHost.appendChild(combo);
+  renderFiltered('');
+  ov.querySelector('.log-export').onclick = ()=>{
+    const cols = [
+      {key:'Timestamp',label:'วันที่',width:135,fmt:r=>r.Timestamp?new Date(r.Timestamp).toLocaleString('th-TH'):''},
+      {key:'Type',label:'ประเภท',width:80},
+      {key:'Customer',label:'ลูกค้า',width:130},{key:'MachineType',label:'รุ่นเครื่อง',width:140},{key:'MachineNo',label:'หมายเลขเครื่อง',width:120},
+      {key:'ArticleNo',label:'Article No',width:90},{key:'PartName',label:'ชื่ออะไหล่',width:200},
+      {key:'Qty',label:'จำนวน',width:60,align:'right'},{key:'Unit',label:'หน่วย',width:60},
+      {key:'SetName',label:'ชุดเบิก',width:120},{key:'RecordedBy',label:'ผู้บันทึก',width:110},{key:'Note',label:'หมายเหตุ',width:180}
+    ];
+    downloadExcel(_filteredRows, cols, 'log-'+new Date().toISOString().slice(0,10), 'ประวัติการเบิกอะไหล่');
+  };
+}
+
+/* Edit one usage-history row (fix a typo, or clean up a test entry). Stacks on
+   top of the Log modal; on save it updates the sheet row (guarded by OrderId /
+   ArticleNo / PartName so a shifted row is never touched) and the local copy. */
+function openLogEditModal(r, onSaved){
+  const ov = document.createElement('div');
+  ov.className = 'edit-part-modal open';
+  const F = (label,key,val)=>`<label>${label}<input type="text" class="le-f" data-k="${key}" value="${escAttr(val==null?'':val)}"></label>`;
+  ov.innerHTML = `<div class="edit-part-dialog">
+    <div class="epm-head"><span>✎ แก้ไขรายการประวัติ</span><button type="button" class="epm-x">✕</button></div>
+    <div class="epm-body">
+      <div class="epm-note">แก้ไขข้อมูลประวัติการเบิกรายการนี้ (แก้เฉพาะประวัติ ไม่กระทบ Data Base)</div>
+      ${F('ประเภท','Type',r.Type)}
+      ${F('ลูกค้า','Customer',r.Customer)}
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">${F('รุ่นเครื่อง','MachineType',r.MachineType)}</div>
+        <div style="flex:1;">${F('หมายเลขเครื่อง','MachineNo',r.MachineNo)}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">${F('Article No','ArticleNo',r.ArticleNo)}</div>
+        <div style="flex:2;">${F('ชื่ออะไหล่','PartName',r.PartName)}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">${F('จำนวน','Qty',r.Qty)}</div>
+        <div style="flex:1;">${F('หน่วย','Unit',r.Unit)}</div>
+      </div>
+      ${F('ชุดเบิก','SetName',r.SetName)}
+      ${F('ผู้บันทึก','RecordedBy',r.RecordedBy)}
+      ${F('หมายเหตุ','Note',r.Note)}
+    </div>
+    <div class="epm-actions">
+      <button type="button" class="btn le-cancel">ยกเลิก</button>
+      <button type="button" class="btn btn-primary le-save">บันทึก</button>
+    </div>
+  </div>`;
+  ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+  ov.querySelector('.le-cancel').onclick = ()=>userDismissTopModal();
+  ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+  document.body.appendChild(ov);
+  modalOpened();
+  ov.querySelector('.le-save').onclick = async ()=>{
+    const updates = {};
+    ov.querySelectorAll('.le-f').forEach(inp=>{ updates[inp.dataset.k] = inp.value; });
+    const btn = ov.querySelector('.le-save'); btn.disabled = true;
+    try{
+      const res = await lookupApiCall('updatePartUsage', {
+        row: r._row,
+        match: { OrderId:r.OrderId, ArticleNo:r.ArticleNo, PartName:r.PartName },
+        updates
+      });
+      if(res && res.success===false) throw new Error(res.error||'บันทึกไม่สำเร็จ');
+      Object.keys(updates).forEach(k=>{ r[k] = updates[k]; });   // reflect the edit locally
+      flashStatus('บันทึกการแก้ไขแล้ว');
+      userDismissTopModal();
+      if(onSaved) onSaved();
+    }catch(err){
+      btn.disabled = false;
+      const m = String(err.message||err);
+      alert('บันทึกไม่สำเร็จ: '+m+(m.includes('Unknown action')?'\n→ ต้อง Deploy Code.gs ใหม่':''));
+    }
+  };
 }
 
 /* ---------------- rich text: sanitizer + floating format toolbar ----------------
@@ -8424,7 +9253,7 @@ function renderItems(){
   // no autocomplete, just mirror the value into the data model.
   list.querySelectorAll('.f-usage').forEach(el=>{
     const idx = +el.dataset.idx;
-    el.onclick = ()=>{ const it = order.items[idx]; openUsageModal(it && it.articleNo); };
+    el.onclick = ()=>{ const it = order.items[idx]; openUsageModal(it && it.articleNo, it && it.description); };
   });
   list.querySelectorAll('.f-qty').forEach(el=>{
     const idx = +el.dataset.idx;
@@ -9001,10 +9830,13 @@ function resetPdfPreview(){
    replaces its rows instead of duplicating them. Locked companion rows are
    included: they were requisitioned too. */
 async function recordOrderPartUsage(){
+  // Include still-codeless parts (name but no Article No): they were
+  // requisitioned too, and recording "used here" is what lets us trace them
+  // later — the backend keys those rows by part name.
   const items = (order.items||[])
-    .filter(it => it && String(it.articleNo||'').trim())
+    .filter(it => it && (String(it.articleNo||'').trim() || String(it.description||'').trim()))
     .map(it => ({
-      articleNo: String(it.articleNo).trim(),
+      articleNo: String(it.articleNo||'').trim(),
       partName: String(it.description||''),
       machineNo: String(it.machineNo||''),
       machineType: String(it.machineType||''),
@@ -9116,65 +9948,356 @@ function downloadPdfPreview(){
 function commitPdfAction(){ recordOrderPartUsage(); commitExportNumberOnSend(); }
 
 function pdfSubject(){
-  return [(order.type||'Warranty'), 'Part Order', order.customer ? '- '+order.customer : '']
-    .filter(Boolean).join(' ').trim();
+  // Format: "{Type} PO#{TLyyyy-nnn} {Part Name} for {Customer} #{Machine No}"
+  //   e.g.  "Warranty PO#TL2026-254 Main air line drain valve for WUS-TH #17384"
+  // Head's PO#{no} shows only when running number is on (else "{Type} Part Order");
+  // the tail describes the order's first meaningful item. NB the UI "Part Name"
+  // field is stored in item.description (item.itemDesc is the UI "Description").
+  const type = order.type || 'Warranty';
+  const no = runNumberEnabled() ? (order.exportNo || window._pdfDisplayNo || runNumberPreview()) : '';
+  const head = no ? (type + ' PO#' + no) : (type + ' Part Order');
+
+  const items = order.items || [];
+  const it = items.find(x => (x.description||'').trim() || (x.machineNo||'').trim()) || items[0] || {};
+  const partName = String(it.description || '').trim();
+  const machineNo = String(it.machineNo || '').trim();
+  const customer = String(order.customer || '').trim();
+
+  let tail = partName;
+  if(customer)  tail += (tail ? ' ' : '') + 'for ' + customer;
+  if(machineNo) tail += (tail ? ' ' : '') + '#' + machineNo;
+
+  return [head, tail].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 }
+/* ==================== ส่งออก: การแบ่งหน้าที่ ====================
+   ✉ Send to email — ผู้รับมาจากสมุดรายชื่อ 👥 (To/CC ไม่พิมพ์ต่อออเดอร์) →
+       ตรวจทานในแอป → อัพโหลด PDF ขึ้น Drive → เปิด Outlook compose
+       (outlook.office.com deeplink) พร้อมลิงก์ไฟล์ในเนื้อหา; ถ้า ⚡ Power
+       Automate เปิดอยู่ = ส่งจริงพร้อมไฟล์แนบทันทีผ่าน flow ไม่เปิดแอปใด
+   📤 Share — ส่งไฟล์ PDF เข้า "แชท/แอปอื่นใดก็ได้" ผ่าน OS share sheet
+       สำเร็จ = จบที่ share sheet; ล้มเหลว = ชี้ไปปุ่ม Save PDF เท่านั้น */
+
+function isMobileDevice(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent)); // iPadOS masquerades as Mac
+}
+
 /* Synchronous on purpose: navigator.share() only works inside the tap's user
    gesture, and awaiting a fetch first eats that gesture on mobile browsers —
-   the share sheet then silently never opens. The blob is kept from export. */
-function currentPdfFile(){
+   the share sheet then silently never opens. The blob is kept from export.
+   asciiName: Android's share intent is known to choke on non-ASCII filenames
+   (iOS is fine) — the safe() filename builder deliberately keeps Thai
+   characters, so the SHARED copy gets an ASCII-only name; the downloaded
+   copy keeps the full name. */
+function currentPdfFile(asciiName){
   try{
     if(!_pdfBlob) return null;
-    return new File([_pdfBlob], _pdfPreviewFilename || 'export_order.pdf', { type:'application/pdf' });
+    let name = _pdfPreviewFilename || 'export_order.pdf';
+    if(asciiName){
+      name = name.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, '_').replace(/_{2,}/g, '_');
+      if(!/\.pdf$/i.test(name)) name += '.pdf';
+      if(!/[A-Za-z0-9]/.test(name.slice(0, -4))) name = 'export_order.pdf';
+    }
+    return new File([_pdfBlob], name, { type:'application/pdf' });
   }catch(e){ return null; }
 }
 
-/* Adaptive email: on phones (and modern desktops) share the actual PDF file so
-   Outlook attaches it automatically; otherwise download the PDF and open a
-   pre-filled Outlook/mail draft for the user to attach it. */
-async function emailCurrentPdf(){
-  if(!_pdfPreviewUrl) return;
-  const subject = pdfSubject();
-  const body = _emailDraftText || '';
-  const file = currentPdfFile();
-
-  let shareErr = null;
-  if(file && navigator.canShare && navigator.canShare({ files:[file] })){
-    try{ await navigator.share({ files:[file], title: subject, text: body }); commitPdfAction(); return; }
-    catch(err){ if(err && err.name === 'AbortError') return; shareErr = err; /* refused → fall back */ }
+/* One share-sheet attempt; reports WHERE it failed so the toast can say the
+   exact stage — that's what turns the next field report into a diagnosis.
+   Stages: no-api | no-file-share | busy | cancelled | refused.
+   Payload is files+title ONLY (never text: the team's phones refuse
+   text-carrying file shares, and shared text is also what Outlook drops
+   below its signature). navigator.share must stay the first
+   gesture-consuming call in the tap — nothing may run before it.
+   _shareInFlight guards the known Android bug where the share promise never
+   settles: a second tap would then throw InvalidStateError; the flag also
+   self-resets after 15s in case the promise is truly stuck. */
+let _shareInFlight = false;
+async function shareFileViaSheet(title){
+  if(!navigator.share) return { ok:false, stage:'no-api' };
+  const file = currentPdfFile(true);
+  if(!file || !navigator.canShare || !navigator.canShare({ files:[file] })) return { ok:false, stage:'no-file-share' };
+  if(_shareInFlight) return { ok:false, stage:'busy' };
+  _shareInFlight = true;
+  const stuckReset = setTimeout(()=>{ _shareInFlight = false; }, 15000);
+  try{
+    await navigator.share({ files:[file], title: title });
+    return { ok:true };
+  }catch(err){
+    if(err && err.name === 'AbortError') return { ok:false, stage:'cancelled' };
+    return { ok:false, stage:'refused', err };
+  }finally{
+    clearTimeout(stuckReset);
+    _shareInFlight = false;
   }
-  // Fallback (desktop / share refused): download the file + open a pre-filled mail draft to attach it.
-  downloadPdfPreview();
-  const note = '\n\n[' + (_pdfPreviewFilename||'PDF') + ' ถูกดาวน์โหลดแล้ว — โปรดแนบไฟล์นี้ก่อนส่ง]';
-  const a = document.createElement('a');
-  a.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body + note);
-  document.body.appendChild(a); a.click(); a.remove();
-  commitPdfAction();
-  if(shareErr) flashStatus('แชร์เข้าอีเมลไม่ได้ (' + (shareErr.name||'error') + ') — ดาวน์โหลด PDF ให้แล้ว แนบลงเมลที่เปิดขึ้น', 6000);
-  else flashStatus('ดาวน์โหลด PDF แล้ว — แนบไฟล์ลงอีเมลที่เปิดขึ้น');
 }
 
-/* Share to a chat / any other app. Same Web Share plumbing as the email action,
-   but without the mail framing — and no mailto fallback, since a browser that
-   can't share files has nothing to hand the PDF to but a download. */
+/* Puts the email/chat message on the clipboard AFTER a share (activation is
+   often gone by then, especially on Android — quiet failure; the preview's
+   "คัดลอก" button is the manual path). */
+async function copyMessageQuiet(){
+  try{ await navigator.clipboard.writeText(_emailDraftText || ''); return true; }catch(e){ return false; }
+}
+
+/* ---------- ✉ Send to email — upload PDF to Drive, link it in a mailto draft ----------
+   mailto: cannot carry an attachment and every auto-attach route field-failed
+   (share sheet: Android refusals; Outlook deep link: never opened; Power
+   Automate: HTTP trigger needs a Premium license). So the file travels as a
+   LINK instead: the review modal (To/CC with the saved-recipient datalist)
+   uploads the PDF via the existing Apps Script backend (uploadPdf → Drive,
+   anyone-with-link), then opens a normal mailto draft with the link in the
+   body — works on every platform, and the mail app itself is the final
+   review/send step. */
+function blobToBase64(blob){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/* ---------- optional direct send via Power Automate ----------
+   The user's flow ("WarrantyApp - Send Email": HTTP trigger → Outlook
+   "Send an email V2") exists but sits Suspended until a Premium license
+   lands. The ⚡ Power-User toggle activates this path: it first PROBES the
+   trigger with an empty body — no recipient, so no mail can ever go out —
+   and only enables when the flow answers as un-suspended. While the flag
+   (appSettings.paSend, shared server-side) is ON, the review modal sends
+   the real email with the PDF attached via the flow; OFF = upload+mailto. */
+const POWER_AUTOMATE_SEND_URL = 'https://defaultb19434a9ca324427917c5491d81bf4.fe.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/f7b9d69aa3d74e9db9ee75dff6984b91/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7ISbg1YkZvWNbYQ9SyBMVT26UiQ7GZqBWEaRV5xqAA4';
+
+/* Returns 'ok' | 'suspended' | 'error: ...' — never sends an email.
+   url defaults to the saved/built-in flow URL; the ⚡ settings page passes a
+   candidate URL so it can be tested BEFORE being saved. */
+async function probePowerAutomateFlow(url){
+  const target = String(url || '').trim() || paSendUrl();
+  if(!/^https:\/\//i.test(target)) return 'error: ลิงก์ต้องขึ้นต้นด้วย https://';
+  try{
+    const res = await fetch(target, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'
+    });
+    if(res.ok) return 'ok';   // 202: run started; empty body → email step fails, nothing sent
+    let code = '';
+    try{ const j = await res.json(); code = j && j.error && j.error.code || ''; }catch(e){}
+    if(code === 'WorkflowTriggerIsNotEnabled') return 'suspended';
+    // A schema-validation rejection still proves the trigger is awake; anything
+    // else (bad signature, auth, …) is a real problem — don't enable on it.
+    if(/Schema|Validation/i.test(code)) return 'ok';
+    return 'error: ' + (code || ('HTTP ' + res.status));
+  }catch(err){
+    return 'error: ' + (err && err.message ? err.message : err);
+  }
+}
+
+function emailCurrentPdf(){
+  if(!_pdfPreviewUrl) return;
+  openSendReviewModal();
+}
+
+function openSendReviewModal(){
+  // The To field is intentionally left to the user: recipient management lives
+  // in ☰ → 👥 จัดการอีเมลผู้รับ and does NOT feed the send flow (its per-order
+  // To logic isn't ready). This modal focuses on three things only — subject,
+  // body, and the PDF — with To BLANK for the user to fill in Outlook.
+  //
+  // Two delivery paths:
+  //   paMode — ⚡ Power Automate flow sends the mail (PDF really attached)
+  //            IMMEDIATELY; needs a To, so recipients come from the directory
+  //            (Power-User + licensed only).
+  //   else   — OUTLOOK, always: upload the PDF to Drive, then open
+  //            outlook.office.com compose with subject + body + the file link.
+  //            On phones that link opens the Outlook APP itself (app-link
+  //            association), which is the behaviour the team confirmed working.
+  //            The upload is best-effort: if it fails, Outlook STILL opens with
+  //            the message and a note to attach the PDF by hand — a broken
+  //            upload must never block the draft.
+  //            (A compose deep link cannot carry a real attachment; 📤 Share is
+  //            the path for a true attached file.)
+  const paMode = paSendOn();
+  const ov = document.createElement('div');
+  ov.className = 'edit-part-modal open';
+  const note = paMode
+    ? '⚡ ระบบจะส่งอีเมลออกทันทีพร้อมไฟล์แนบเมื่อกด “ส่งอีเมล” — ผู้รับดึงจากสมุดรายชื่อ'
+    : 'กดปุ่มเดียว → เปิด Outlook พร้อมหัวข้อ + เนื้อหา + ลิงก์ไฟล์ PDF · ช่อง “ถึง” เว้นว่างให้กรอกเองใน Outlook';
+  ov.innerHTML = `<div class="edit-part-dialog">
+    <div class="epm-head"><span>ตรวจทานก่อนส่งอีเมล</span><button type="button" class="epm-x">✕</button></div>
+    <div class="epm-body">
+      <div class="epm-note">${note}</div>
+      <label>หัวข้อ<input type="text" class="srm-subject" value="${escAttr(pdfSubject())}"></label>
+      <label>เนื้อหา<textarea class="srm-body" rows="7">${escAttr(_emailDraftText||'')}</textarea></label>
+      <div class="epm-note">แนบไฟล์: ${escHtml(_pdfPreviewFilename||'export_order.pdf')}</div>
+      <div class="db-status-line err srm-err" style="display:none;"></div>
+    </div>
+    <div class="epm-actions">
+      <button type="button" class="btn srm-cancel">ยกเลิก</button>
+      <button type="button" class="btn btn-primary srm-send">${paMode?'ส่งอีเมล':'🟦 ส่งเข้า Outlook'}</button>
+    </div>
+  </div>`;
+  ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+  ov.querySelector('.srm-cancel').onclick = ()=>userDismissTopModal();
+  ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+  document.body.appendChild(ov);
+  modalOpened();
+
+  const btn = ov.querySelector('.srm-send');
+  const idleLabel = paMode ? 'ส่งอีเมล' : '🟦 ส่งเข้า Outlook';
+  // Recipients feed ONLY the PA path (which can't send with a blank To).
+  const toList = ()=> _emailRecipientsCache.filter(r => r.Type !== 'cc');
+  const ccList = ()=> _emailRecipientsCache.filter(r => r.Type === 'cc');
+  const joinEmails = rows => rows.map(r => r.Email).join(';');
+  if(paMode) loadEmailRecipients();   // warm the cache for the PA send
+
+  // Two Outlook targets:
+  //   MOBILE → the Outlook APP itself, via its URI scheme. Android blocks a raw
+  //     ms-outlook:// navigation from a page, so it must go through an intent://
+  //     URL that names the package and carries a browser_fallback_url; iOS takes
+  //     the raw ms-outlook:// scheme, with a visibility check falling back to
+  //     Outlook web if the app isn't installed.
+  //   DESKTOP → Outlook web compose (outlook.office.com), opened in a reserved
+  //     tab (the popup-block-safe one-tap trick).
+  // A compose deep link (app or web) cannot carry a real attachment, so the PDF
+  // rides as a link in the body; 📤 Share is the true-attachment path.
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent)); // iPadOS masquerades as Mac
+  const isMobile = isAndroid || isIOS;
+  let uploadedUrl = '';
+  const enc = encodeURIComponent;
+  const composeBody = body => body + (uploadedUrl
+    ? '\n\n📎 ไฟล์ PDF: ' + uploadedUrl
+    : '\n\n[แนบไฟล์ PDF ก่อนส่ง — กด ⬇ Save PDF ในแอปเพื่อดาวน์โหลดไฟล์]');
+  const webComposeUrl = (subject, body)=>
+    'https://outlook.office.com/mail/deeplink/compose?subject=' + enc(subject) + '&body=' + enc(composeBody(body));
+  const openOutlookWeb = (win, subject, body)=>{
+    const url = webComposeUrl(subject, body);
+    if(win && !win.closed){ win.location.href = url; return; }
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  // Fire the Outlook APP on mobile; falls back to Outlook web if not installed.
+  const openOutlookApp = (subject, body)=>{
+    const b = composeBody(body);
+    if(isAndroid){
+      // intent:// → Outlook app if present, else Chrome follows the fallback URL.
+      window.location.href = 'intent://compose?subject=' + enc(subject) + '&body=' + enc(b) +
+        '#Intent;scheme=ms-outlook;package=com.microsoft.office.outlook;' +
+        'S.browser_fallback_url=' + enc(webComposeUrl(subject, body)) + ';end';
+      return;
+    }
+    // iOS: try the app scheme; if the page never backgrounds, open web instead.
+    let opened = false;
+    const onHide = ()=>{ if(document.visibilityState === 'hidden') opened = true; };
+    document.addEventListener('visibilitychange', onHide);
+    window.location.href = 'ms-outlook://compose?subject=' + enc(subject) + '&body=' + enc(b);
+    setTimeout(()=>{
+      document.removeEventListener('visibilitychange', onHide);
+      if(!opened) openOutlookWeb(null, subject, body);
+    }, 1800);
+  };
+
+  ov.querySelector('.srm-send').onclick = async ()=>{
+    const subject = ov.querySelector('.srm-subject').value.trim();
+    const body = ov.querySelector('.srm-body').value;
+    const errEl = ov.querySelector('.srm-err');
+    const showErr = m => { errEl.textContent = m; errEl.style.display=''; };
+    errEl.style.display = 'none';
+    if(!_pdfBlob){ showErr('ไม่พบไฟล์ PDF — กลับไปกด 📄 เพื่อสร้างใหม่'); return; }
+    if(paMode && !toList().length){ showErr('โหมด ⚡ ต้องมีผู้รับ (To) — เพิ่มที่ ☰ → 👥 จัดการอีเมลผู้รับ'); return; }
+
+    // Desktop second tap: upload done but the reserved tab was popup-blocked.
+    if(!paMode && !isMobile && uploadedUrl){
+      openOutlookWeb(null, subject, body);
+      commitPdfAction();
+      flashStatus('เปิด Outlook แล้ว (ลิงก์ PDF อยู่ในเนื้อหา) — ใส่ผู้รับแล้วกดส่งใน Outlook', 7000);
+      userDismissTopModal();
+      return;
+    }
+    // Desktop reserves the web tab in-gesture; mobile navigates itself to the app.
+    const win = (!paMode && !isMobile) ? window.open('about:blank', '_blank') : null;
+    btn.disabled = true; btn.textContent = paMode ? 'กำลังส่ง...' : (isMobile ? 'กำลังเปิดแอป Outlook...' : 'กำลังเปิด Outlook...');
+    try{
+      if(paMode){
+        const fileContentBase64 = await blobToBase64(_pdfBlob);
+        const res = await fetch(paSendUrl(), {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ to: joinEmails(toList()), cc: joinEmails(ccList()), subject, body,
+            fileName: _pdfPreviewFilename||'export_order.pdf', fileContentBase64 })
+        });
+        if(!res.ok){
+          let code = ''; try{ const j = await res.json(); code = j && j.error && j.error.code || ''; }catch(e){}
+          if(code === 'WorkflowTriggerIsNotEnabled') throw new Error('Flow ถูกระงับอีกครั้ง (license?) — ให้ Power User ปิด ⚡ แล้วใช้แบบลิงก์แทน');
+          throw new Error(code || ('HTTP ' + res.status));
+        }
+        commitPdfAction();
+        flashStatus('ส่งอีเมลแล้ว ✓ (แนบ PDF อัตโนมัติ)', 6000);
+        userDismissTopModal();
+        return;
+      }
+      // Upload is BEST-EFFORT: a failure (offline, backend hiccup) must never
+      // stop Outlook from opening — we just swap the file link for a
+      // "attach it yourself" note.
+      let uploadErr = '';
+      try{
+        const base64 = await blobToBase64(_pdfBlob);
+        const r = await lookupApiCall('uploadPdf', { base64, filename: _pdfPreviewFilename || 'export_order.pdf' });
+        uploadedUrl = r.url || '';
+        if(r.shared === false) flashStatus('อัพโหลดแล้ว แต่เปิดลิงก์สาธารณะไม่ได้ — ผู้รับอาจต้องขอสิทธิ์เข้าถึงไฟล์', 7000);
+      }catch(upErr){
+        uploadedUrl = '';
+        uploadErr = (upErr && upErr.message) ? upErr.message : String(upErr);
+      }
+
+      if(isMobile){
+        // Navigate this window to the Outlook app (falls back to web internally).
+        commitPdfAction();
+        openOutlookApp(subject, body);
+        flashStatus(uploadedUrl
+          ? 'กำลังเปิดแอป Outlook — ลิงก์ไฟล์อยู่ในเนื้อหา (ถ้าไม่มีแอปจะเปิด Outlook เว็บ)'
+          : 'กำลังเปิดแอป Outlook — อัพโหลดไฟล์ไม่สำเร็จ (' + uploadErr + ') · แนบไฟล์เองด้วย ⬇ Save PDF', 8000);
+        userDismissTopModal();
+        return;
+      }
+      if(win && !win.closed){
+        openOutlookWeb(win, subject, body);
+        commitPdfAction();
+        flashStatus(uploadedUrl
+          ? 'เปิด Outlook แล้ว ✓ (ลิงก์ PDF อยู่ในเนื้อหา) — ใส่ผู้รับแล้วกดส่ง'
+          : 'เปิด Outlook แล้ว — แต่อัพโหลดไฟล์ไม่สำเร็จ (' + uploadErr + ') · กด ⬇ Save PDF แล้วแนบเอง', 8000);
+        userDismissTopModal();
+      }else{
+        btn.disabled = false; btn.textContent = '🟦 เปิด Outlook ส่งเมล';
+        flashStatus(uploadedUrl
+          ? 'ไฟล์พร้อมแล้ว ✓ — กดปุ่มอีกครั้งเพื่อเปิด Outlook'
+          : 'อัพโหลดไม่สำเร็จ — กดปุ่มอีกครั้งเพื่อเปิด Outlook แล้วแนบไฟล์เอง', 6000);
+      }
+    }catch(err){
+      if(win && !win.closed) win.close();
+      btn.disabled = false; btn.textContent = idleLabel;
+      showErr((paMode?'ส่งไม่สำเร็จ: ':'เปิด Outlook ไม่สำเร็จ: ') + (err && err.message ? err.message : err) + ' — หรือกด ⬇ Save PDF แล้วแนบเอง');
+    }
+  };
+}
+
+/* ---------- 📤 Share (any app) ---------- */
 async function sharePdf(){
   if(!_pdfPreviewUrl) return;
-  const file = currentPdfFile();
-  let shareErr = null;
-  if(file && navigator.canShare && navigator.canShare({ files:[file] })){
-    try{ await navigator.share({ files:[file], title: pdfSubject(), text: _emailDraftText || '' }); commitPdfAction(); return; }
-    catch(err){
-      if(err && err.name === 'AbortError') return;                 // user cancelled — do nothing
-      shareErr = err;
-      // Some browsers report canShare(files)=true but then refuse the share
-      // (permission / not allowed). Don't dead-end: hand the user the file.
-    }
+  const res = await shareFileViaSheet(pdfSubject());
+  if(res.ok){
+    commitPdfAction();
+    const copied = await copyMessageQuiet();
+    flashStatus(copied ? 'แชร์แล้ว ✓ คัดลอกข้อความไว้ให้แล้ว — วางในแชทได้เลย' : 'แชร์แล้ว ✓', 6000);
+    return;
   }
-  downloadPdfPreview();
-  commitPdfAction();
-  flashStatus(shareErr
-    ? ('แชร์ไม่สำเร็จ (' + (shareErr.name||'error') + ') — ดาวน์โหลด PDF ให้แล้ว ส่งต่อเองได้เลย')
-    : 'แชร์ผ่านระบบไม่ได้ — ดาวน์โหลด PDF ให้แล้ว ส่งต่อเองได้เลย', 6000);
+  if(res.stage === 'cancelled') return;
+  if(res.stage === 'busy'){ flashStatus('การแชร์ครั้งก่อนยังค้างอยู่ — รอสักครู่แล้วลองใหม่', 5000); return; }
+  // Failure: nothing left the app → no ledger write, no run-number burn, no
+  // forced download. The toast names the exact failing stage for diagnosis.
+  const why = res.stage === 'no-api' ? 'เบราว์เซอร์ไม่มีระบบแชร์'
+    : res.stage === 'no-file-share' ? 'เบราว์เซอร์นี้แชร์ไฟล์ไม่ได้'
+    : ('แชร์ถูกปฏิเสธ: ' + (res.err && res.err.name || 'error'));
+  flashStatus(why + ' — กด “Save PDF” เพื่อดาวน์โหลดแล้วส่งต่อเอง', 6500);
 }
 
 function savePdfToDevice(){
@@ -9515,8 +10638,9 @@ const _i18nObserver = new MutationObserver(muts=>{
   }
 });
 function updateLangBtn(){
-  const b = document.getElementById('btnLang');
-  if(b) b.textContent = uiLang === 'en' ? '🌐 Language: EN' : '🌐 ภาษา: TH';
+  const t = document.getElementById('btnLangTxt'), v = document.getElementById('btnLangVal');
+  if(t) t.textContent = uiLang === 'en' ? 'Language' : 'ภาษา';
+  if(v) v.textContent = uiLang === 'en' ? 'EN' : 'TH';
 }
 function setUiLang(l){
   uiLang = (l === 'en') ? 'en' : 'th';
@@ -9590,17 +10714,17 @@ async function sha256Hex(s){
 
 function refreshPowerMenuUI(){
   const pu = document.getElementById('btnPowerUser');
-  const ft = document.getElementById('btnFmtToggle');
-  const rn = document.getElementById('btnRunNumToggle');
-  if(!pu || !ft) return;
+  if(!pu) return;
   const on = isPowerUser();
-  pu.textContent = on ? '🔑 Power User ✓ (ออกจากระบบ)' : '🔑 Power User';
-  ft.style.display = on ? '' : 'none';
-  ft.textContent = '🛠 Format toolbar: ' + (fmtToolbarOn() ? 'เปิดอยู่ ✅' : 'ปิดอยู่');
-  if(rn){
-    rn.style.display = on ? '' : 'none';
-    rn.textContent = '🔢 Running number: ' + (runNumberEnabled() ? 'เปิดอยู่ ✅' : 'ปิดอยู่');
-  }
+  const setTxt = (id, t)=>{ const e = document.getElementById(id); if(e) e.textContent = t; };
+  const setSw  = (id, v)=>{ const e = document.getElementById(id); if(e) e.classList.toggle('on', !!v); };
+  setTxt('btnPowerUserTxt', 'Power User');
+  setTxt('btnPowerUserVal', on ? 'ออกจากระบบ' : '');
+  // the whole admin section (separator + caption + items) rides on one class
+  document.querySelectorAll('.tm-admin').forEach(el=>{ el.style.display = on ? '' : 'none'; });
+  setSw('swFmt', fmtToolbarOn());
+  setSw('swRun', runNumberEnabled());
+  setTxt('paMenuVal', paSendOn() ? 'เปิด' : 'ปิด');
   try{ renderRunNumber(); }catch(e){}   // keeps the chip + the ✏️ edit menu item in sync
 }
 
@@ -9686,10 +10810,208 @@ document.addEventListener('DOMContentLoaded', ()=>{
       ? 'เปิด Running number แล้ว (มีผลกับทุกคน) — เลขจะรันอัตโนมัติทุกครั้งที่ Export'
       : 'ปิด Running number แล้ว (มีผลกับทุกคน)');
   };
+  // ⚡ opens its own settings page (activate, flow URL, recipients, hide-send).
+  const pa = document.getElementById('btnPowerAutomate');
+  if(pa) pa.onclick = ()=>{ if(isPowerUser()) openPowerAutomateModal(); };
   // btnRunNumEdit's click handler is wired in renderRunNumber (it depends on the
   // current order — edit this Draft's number vs the shared next number).
   refreshPowerMenuUI();
 });
+
+/* ---------- ⚡ Power Automate settings page (Power-User only) ----------
+   One place for everything the flow needs, so nothing has to be edited in the
+   source file: activate/deactivate (probing the flow first — an empty body can
+   never send a mail), the flow's HTTP trigger URL, the recipient directory, and
+   whether ✉ Send to email is shown at all. Every setting is shared server-side
+   via appSettings, so an admin's change applies to everyone. */
+function openPowerAutomateModal(){
+  const ov = document.createElement('div');
+  ov.className = 'edit-part-modal open';
+  ov.innerHTML = `<div class="edit-part-dialog">
+    <div class="epm-head"><span>⚡ Power Automate</span><button type="button" class="epm-x">✕</button></div>
+    <div class="epm-body">
+      <div class="pa-status sp-status off">กำลังตรวจสอบ...</div>
+      <button type="button" class="sp-row pa-toggle">
+        <span class="tm-ic">📤</span>
+        <span class="sp-txt"><b>ส่งอีเมลตรงผ่าน Flow</b><span>ส่งจริงพร้อมแนบไฟล์ PDF อัตโนมัติ — ไม่ต้องเปิดแอปอีเมล</span></span>
+        <span class="tm-sw pa-sw"></span>
+      </button>
+      <label>ลิงก์ Flow (HTTP trigger URL)
+        <input type="url" class="pa-url" placeholder="https://...powerplatform.com/.../invoke?..." autocomplete="off" spellcheck="false">
+      </label>
+      <div class="epm-actions" style="padding:0;border:none;gap:8px;">
+        <button type="button" class="btn pa-test">ทดสอบลิงก์</button>
+        <button type="button" class="btn btn-primary pa-save">บันทึกลิงก์</button>
+      </div>
+      <div class="db-status-line err pa-err" style="display:none;"></div>
+      <div class="tm-sep" style="margin:2px 0;"></div>
+      <button type="button" class="sp-row pa-recipients">
+        <span class="tm-ic">👥</span>
+        <span class="sp-txt"><b>จัดการอีเมลผู้รับ</b><span>รายชื่อ To/CC ที่ใช้ตอนส่งตรงผ่าน Flow</span></span>
+        <span class="tm-chev">›</span>
+      </button>
+      <button type="button" class="sp-row pa-hidesend">
+        <span class="tm-ic">✉</span>
+        <span class="sp-txt"><b>ซ่อนปุ่ม Send to email</b><span>ซ่อนปุ่ม ✉ ในเมนู 📄 (ใช้เฉพาะ ⬇ Save PDF / 📤 Share)</span></span>
+        <span class="tm-sw pa-hs-sw"></span>
+      </button>
+    </div>
+    <div class="epm-actions"><button type="button" class="btn pa-close">ปิด</button></div>
+  </div>`;
+  ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+  ov.querySelector('.pa-close').onclick = ()=>userDismissTopModal();
+  ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+  document.body.appendChild(ov);
+  modalOpened();
+
+  const statusEl = ov.querySelector('.pa-status');
+  const errEl = ov.querySelector('.pa-err');
+  const urlInp = ov.querySelector('.pa-url');
+  const showErr = m => { errEl.textContent = m; errEl.style.display = m ? '' : 'none'; };
+  const setStatus = (cls, txt)=>{ statusEl.className = 'pa-status sp-status ' + cls; statusEl.textContent = txt; };
+  const render = ()=>{
+    ov.querySelector('.pa-sw').classList.toggle('on', paSendOn());
+    ov.querySelector('.pa-hs-sw').classList.toggle('on', hideSendEmailOn());
+    if(paSendOn())            setStatus('on',   '● เปิดใช้งานอยู่ — ✉ Send to email จะส่งจริงพร้อมไฟล์แนบ');
+    else if(appSettings.paUrl) setStatus('off', '○ ปิดอยู่ — บันทึกลิงก์ไว้แล้ว กดสวิตช์เพื่อเปิดใช้งาน');
+    else                       setStatus('warn','▲ ยังไม่ได้ตั้งค่าลิงก์ Flow — วางลิงก์แล้วกดบันทึก');
+  };
+  urlInp.value = String(appSettings.paUrl || '');
+  render();
+
+  // Activate/deactivate — activating probes the flow first (empty body: no
+  // recipient, so no mail can go out) and refuses while it is Suspended.
+  ov.querySelector('.pa-toggle').onclick = async ()=>{
+    showErr('');
+    if(paSendOn()){
+      await saveAppSettings({ paSend:false });
+      render();
+      flashStatus('ปิด Power Automate ส่งตรงแล้ว (มีผลกับทุกคน)', 5000);
+      return;
+    }
+    const candidate = urlInp.value.trim() || appSettings.paUrl;
+    if(!candidate){ showErr('ยังไม่มีลิงก์ Flow — วางลิงก์แล้วกดบันทึกก่อน'); return; }
+    setStatus('warn', '… กำลังทดสอบ flow');
+    const st = await probePowerAutomateFlow(candidate);
+    if(st === 'suspended'){ render(); showErr('Flow ถูกระงับ (Suspended) — ต้องมี Power Automate Premium license ก่อนจึงจะเปิดใช้ได้'); return; }
+    if(st !== 'ok'){ render(); showErr('ทดสอบ flow ไม่ผ่าน (' + st + ') — ยังไม่เปิดใช้'); return; }
+    const patch = { paSend:true };
+    if(urlInp.value.trim()) patch.paUrl = urlInp.value.trim();
+    await saveAppSettings(patch);
+    render();
+    flashStatus('เปิด Power Automate ส่งตรงแล้ว ✅ (มีผลกับทุกคน)', 7000);
+  };
+
+  ov.querySelector('.pa-test').onclick = async ()=>{
+    showErr('');
+    const candidate = urlInp.value.trim() || appSettings.paUrl;
+    if(!candidate){ showErr('ใส่ลิงก์ Flow ก่อน'); return; }
+    const b = ov.querySelector('.pa-test'); b.disabled = true; b.textContent = 'กำลังทดสอบ...';
+    const st = await probePowerAutomateFlow(candidate);
+    b.disabled = false; b.textContent = 'ทดสอบลิงก์';
+    if(st === 'ok')             setStatus('on',   '● ลิงก์ใช้ได้ — flow พร้อมทำงาน');
+    else if(st === 'suspended'){ setStatus('warn','▲ flow ถูกระงับ (Suspended)'); showErr('ต้องมี Power Automate Premium license ก่อน flow จึงจะทำงาน'); }
+    else                        { setStatus('warn','▲ ทดสอบไม่ผ่าน'); showErr(st); }
+  };
+
+  ov.querySelector('.pa-save').onclick = async ()=>{
+    showErr('');
+    const u = urlInp.value.trim();
+    if(u && !/^https:\/\//i.test(u)){ showErr('ลิงก์ต้องขึ้นต้นด้วย https://'); return; }
+    const b = ov.querySelector('.pa-save'); b.disabled = true; b.textContent = 'กำลังบันทึก...';
+    await saveAppSettings({ paUrl: u });
+    b.disabled = false; b.textContent = 'บันทึกลิงก์';
+    render();
+    flashStatus(u ? 'บันทึกลิงก์ Flow แล้ว (มีผลกับทุกคน)' : 'ล้างลิงก์ Flow แล้ว — กลับไปใช้ลิงก์เริ่มต้นในโค้ด', 5000);
+  };
+
+  ov.querySelector('.pa-recipients').onclick = ()=>openEmailRecipientsModal();
+
+  ov.querySelector('.pa-hidesend').onclick = async ()=>{
+    const next = !hideSendEmailOn();
+    await saveAppSettings({ hideSendEmail: next });
+    render();
+    flashStatus(next ? 'ซ่อนปุ่ม ✉ Send to email แล้ว (มีผลกับทุกคน)' : 'แสดงปุ่ม ✉ Send to email แล้ว (มีผลกับทุกคน)', 5000);
+  };
+}
+
+/* ---------- 👥 Saved email recipients (To/Cc autocomplete for the send-review
+   modal). Read is open to everyone; add/delete is Power-User gated in the UI
+   (the menu item itself is hidden unless logged in). ---------- */
+let _emailRecipientsCache = [];
+async function loadEmailRecipients(){
+  try{
+    const res = await lookupApiCall('getEmailRecipients', {});
+    _emailRecipientsCache = (res && res.rows) || [];
+  }catch(e){ /* offline / not deployed yet — keep whatever we last had */ }
+  return _emailRecipientsCache;
+}
+
+function openEmailRecipientsModal(){
+  const ov = document.createElement('div');
+  ov.className = 'edit-part-modal open';
+  const render = ()=>{
+    const rows = _emailRecipientsCache;
+    const roleChip = r => r.Type === 'cc'
+      ? '<span style="font-size:11px;font-weight:700;color:var(--gray);border:1px solid var(--gray);border-radius:4px;padding:1px 6px;">CC</span>'
+      : '<span style="font-size:11px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:4px;padding:1px 6px;">To</span>';
+    const list = rows.length
+      ? rows.map(r => `<div class="epm-restore-card" style="display:flex;align-items:center;gap:8px;">
+          ${roleChip(r)}
+          <div style="flex:1;min-width:0;"><b>${escHtml(r.Name||'(ไม่มีชื่อ)')}</b><br><span style="color:var(--gray);font-size:12px;">${escHtml(r.Email)}</span></div>
+          <button type="button" class="btn er-del" data-email="${escAttr(r.Email)}" style="padding:6px 10px;font-size:12px;color:var(--red);border-color:var(--red);">ลบ</button>
+        </div>`).join('')
+      : '<div class="db-empty">ยังไม่มีรายชื่อที่บันทึกไว้</div>';
+    ov.innerHTML = `<div class="edit-part-dialog">
+      <div class="epm-head"><span>👥 จัดการอีเมลผู้รับ</span><button type="button" class="epm-x">✕</button></div>
+      <div class="epm-body">
+        <div class="epm-note">อีเมลจะถูกส่งถึงทุกคนในรายชื่อนี้โดยอัตโนมัติ — To คือผู้รับหลัก, CC คือสำเนาถึง (แก้ไขได้เฉพาะ Power User)</div>
+        <label>ชื่อ<input type="text" class="er-name" placeholder="เช่น Phutthiphong"></label>
+        <label>อีเมล *<input type="email" class="er-email" placeholder="name@company.com" autocomplete="off"></label>
+        <label>ประเภทผู้รับ<select class="er-type"><option value="to">To — ผู้รับหลัก</option><option value="cc">CC — สำเนาถึง</option></select></label>
+        <div class="db-status-line err er-err" style="display:none;"></div>
+        <button type="button" class="btn btn-primary er-add" style="width:100%;margin-top:4px;">＋ เพิ่มรายชื่อ</button>
+        <div class="epm-restore-list" style="margin-top:14px;">${list}</div>
+      </div>
+      <div class="epm-actions"><button type="button" class="btn er-close">ปิด</button></div>
+    </div>`;
+    ov.querySelector('.epm-x').onclick = ()=>userDismissTopModal();
+    ov.querySelector('.er-close').onclick = ()=>userDismissTopModal();
+    ov.querySelectorAll('.er-del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        if(!confirm('ลบ ' + btn.dataset.email + ' ออกจากรายชื่อที่บันทึกไว้?')) return;
+        btn.disabled = true;
+        try{
+          await lookupApiCall('deleteEmailRecipient', { email: btn.dataset.email });
+          await loadEmailRecipients();
+          render();
+        }catch(err){ alert('ลบไม่สำเร็จ: ' + (err.message||err)); btn.disabled = false; }
+      };
+    });
+    ov.querySelector('.er-add').onclick = async ()=>{
+      const nameInp = ov.querySelector('.er-name'), emailInp = ov.querySelector('.er-email');
+      const errEl = ov.querySelector('.er-err');
+      const email = emailInp.value.trim();
+      if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        errEl.textContent = 'กรุณาใส่อีเมลให้ถูกต้อง'; errEl.style.display=''; emailInp.focus(); return;
+      }
+      const btn = ov.querySelector('.er-add'); btn.disabled = true;
+      try{
+        await lookupApiCall('addEmailRecipient', { email, name: nameInp.value.trim(), type: ov.querySelector('.er-type').value, addedBy: getSessionEditor()||'' });
+        await loadEmailRecipients();
+        render();
+      }catch(err){
+        errEl.textContent = 'เพิ่มไม่สำเร็จ: ' + (err.message||err); errEl.style.display='';
+        btn.disabled = false;
+      }
+    };
+  };
+  render();
+  ov.addEventListener('click', e=>{ if(e.target===ov) userDismissTopModal(); });
+  document.body.appendChild(ov);
+  modalOpened();
+  loadEmailRecipients().then(render);
+}
 
 /* ---------------- Tab-scoped editor session ----------------
    The "session" in this app is the remembered editor identity (the name used to
