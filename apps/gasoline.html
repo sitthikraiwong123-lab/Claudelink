@@ -890,10 +890,8 @@ document.addEventListener('paste',async e=>{
 async function ingestReceipt(f){
   try{
     if(f.type==='application/pdf'){
-      const imgs=await pdfToBlobs(f);
-      const base=(f.name||'receipt').replace(/\.pdf$/i,'');
-      for(let i=0;i<imgs.length;i++){await storeReceipt(imgs[i].blob,base+(imgs.length>1?(' (p'+(i+1)+')'):'')+'.jpg',imgs[i].w,imgs[i].h);}
-      await storeReceipt(f,f.name,0,0);   // เก็บไฟล์ PDF ต้นฉบับไว้ sync ขึ้น Drive ด้วย
+      // แนบไฟล์ PDF จริง — ไม่แปลงเป็นรูปแล้ว (จะถูก merge แบบ vector คมชัดตอน Export ด้วย pdf-lib)
+      await storeReceipt(f,f.name||'receipt.pdf',0,0);
     }else{
       const dim=await imgDims(f);
       await storeReceipt(f,f.name,dim.w,dim.h); // store original bytes — uncompressed/lossless
@@ -992,6 +990,49 @@ async function pdfToBlobs(file){
     if(blob)out.push({blob,w:cv.width,h:cv.height});
   }
   if(!out.length)throw new Error('แปลง PDF เป็นรูปไม่สำเร็จ (ลองไฟล์ที่เล็กลง)');
+  return out;
+}
+
+/* ---------------- Lazy libs: pdf-lib + html2canvas (สำหรับ Export เป็นไฟล์ PDF จริง) ---------------- */
+function loadScriptOnce(src,globalName,errMsg){
+  return new Promise((res,rej)=>{
+    if(window[globalName])return res(window[globalName]);
+    const s=document.createElement('script');s.src=src;
+    s.onload=()=>window[globalName]?res(window[globalName]):rej(new Error(errMsg));
+    s.onerror=()=>rej(new Error(errMsg));document.head.appendChild(s);
+  });
+}
+function ensurePdfLib(){return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js','PDFLib','โหลด pdf-lib ไม่ได้ (ต้องมีอินเทอร์เน็ตครั้งแรก)');}
+function ensureHtml2canvas(){return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js','html2canvas','โหลด html2canvas ไม่ได้ (ต้องมีอินเทอร์เน็ตครั้งแรก)');}
+const A4PT=[595.28,841.89];
+// วางรูป (dataURL) ให้เต็มหน้า A4 คงอัตราส่วน
+async function drawImagePage(out,imgData){
+  const page=out.addPage(A4PT);
+  const isPng=imgData.indexOf('data:image/png')===0;
+  const img=isPng?await out.embedPng(imgData):await out.embedJpg(imgData);
+  const ar=img.width/img.height;let w=A4PT[0],h=w/ar;if(h>A4PT[1]){h=A4PT[1];w=h*ar;}
+  page.drawImage(img,{x:(A4PT[0]-w)/2,y:(A4PT[1]-h)/2,width:w,height:h});
+}
+// merge หน้าไฟล์ PDF จริงแบบ vector (คัดลอกหน้าเดิมถ้าเป็น A4 อยู่แล้ว มิฉะนั้น embed แล้ววางเต็ม A4)
+async function mergePdfBlob(out,blob){
+  const {PDFDocument}=window.PDFLib;
+  const u8=new Uint8Array(await blob.arrayBuffer());
+  const srcDoc=await PDFDocument.load(u8,{ignoreEncryption:true});
+  const idxs=srcDoc.getPageIndices();const sp=srcDoc.getPages();const TOL=0.06;
+  const needFit=idxs.some(i=>{const s=sp[i].getSize();return Math.abs(s.width-A4PT[0])>A4PT[0]*TOL||Math.abs(s.height-A4PT[1])>A4PT[1]*TOL;});
+  if(!needFit){const cps=await out.copyPages(srcDoc,idxs);cps.forEach(p=>out.addPage(p));}
+  else{const eps=await out.embedPdf(srcDoc,idxs);
+    for(const ep of eps){const page=out.addPage(A4PT);const sc=Math.min(A4PT[0]/ep.width,A4PT[1]/ep.height);
+      const w=ep.width*sc,h=ep.height*sc;page.drawPage(ep,{x:(A4PT[0]-w)/2,y:(A4PT[1]-h)/2,width:w,height:h});}}
+}
+function blobToDataUrl(blob){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(fr.error);fr.readAsDataURL(blob);});}
+// ใบเสร็จชนิด PDF ทั้งหมดของเดือน (เรียงตามรายการ) — จะถูกต่อท้ายแบบ vector
+async function pdfReceipts(m){
+  const out=[];
+  for(let ei=0;ei<m.entries.length;ei++){const e=m.entries[ei];if(!e.receiptIds)continue;
+    for(const rid of e.receiptIds){const r=await rcptGet(rid);
+      if(r&&isPdfRcpt(r)&&r.blob instanceof Blob&&r.blob.size>0)out.push({r,entryNo:ei+1});}
+  }
   return out;
 }
 
@@ -1151,6 +1192,35 @@ function enableRBox(box,r){
   handle.addEventListener('pointerup',async e=>{if(!rz)return;try{handle.releasePointerCapture(e.pointerId);}catch(_){}rz=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
 }
 
+/* ---------------- PDF preview pages (โชว์บนจอเท่านั้น — ตอน Export ใช้ vector จริง) ---------------- */
+const _pdfPrevCache=new Map();               // rid+size -> [dataURL,...]
+async function pdfPrevImgs(r){
+  const key=r.id+':'+((r.blob&&r.blob.size)||0);
+  if(_pdfPrevCache.has(key))return _pdfPrevCache.get(key);
+  let imgs=[];
+  try{const blobs=await pdfToBlobs(r.blob);imgs=await Promise.all(blobs.map(b=>blobToDataUrl(b.blob)));}catch(_){imgs=[];}
+  _pdfPrevCache.set(key,imgs);return imgs;
+}
+async function buildPdfPreviewPages(m){
+  const list=await pdfReceipts(m);const nodes=[];
+  for(const {r,entryNo} of list){
+    const imgs=await pdfPrevImgs(r);
+    if(!imgs.length){
+      const pg=document.createElement('div');pg.className='rpage';
+      pg.style.cssText+=';display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#555';
+      pg.innerHTML=`<div style="font-size:40px">📄</div><div style="font-weight:700">${(r.name||'PDF').replace(/</g,'&lt;')}</div><div style="font-size:12px;color:#888">ไฟล์ PDF จะถูกแนบจริง (vector) ตอน Export</div>`;
+      nodes.push(pg);continue;
+    }
+    imgs.forEach((src,j)=>{
+      const pg=document.createElement('div');pg.className='rpage';
+      pg.innerHTML=`<div style="position:absolute;left:0;top:0;background:rgba(216,31,42,.92);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;z-index:2">📄 #${entryNo} PDF${imgs.length>1?(' '+(j+1)+'/'+imgs.length):''} · vector จริงตอน Export</div>`+
+        `<img src="${src}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%">`;
+      nodes.push(pg);
+    });
+  }
+  return nodes;
+}
+
 /* ---------------- Preview & Export ---------------- */
 let userZoom=1, baseScale=1;
 async function buildAll(interactive){
@@ -1164,6 +1234,7 @@ async function refreshPreview(){
   const wrap=$('previewWrap');wrap.innerHTML='';
   const inner=document.createElement('div');inner.id='previewInner';
   inner.appendChild(await buildAll(true));
+  (await buildPdfPreviewPages(cur)).forEach(n=>inner.appendChild(n));   // PDF ต่อท้าย (โชว์บนจอ)
   wrap.appendChild(inner);
   const items=await receiptItems(cur);
   $('prevHint').style.display=items.length?'flex':'none';
@@ -1203,20 +1274,68 @@ function waitForImages(root,timeout){
     :new Promise(r=>{im.addEventListener('load',r,{once:true});im.addEventListener('error',r,{once:true});}));
   return Promise.race([Promise.all(ps),new Promise(r=>setTimeout(r,timeout||6000))]);
 }
-$('btnExport').addEventListener('click',async()=>{
-  toast('กำลังเตรียมไฟล์...');
+// พิมพ์ผ่านเบราว์เซอร์ (fallback: ใช้ตอนโหลด pdf-lib/html2canvas ไม่ได้ เช่นออฟไลน์) — PDF ที่แนบจะไม่ถูกฝัง
+async function exportViaPrint(){
   const root=$('printRoot');root.innerHTML='';
-  // เผยหน้าไว้นอกจอชั่วคราว → รูป blob ถูก decode จริง และหน้ามีขนาดให้ auto-fit ทำงาน (กัน iOS พิมพ์ก่อนรูปขึ้น/บิลหาย)
   root.style.cssText='display:block;position:fixed;left:-10000px;top:0;width:210mm;background:#fff;z-index:-1';
   root.appendChild(await buildAll(false));
   root.querySelectorAll('.a4,.rpage').forEach(el=>{el.style.transform='';el.style.margin='';el.style.marginBottom='';});
   const prevTitle=document.title;
-  document.title=exportTitle();                 // ตั้งชื่อไฟล์ก่อน เพื่อให้ iOS ใช้ทันตอนเปิดแผ่นพิมพ์
-  await waitForImages(root,7000);               // รอใบเสร็จโหลดครบ
-  await new Promise(r=>setTimeout(r,150));       // ให้ auto-fit/เลย์เอาต์นิ่ง
-  root.style.cssText='';                         // คืนค่า → @media print จะแสดงเอง
+  document.title=exportTitle();
+  await waitForImages(root,7000);
+  await new Promise(r=>setTimeout(r,150));
+  root.style.cssText='';
   window.print();
   setTimeout(()=>{document.title=prevTitle;},1500);
+}
+// Export เป็นไฟล์ PDF จริงด้วย pdf-lib: ledger + หน้าใบเสร็จ (html2canvas) แล้ว merge ไฟล์ PDF ที่แนบแบบ vector ต่อท้าย
+async function exportViaPdfLib(){
+  await Promise.all([ensurePdfLib(),ensureHtml2canvas()]);
+  const {PDFDocument}=window.PDFLib;
+  const root=$('printRoot');root.innerHTML='';
+  root.style.cssText='display:block;position:fixed;left:-10000px;top:0;width:210mm;background:#fff;z-index:-1';
+  root.appendChild(await buildAll(false));            // ledger + หน้าใบเสร็จรูป (PDF ถูกกรองออก จะ merge vector ทีหลัง)
+  root.querySelectorAll('.a4,.rpage').forEach(el=>{el.style.transform='';el.style.margin='';el.style.marginBottom='';});
+  await waitForImages(root,7000);
+  await new Promise(r=>setTimeout(r,150));            // ให้ auto-fit/เลย์เอาต์นิ่งก่อนแคป
+  const out=await PDFDocument.create();
+  const pages=[...root.querySelectorAll('.a4,.rpage')];
+  for(const el of pages){
+    const isLedger=el.classList.contains('a4');
+    const canvas=await html2canvas(el,{scale:isLedger?3:2,useCORS:true,backgroundColor:'#fff'}); // ledger คมชัด (PNG), ใบเสร็จรูป JPEG เบากว่า
+    const imgData=isLedger?canvas.toDataURL('image/png'):canvas.toDataURL('image/jpeg',0.92);
+    await drawImagePage(out,imgData);
+  }
+  const pdfs=await pdfReceipts(cur);                  // ต่อท้ายไฟล์ PDF จริงแบบ vector
+  for(const {r} of pdfs){
+    try{await mergePdfBlob(out,r.blob);}
+    catch(err){console.error('merge pdf failed → raster',err);
+      try{const imgs=await pdfToBlobs(r.blob);for(const im of imgs){await drawImagePage(out,await blobToDataUrl(im.blob));}}catch(_){}}
+  }
+  const bytes=await out.save();
+  const blob=new Blob([bytes],{type:'application/pdf'});
+  root.style.cssText='';root.innerHTML='';
+  const fname=exportTitle()+'.pdf';
+  const file=new File([blob],fname,{type:'application/pdf'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){          // มือถือ: เปิด Share sheet ให้เซฟ/ส่งได้เลย
+    try{await navigator.share({files:[file],title:fname});return;}
+    catch(e){if(e&&e.name==='AbortError')return;}                      // ผู้ใช้กดยกเลิกเอง
+  }
+  const url=URL.createObjectURL(blob);                                 // เดสก์ท็อป/ไม่รองรับ share → ดาวน์โหลด
+  const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+$('btnExport').addEventListener('click',async()=>{
+  const btn=$('btnExport');const orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ กำลังสร้าง PDF…';
+  toast('กำลังสร้างไฟล์ PDF...');
+  try{
+    await exportViaPdfLib();
+    toast('✓ สร้างไฟล์ PDF แล้ว');
+  }catch(err){
+    console.error(err);
+    toast('สร้างไฟล์ไม่ได้ ('+(err.message||err)+') · ใช้การพิมพ์ผ่านเบราว์เซอร์แทน');
+    try{await exportViaPrint();}catch(e2){console.error(e2);toast('Export ไม่สำเร็จ: '+(e2.message||e2));}
+  }finally{btn.disabled=false;btn.textContent=orig;}
 });
 
 /* ---------------- Export to Google Sheet (one-way) ---------------- */
