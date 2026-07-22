@@ -276,6 +276,15 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
     </div>
   </section>
 
+  <section class="card">
+    <div class="card-h"><h3>ส่งเข้า Teams / SharePoint (Power Automate)</h3></div>
+    <div class="card-b">
+      <div class="hint" style="margin-top:0">ส่ง "เดือนที่เปิดอยู่" ของพนักงานคนนี้ (ข้อมูล + ใบเสร็จ) เข้า Power Automate เพื่อสร้างโฟลเดอร์ตาม Zone/เดือน แล้วโพสต์การ์ดแจ้งเข้า Teams · ส่งทางเดียว</div>
+      <button class="btn btn-blue btn-sm" id="btnSendFlow" style="margin-top:11px">📨 ส่งเข้า Teams/SharePoint</button>
+      <div class="hint" id="flowHint" style="margin-top:8px">ใส่ลิงก์ Power Automate (HTTP trigger URL) ได้ในปุ่ม ⚙︎ ตั้งค่า</div>
+    </div>
+  </section>
+
   <!-- Preview -->
   <section class="card no-print" id="previewCard" style="display:none">
     <div class="card-h"><h3>ตัวอย่างหน้า A4</h3>
@@ -337,6 +346,7 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
       <div><label>Verified By</label><input id="pVerify"></div>
     </div>
     <div class="row"><div><label>ลิงก์ Google Sheet (Apps Script /exec) — สำหรับส่งออก/ซิงค์</label><input id="pExportUrl" placeholder="https://script.google.com/macros/s/.../exec"></div></div>
+    <div class="row"><div><label>ลิงก์ Power Automate (HTTP trigger URL) — สำหรับส่งเข้า Teams/SharePoint</label><input id="pFlowUrl" placeholder="https://prod-xx.westus.logic.azure.com:443/workflows/.../triggers/manual/paths/invoke?..."></div></div>
     <div class="row"><div>
       <button class="btn btn-blue btn-sm" id="btnSyncNow" type="button">🔄 ซิงค์ตอนนี้ (ดึง + ส่ง)</button>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -504,9 +514,9 @@ let employees=[];
 let activeEmpId=null;
 let _ready=false,_syncBusy=false,_syncPushTimer=null;
 let gset={company:'Schmoll Asia Pacific (Thailand) Limited',currency:'THB',approve:'Carlos B',verify:'Somruethai',
-  exportUrl:DEFAULT_EXPORT_URL,excelSeeded:false,may26Seeded:false};
+  exportUrl:DEFAULT_EXPORT_URL,flowUrl:'',excelSeeded:false,may26Seeded:false};
 const EMP_FIELDS=['name','code','zone','plate','fix','fixDate','docNo'];
-const GSET_FIELDS=['company','currency','approve','verify','exportUrl','excelSeeded','may26Seeded'];
+const GSET_FIELDS=['company','currency','approve','verify','exportUrl','flowUrl','excelSeeded','may26Seeded'];
 
 function syncActiveBack(){
   const e=employees.find(x=>x.id===activeEmpId); if(!e)return;
@@ -750,6 +760,7 @@ function openProfile(){
   $('pFix').value=profile.fix;$('pFixDate').value=profile.fixDate||'';$('pDoc').value=profile.docNo;
   $('pApprove').value=profile.approve;$('pVerify').value=profile.verify;
   $('pExportUrl').value=profile.exportUrl||'';
+  $('pFlowUrl').value=profile.flowUrl||gset.flowUrl||'';
   const h=cur.head||{};
   $('pBalDate').value=h.balDate||'';$('pBalAmount').value=(h.balAmount||h.balAmount===0)?h.balAmount:'';
   $('pReimbDate').value=h.reimbDate||'';
@@ -793,6 +804,7 @@ $('pSave').addEventListener('click',async()=>{
   profile.fix=parseFloat($('pFix').value)||0;profile.fixDate=$('pFixDate').value||'';profile.docNo=parseInt($('pDoc').value)||1;
   profile.approve=$('pApprove').value.trim();profile.verify=$('pVerify').value.trim();
   profile.exportUrl=$('pExportUrl').value.trim();
+  profile.flowUrl=$('pFlowUrl').value.trim();gset.flowUrl=profile.flowUrl;   // เก็บระดับ global ด้วย (แชร์ข้ามพนักงาน + sync)
   // Balance belongs to the current month's stored head (Reimbursement is edited on the main page; Total date is auto)
   if(!cur.head)cur.head={};
   cur.head.balDate=$('pBalDate').value||'';cur.head.balAmount=parseFloat($('pBalAmount').value)||0;
@@ -1374,6 +1386,63 @@ async function gsExport(){
   finally{ if(btn){btn.disabled=false;btn.textContent='📤 ส่งออกพนักงานนี้ขึ้น Google Sheet';} }
 }
 $('btnExportSheet').addEventListener('click',gsExport);
+
+/* ---------------- Power Automate: ส่ง "เดือนที่เปิดอยู่" เข้า Teams/SharePoint (ทางเดียว) ----------------
+   สัญญา payload (แอพเป็นตัวกำหนด — ตั้ง trigger schema ของ Flow ให้ตรงตามนี้):
+   {
+     action:"gasoline-submit", source:"gasoline-app", sentAt:<ISO>, title:<ชื่อไฟล์/หัวเรื่อง>,
+     employee:{company,name,code,zone,plate,currency,approve,verify},
+     month:{label,monthName,year,folderName,totalSpent,finalBalance,summary[],entries[]},
+     receiptCount:<n>, receipts:[{name,mime,entryNo,entryDate,b64}]
+   }
+   ส่งด้วย no-cors + text/plain กัน CORS preflight → ฝั่ง Flow ใช้ json(triggerBody()) แปลงกลับเป็น object */
+function flowReady(){const u=(profile.flowUrl||gset.flowUrl||'');return u.indexOf('http')===0;}
+function monthMeta(m){
+  const lbl=m.label||'';let mName='',year='';
+  const mm=lbl.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i);
+  if(mm)mName=MONTHS[MM3.indexOf(mm[1].toLowerCase())];
+  const digits=lbl.match(/\d+/g)||[];
+  for(const d of digits){if(d.length===4){year=d;break;}}
+  if(!year)for(const d of digits){if(d.length===2){year='20'+d;break;}}
+  if(!mName||!year){const e=(m.entries||[]).find(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.date||''));
+    if(e){const mt=e.date.match(/^(\d{4})-(\d{2})-/);if(!year)year=mt[1];if(!mName)mName=MONTHS[+mt[2]-1];}}
+  return {monthName:mName,year:year};
+}
+async function buildFlowPayload(m){
+  const meta=monthMeta(m);const lines=summaryLines(m);const bals=entryBalances(m);
+  const entries=(m.entries||[]).map((e,i)=>({date:e.date||'',docNo:e.docNo||'',desc:e.desc||'',plate:e.plate||profile.plate||'',
+    refInv:e.refInv||'',customer:e.customer||'',vendor:e.vendor||'',amount:Number(e.amount)||0,balance:Number(bals[i])||0}));
+  const receipts=[];
+  for(let ei=0;ei<(m.entries||[]).length;ei++){const e=m.entries[ei];if(!e.receiptIds)continue;
+    for(const rid of e.receiptIds){const r=await rcptGet(rid);if(!r||!(r.blob instanceof Blob)||!r.blob.size)continue;
+      let b64='';try{b64=await blobToB64(r.blob);}catch(_){continue;}
+      receipts.push({name:r.name||rid,mime:r.mime||'application/octet-stream',entryNo:ei+1,entryDate:e.date||'',b64});}
+  }
+  return {
+    action:'gasoline-submit',source:'gasoline-app',sentAt:new Date().toISOString(),title:exportTitle(),
+    employee:{company:profile.company||gset.company||'',name:profile.name||'',code:profile.code||'',
+      zone:profile.zone||'',plate:profile.plate||'',currency:profile.currency||gset.currency||'THB',
+      approve:profile.approve||gset.approve||'',verify:profile.verify||gset.verify||''},
+    month:{label:m.label||'',monthName:meta.monthName,year:meta.year,
+      folderName:(meta.monthName&&meta.year)?(meta.monthName+' '+meta.year):(m.label||''),
+      totalSpent:Number(totalSpent(m))||0,finalBalance:Number(startBalance(m)-totalSpent(m))||0,
+      summary:lines.map(l=>({key:l.key,label:l.label,date:l.date||'',amount:Number(l.amount)||0})),entries:entries},
+    receiptCount:receipts.length,receipts:receipts
+  };
+}
+async function sendToFlow(){
+  const url=(profile.flowUrl||gset.flowUrl||'').trim();
+  if(!url||url.indexOf('http')!==0){toast('⚠️ ใส่ลิงก์ Power Automate ในตั้งค่า (⚙︎) ก่อน');openProfile();return;}
+  const btn=$('btnSendFlow');const orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ กำลังส่ง…';
+  toast('กำลังส่งเข้า Teams/SharePoint…');
+  try{
+    const payload=await buildFlowPayload(cur);
+    await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    toast('✓ ส่งเข้า Power Automate แล้ว · เดือน "'+(payload.month.folderName||cur.label)+'" · ใบเสร็จ '+payload.receiptCount+' ไฟล์');
+  }catch(err){console.error(err);toast('⚠️ ส่งไม่สำเร็จ: '+(err.message||err));}
+  finally{btn.disabled=false;btn.textContent=orig;}
+}
+$('btnSendFlow').addEventListener('click',sendToFlow);
 
 /* ---------------- Cloud sync (two-way, auto · last-write-wins per employee) ---------------- */
 function gsReady(){return (profile.exportUrl||'').indexOf('http')===0;}
