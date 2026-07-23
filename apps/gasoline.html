@@ -1304,7 +1304,8 @@ async function exportViaPrint(){
   setTimeout(()=>{document.title=prevTitle;},1500);
 }
 // Export เป็นไฟล์ PDF จริงด้วย pdf-lib: ledger + หน้าใบเสร็จ (html2canvas) แล้ว merge ไฟล์ PDF ที่แนบแบบ vector ต่อท้าย
-async function exportViaPdfLib(){
+// สร้างไฟล์ PDF รวม (ledger + ใบเสร็จ) ของ "เดือนที่เปิดอยู่" — ใช้ร่วมกันทั้งปุ่ม Export และปุ่มส่งเข้า Power Automate
+async function buildExportPdfBlob(){
   await Promise.all([ensurePdfLib(),ensureHtml2canvas()]);
   const {PDFDocument}=window.PDFLib;
   const root=$('printRoot');root.innerHTML='';
@@ -1331,6 +1332,10 @@ async function exportViaPdfLib(){
   const blob=new Blob([bytes],{type:'application/pdf'});
   root.style.cssText='';root.innerHTML='';
   const fname=exportTitle()+'.pdf';
+  return {blob,fname};
+}
+async function exportViaPdfLib(){
+  const {blob,fname}=await buildExportPdfBlob();
   const file=new File([blob],fname,{type:'application/pdf'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){          // มือถือ: เปิด Share sheet ให้เซฟ/ส่งได้เลย
     try{await navigator.share({files:[file],title:fname});return;}
@@ -1411,38 +1416,32 @@ function monthMeta(m){
     if(e){const mt=e.date.match(/^(\d{4})-(\d{2})-/);if(!year)year=mt[1];if(!mName)mName=MONTHS[+mt[2]-1];}}
   return {monthName:mName,year:year};
 }
-async function buildFlowPayload(m){
-  const meta=monthMeta(m);const lines=summaryLines(m);const bals=entryBalances(m);
-  const entries=(m.entries||[]).map((e,i)=>({date:e.date||'',docNo:e.docNo||'',desc:e.desc||'',plate:e.plate||profile.plate||'',
-    refInv:e.refInv||'',customer:e.customer||'',vendor:e.vendor||'',amount:Number(e.amount)||0,balance:Number(bals[i])||0}));
-  const receipts=[];
-  for(let ei=0;ei<(m.entries||[]).length;ei++){const e=m.entries[ei];if(!e.receiptIds)continue;
-    for(const rid of e.receiptIds){const r=await rcptGet(rid);if(!r||!(r.blob instanceof Blob)||!r.blob.size)continue;
-      let b64='';try{b64=await blobToB64(r.blob);}catch(_){continue;}
-      receipts.push({name:r.name||rid,mime:r.mime||'application/octet-stream',entryNo:ei+1,entryDate:e.date||'',b64});}
-  }
+// ส่ง PDF รวมไฟล์เดียว (ledger + ใบเสร็จ) ของเดือนที่เปิดอยู่ — Flow เอาไปวางใน SharePoint แล้วขออนุมัติต่อ
+async function buildFlowPayload(){
+  const meta=monthMeta(cur);
+  const {blob,fname}=await buildExportPdfBlob();
+  const b64=await blobToB64(blob);
   return {
     action:'gasoline-submit',source:'gasoline-app',sentAt:new Date().toISOString(),title:exportTitle(),
     employee:{company:profile.company||gset.company||'',name:profile.name||'',firstName:firstName(),code:profile.code||'',
       zone:profile.zone||'',plate:profile.plate||'',currency:profile.currency||gset.currency||'THB',
       approve:profile.approve||gset.approve||'',approveEmail:profile.approveEmail||gset.approveEmail||'',
       verify:profile.verify||gset.verify||''},
-    month:{label:m.label||'',monthName:meta.monthName,year:meta.year,
-      folderName:(meta.monthName&&meta.year)?(meta.monthName+' '+meta.year):(m.label||''),
-      totalSpent:Number(totalSpent(m))||0,finalBalance:Number(startBalance(m)-totalSpent(m))||0,
-      summary:lines.map(l=>({key:l.key,label:l.label,date:l.date||'',amount:Number(l.amount)||0})),entries:entries},
-    receiptCount:receipts.length,receipts:receipts
+    month:{label:cur.label||'',monthName:meta.monthName,year:meta.year,
+      folderName:(meta.monthName&&meta.year)?(meta.monthName+' '+meta.year):(cur.label||''),
+      totalSpent:Number(totalSpent(cur))||0,finalBalance:Number(startBalance(cur)-totalSpent(cur))||0},
+    fileName:fname,mime:'application/pdf',b64:b64
   };
 }
 async function sendToFlow(){
   const url=(profile.flowUrl||gset.flowUrl||'').trim();
   if(!url||url.indexOf('http')!==0){toast('⚠️ ใส่ลิงก์ Power Automate ในตั้งค่า (⚙︎) ก่อน');openProfile();return;}
-  const btn=$('btnSendFlow');const orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ กำลังส่ง…';
-  toast('กำลังส่งเข้า Teams/SharePoint…');
+  const btn=$('btnSendFlow');const orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ กำลังสร้าง PDF…';
+  toast('กำลังสร้าง PDF และส่งเข้า Teams/SharePoint…');
   try{
-    const payload=await buildFlowPayload(cur);
+    const payload=await buildFlowPayload();
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-    toast('✓ ส่งเข้า Power Automate แล้ว · เดือน "'+(payload.month.folderName||cur.label)+'" · ใบเสร็จ '+payload.receiptCount+' ไฟล์');
+    toast('✓ ส่งเข้า Power Automate แล้ว · ไฟล์ "'+payload.fileName+'"');
   }catch(err){console.error(err);toast('⚠️ ส่งไม่สำเร็จ: '+(err.message||err));}
   finally{btn.disabled=false;btn.textContent=orig;}
 }
