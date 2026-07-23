@@ -244,6 +244,7 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 .fab:active{transform:scale(.93)}
 .fab.fab-pub{bottom:calc(158px + var(--safe-bot));background:var(--blue);font-size:25px}
 .fab.fab-exp{bottom:calc(88px + var(--safe-bot));background:var(--green);font-size:25px}
+.fab.fab-appr{bottom:calc(228px + var(--safe-bot));background:#7c3aed;font-size:25px}
 /* รายการ (เรียบ อ่านง่าย: วันที่ · ประเภท · ยอด) */
 .elist-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-left:4px solid var(--line);
   border-radius:12px;padding:11px 12px;background:var(--white);margin-bottom:9px;cursor:pointer;transition:background .12s}
@@ -494,6 +495,7 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 <div class="zoom" id="zoom"><img id="zoomImg" alt=""></div>
 <button id="fabSync" class="fab fab-pub no-print" title="ซิงค์ตอนนี้ (ดึง+ส่ง)" aria-label="ซิงค์ตอนนี้">🔄</button>
 <button id="fabExport" class="fab fab-exp no-print" title="ส่งออกพนักงานนี้ขึ้น Google Sheet" aria-label="ส่งออกขึ้น Google Sheet">📤</button>
+<button id="fabApprove" class="fab fab-appr no-print" title="ส่งขออนุมัติ (Teams/SharePoint)" aria-label="ส่งขออนุมัติ">📨</button>
 <button id="fabAdd" class="fab no-print" title="เพิ่มรายการ" aria-label="เพิ่มรายการ">＋</button>
 <div class="toast" id="toast"></div>
 <div id="printRoot"></div>
@@ -1024,6 +1026,7 @@ $('btnAddEntry').addEventListener('click',()=>openEntry(null));
 $('fabAdd').addEventListener('click',()=>openEntry(null));
 $('fabSync').addEventListener('click',gsSyncNow);
 $('fabExport').addEventListener('click',gsExport);
+$('fabApprove').addEventListener('click',sendToFlow);
 $('emClose').addEventListener('click',()=>$('entryModal').classList.remove('open'));
 
 /* ---------------- Month management ---------------- */
