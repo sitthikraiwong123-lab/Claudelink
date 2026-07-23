@@ -345,6 +345,8 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
       <div><label>Approved By</label><input id="pApprove"></div>
       <div><label>Verified By</label><input id="pVerify"></div>
     </div>
+    <div class="row"><div><label>อีเมลผู้อนุมัติ (สำหรับ Power Automate Create an approval)</label><input id="pApproveEmail" type="email" placeholder="carlos.b@schmoll-asia.com"></div>
+    </div>
     <div class="row"><div><label>ลิงก์ Google Sheet (Apps Script /exec) — สำหรับส่งออก/ซิงค์</label><input id="pExportUrl" placeholder="https://script.google.com/macros/s/.../exec"></div></div>
     <div class="row"><div><label>ลิงก์ Power Automate (HTTP trigger URL) — สำหรับส่งเข้า Teams/SharePoint</label><input id="pFlowUrl" placeholder="https://prod-xx.westus.logic.azure.com:443/workflows/.../triggers/manual/paths/invoke?..."></div></div>
     <div class="row"><div>
@@ -483,7 +485,7 @@ function rcptByMonth(mid){return tx('receipts','readonly').then(s=>new Promise((
 /* ---------------- State ---------------- */
 const DEFAULT_EXPORT_URL='https://script.google.com/macros/s/AKfycbxwtKStQqEKx3EtJU8TW_qB5sNVFmxg4whaaWISZNo5GakVzuXaaYnNR-qb8-FbN1k/exec';
 let profile={company:'Schmoll Asia Pacific (Thailand) Limited',name:'Surachet Sitthikraiwong',code:'TL017',
-  zone:'Chon buri',plate:'4ขล 6046',currency:'THB',fix:10000,fixDate:'',docNo:1,approve:'Carlos B',verify:'Somruethai',
+  zone:'Chon buri',plate:'4ขล 6046',currency:'THB',fix:10000,fixDate:'',docNo:1,approve:'Carlos B',approveEmail:'',verify:'Somruethai',
   totalDate:'2025-05-13',totalAmount:10000,exportUrl:DEFAULT_EXPORT_URL,excelSeeded:false};
 // Opening figures taken from the attached Excel (April sheet) for the very first month
 const EXCEL_SEED={balDate:'2026-03-30',balAmount:3140,reimbDate:'2026-04-22',reimbAmount:6860};
@@ -513,10 +515,10 @@ function makeUrl(blob){const u=URL.createObjectURL(blob);_objUrls.push(u);return
 let employees=[];
 let activeEmpId=null;
 let _ready=false,_syncBusy=false,_syncPushTimer=null;
-let gset={company:'Schmoll Asia Pacific (Thailand) Limited',currency:'THB',approve:'Carlos B',verify:'Somruethai',
+let gset={company:'Schmoll Asia Pacific (Thailand) Limited',currency:'THB',approve:'Carlos B',approveEmail:'',verify:'Somruethai',
   exportUrl:DEFAULT_EXPORT_URL,flowUrl:'',excelSeeded:false,may26Seeded:false};
 const EMP_FIELDS=['name','code','zone','plate','fix','fixDate','docNo'];
-const GSET_FIELDS=['company','currency','approve','verify','exportUrl','flowUrl','excelSeeded','may26Seeded'];
+const GSET_FIELDS=['company','currency','approve','approveEmail','verify','exportUrl','flowUrl','excelSeeded','may26Seeded'];
 
 function syncActiveBack(){
   const e=employees.find(x=>x.id===activeEmpId); if(!e)return;
@@ -758,7 +760,7 @@ function openProfile(){
   $('pCompany').value=profile.company;$('pName').value=profile.name;$('pCode').value=profile.code;
   $('pZone').value=profile.zone;$('pPlate').value=profile.plate;$('pCur').value=profile.currency;
   $('pFix').value=profile.fix;$('pFixDate').value=profile.fixDate||'';$('pDoc').value=profile.docNo;
-  $('pApprove').value=profile.approve;$('pVerify').value=profile.verify;
+  $('pApprove').value=profile.approve;$('pVerify').value=profile.verify;$('pApproveEmail').value=profile.approveEmail||gset.approveEmail||'';
   $('pExportUrl').value=profile.exportUrl||'';
   $('pFlowUrl').value=profile.flowUrl||gset.flowUrl||'';
   const h=cur.head||{};
@@ -803,6 +805,7 @@ $('pSave').addEventListener('click',async()=>{
   profile.zone=$('pZone').value.trim();profile.plate=$('pPlate').value.trim();profile.currency=$('pCur').value.trim()||'THB';
   profile.fix=parseFloat($('pFix').value)||0;profile.fixDate=$('pFixDate').value||'';profile.docNo=parseInt($('pDoc').value)||1;
   profile.approve=$('pApprove').value.trim();profile.verify=$('pVerify').value.trim();
+  profile.approveEmail=$('pApproveEmail').value.trim();
   profile.exportUrl=$('pExportUrl').value.trim();
   profile.flowUrl=$('pFlowUrl').value.trim();gset.flowUrl=profile.flowUrl;   // เก็บระดับ global ด้วย (แชร์ข้ามพนักงาน + sync)
   // Balance belongs to the current month's stored head (Reimbursement is edited on the main page; Total date is auto)
@@ -1420,9 +1423,10 @@ async function buildFlowPayload(m){
   }
   return {
     action:'gasoline-submit',source:'gasoline-app',sentAt:new Date().toISOString(),title:exportTitle(),
-    employee:{company:profile.company||gset.company||'',name:profile.name||'',code:profile.code||'',
+    employee:{company:profile.company||gset.company||'',name:profile.name||'',firstName:firstName(),code:profile.code||'',
       zone:profile.zone||'',plate:profile.plate||'',currency:profile.currency||gset.currency||'THB',
-      approve:profile.approve||gset.approve||'',verify:profile.verify||gset.verify||''},
+      approve:profile.approve||gset.approve||'',approveEmail:profile.approveEmail||gset.approveEmail||'',
+      verify:profile.verify||gset.verify||''},
     month:{label:m.label||'',monthName:meta.monthName,year:meta.year,
       folderName:(meta.monthName&&meta.year)?(meta.monthName+' '+meta.year):(m.label||''),
       totalSpent:Number(totalSpent(m))||0,finalBalance:Number(startBalance(m)-totalSpent(m))||0,
