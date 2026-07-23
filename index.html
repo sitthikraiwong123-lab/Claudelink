@@ -355,6 +355,15 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
     </div>
   </section>
 
+  <section class="card">
+    <div class="card-h"><h3>ส่งเข้า Teams / SharePoint (Power Automate)</h3></div>
+    <div class="card-b">
+      <div class="hint" style="margin-top:0">ส่ง "เดือนที่เปิดอยู่" ของพนักงานคนนี้ (ข้อมูล + ใบเสร็จ) เข้า Power Automate เพื่อสร้างโฟลเดอร์ตาม Zone/เดือน แล้วโพสต์การ์ดแจ้งเข้า Teams · ส่งทางเดียว</div>
+      <button class="btn btn-blue btn-sm" id="btnSendFlow" style="margin-top:11px">📨 ส่งเข้า Teams/SharePoint</button>
+      <div class="hint" id="flowHint" style="margin-top:8px">ใส่ลิงก์ Power Automate (HTTP trigger URL) ได้ในปุ่ม ⚙︎ ตั้งค่า</div>
+    </div>
+  </section>
+
   <!-- Preview -->
   <section class="card no-print" id="previewCard" style="display:none">
     <div class="card-h"><h3>ตัวอย่างหน้า A4</h3>
@@ -415,7 +424,10 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
       <div><label>Approved By</label><input id="pApprove"></div>
       <div><label>Verified By</label><input id="pVerify"></div>
     </div>
+    <div class="row"><div><label>อีเมลผู้อนุมัติ (สำหรับ Power Automate Create an approval)</label><input id="pApproveEmail" type="email" placeholder="carlos.b@schmoll-asia.com"></div>
+    </div>
     <div class="row"><div><label>ลิงก์ Google Sheet (Apps Script /exec) — สำหรับส่งออก/ซิงค์</label><input id="pExportUrl" placeholder="https://script.google.com/macros/s/.../exec"></div></div>
+    <div class="row"><div><label>ลิงก์ Power Automate (HTTP trigger URL) — สำหรับส่งเข้า Teams/SharePoint</label><input id="pFlowUrl" placeholder="https://prod-xx.westus.logic.azure.com:443/workflows/.../triggers/manual/paths/invoke?..."></div></div>
     <div class="row"><div>
       <button class="btn btn-blue btn-sm" id="btnSyncNow" type="button">🔄 ซิงค์ตอนนี้ (ดึง + ส่ง)</button>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -552,7 +564,7 @@ function rcptByMonth(mid){return tx('receipts','readonly').then(s=>new Promise((
 /* ---------------- State ---------------- */
 const DEFAULT_EXPORT_URL='https://script.google.com/macros/s/AKfycbxwtKStQqEKx3EtJU8TW_qB5sNVFmxg4whaaWISZNo5GakVzuXaaYnNR-qb8-FbN1k/exec';
 let profile={company:'Schmoll Asia Pacific (Thailand) Limited',name:'Surachet Sitthikraiwong',code:'TL017',
-  zone:'Chon buri',plate:'4ขล 6046',currency:'THB',fix:10000,fixDate:'',docNo:1,approve:'Carlos B',verify:'Somruethai',
+  zone:'Chon buri',plate:'4ขล 6046',currency:'THB',fix:10000,fixDate:'',docNo:1,approve:'Carlos B',approveEmail:'',verify:'Somruethai',
   totalDate:'2025-05-13',totalAmount:10000,exportUrl:DEFAULT_EXPORT_URL,excelSeeded:false};
 // Opening figures taken from the attached Excel (April sheet) for the very first month
 const EXCEL_SEED={balDate:'2026-03-30',balAmount:3140,reimbDate:'2026-04-22',reimbAmount:6860};
@@ -582,10 +594,10 @@ function makeUrl(blob){const u=URL.createObjectURL(blob);_objUrls.push(u);return
 let employees=[];
 let activeEmpId=null;
 let _ready=false,_syncBusy=false,_syncPushTimer=null;
-let gset={company:'Schmoll Asia Pacific (Thailand) Limited',currency:'THB',approve:'Carlos B',verify:'Somruethai',
-  exportUrl:DEFAULT_EXPORT_URL,excelSeeded:false,may26Seeded:false};
+let gset={company:'Schmoll Asia Pacific (Thailand) Limited',currency:'THB',approve:'Carlos B',approveEmail:'',verify:'Somruethai',
+  exportUrl:DEFAULT_EXPORT_URL,flowUrl:'',excelSeeded:false,may26Seeded:false};
 const EMP_FIELDS=['name','code','zone','plate','fix','fixDate','docNo'];
-const GSET_FIELDS=['company','currency','approve','verify','exportUrl','excelSeeded','may26Seeded'];
+const GSET_FIELDS=['company','currency','approve','approveEmail','verify','exportUrl','flowUrl','excelSeeded','may26Seeded'];
 
 function syncActiveBack(){
   const e=employees.find(x=>x.id===activeEmpId); if(!e)return;
@@ -827,8 +839,9 @@ function openProfile(){
   $('pCompany').value=profile.company;$('pName').value=profile.name;$('pCode').value=profile.code;
   $('pZone').value=profile.zone;$('pPlate').value=profile.plate;$('pCur').value=profile.currency;
   $('pFix').value=profile.fix;$('pFixDate').value=profile.fixDate||'';$('pDoc').value=profile.docNo;
-  $('pApprove').value=profile.approve;$('pVerify').value=profile.verify;
+  $('pApprove').value=profile.approve;$('pVerify').value=profile.verify;$('pApproveEmail').value=profile.approveEmail||gset.approveEmail||'';
   $('pExportUrl').value=profile.exportUrl||'';
+  $('pFlowUrl').value=profile.flowUrl||gset.flowUrl||'';
   const h=cur.head||{};
   $('pBalDate').value=h.balDate||'';$('pBalAmount').value=(h.balAmount||h.balAmount===0)?h.balAmount:'';
   $('pReimbDate').value=h.reimbDate||'';
@@ -871,7 +884,9 @@ $('pSave').addEventListener('click',async()=>{
   profile.zone=$('pZone').value.trim();profile.plate=$('pPlate').value.trim();profile.currency=$('pCur').value.trim()||'THB';
   profile.fix=parseFloat($('pFix').value)||0;profile.fixDate=$('pFixDate').value||'';profile.docNo=parseInt($('pDoc').value)||1;
   profile.approve=$('pApprove').value.trim();profile.verify=$('pVerify').value.trim();
+  profile.approveEmail=$('pApproveEmail').value.trim();
   profile.exportUrl=$('pExportUrl').value.trim();
+  profile.flowUrl=$('pFlowUrl').value.trim();gset.flowUrl=profile.flowUrl;   // เก็บระดับ global ด้วย (แชร์ข้ามพนักงาน + sync)
   // Balance belongs to the current month's stored head (Reimbursement is edited on the main page; Total date is auto)
   if(!cur.head)cur.head={};
   cur.head.balDate=$('pBalDate').value||'';cur.head.balAmount=parseFloat($('pBalAmount').value)||0;
@@ -969,10 +984,8 @@ document.addEventListener('paste',async e=>{
 async function ingestReceipt(f){
   try{
     if(f.type==='application/pdf'){
-      const imgs=await pdfToBlobs(f);
-      const base=(f.name||'receipt').replace(/\.pdf$/i,'');
-      for(let i=0;i<imgs.length;i++){await storeReceipt(imgs[i].blob,base+(imgs.length>1?(' (p'+(i+1)+')'):'')+'.jpg',imgs[i].w,imgs[i].h);}
-      await storeReceipt(f,f.name,0,0);   // เก็บไฟล์ PDF ต้นฉบับไว้ sync ขึ้น Drive ด้วย
+      // แนบไฟล์ PDF จริง — ไม่แปลงเป็นรูปแล้ว (จะถูก merge แบบ vector คมชัดตอน Export ด้วย pdf-lib)
+      await storeReceipt(f,f.name||'receipt.pdf',0,0);
     }else{
       const dim=await imgDims(f);
       await storeReceipt(f,f.name,dim.w,dim.h); // store original bytes — uncompressed/lossless
@@ -1071,6 +1084,49 @@ async function pdfToBlobs(file){
     if(blob)out.push({blob,w:cv.width,h:cv.height});
   }
   if(!out.length)throw new Error('แปลง PDF เป็นรูปไม่สำเร็จ (ลองไฟล์ที่เล็กลง)');
+  return out;
+}
+
+/* ---------------- Lazy libs: pdf-lib + html2canvas (สำหรับ Export เป็นไฟล์ PDF จริง) ---------------- */
+function loadScriptOnce(src,globalName,errMsg){
+  return new Promise((res,rej)=>{
+    if(window[globalName])return res(window[globalName]);
+    const s=document.createElement('script');s.src=src;
+    s.onload=()=>window[globalName]?res(window[globalName]):rej(new Error(errMsg));
+    s.onerror=()=>rej(new Error(errMsg));document.head.appendChild(s);
+  });
+}
+function ensurePdfLib(){return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js','PDFLib','โหลด pdf-lib ไม่ได้ (ต้องมีอินเทอร์เน็ตครั้งแรก)');}
+function ensureHtml2canvas(){return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js','html2canvas','โหลด html2canvas ไม่ได้ (ต้องมีอินเทอร์เน็ตครั้งแรก)');}
+const A4PT=[595.28,841.89];
+// วางรูป (dataURL) ให้เต็มหน้า A4 คงอัตราส่วน
+async function drawImagePage(out,imgData){
+  const page=out.addPage(A4PT);
+  const isPng=imgData.indexOf('data:image/png')===0;
+  const img=isPng?await out.embedPng(imgData):await out.embedJpg(imgData);
+  const ar=img.width/img.height;let w=A4PT[0],h=w/ar;if(h>A4PT[1]){h=A4PT[1];w=h*ar;}
+  page.drawImage(img,{x:(A4PT[0]-w)/2,y:(A4PT[1]-h)/2,width:w,height:h});
+}
+// merge หน้าไฟล์ PDF จริงแบบ vector (คัดลอกหน้าเดิมถ้าเป็น A4 อยู่แล้ว มิฉะนั้น embed แล้ววางเต็ม A4)
+async function mergePdfBlob(out,blob){
+  const {PDFDocument}=window.PDFLib;
+  const u8=new Uint8Array(await blob.arrayBuffer());
+  const srcDoc=await PDFDocument.load(u8,{ignoreEncryption:true});
+  const idxs=srcDoc.getPageIndices();const sp=srcDoc.getPages();const TOL=0.06;
+  const needFit=idxs.some(i=>{const s=sp[i].getSize();return Math.abs(s.width-A4PT[0])>A4PT[0]*TOL||Math.abs(s.height-A4PT[1])>A4PT[1]*TOL;});
+  if(!needFit){const cps=await out.copyPages(srcDoc,idxs);cps.forEach(p=>out.addPage(p));}
+  else{const eps=await out.embedPdf(srcDoc,idxs);
+    for(const ep of eps){const page=out.addPage(A4PT);const sc=Math.min(A4PT[0]/ep.width,A4PT[1]/ep.height);
+      const w=ep.width*sc,h=ep.height*sc;page.drawPage(ep,{x:(A4PT[0]-w)/2,y:(A4PT[1]-h)/2,width:w,height:h});}}
+}
+function blobToDataUrl(blob){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(fr.error);fr.readAsDataURL(blob);});}
+// ใบเสร็จชนิด PDF ทั้งหมดของเดือน (เรียงตามรายการ) — จะถูกต่อท้ายแบบ vector
+async function pdfReceipts(m){
+  const out=[];
+  for(let ei=0;ei<m.entries.length;ei++){const e=m.entries[ei];if(!e.receiptIds)continue;
+    for(const rid of e.receiptIds){const r=await rcptGet(rid);
+      if(r&&isPdfRcpt(r)&&r.blob instanceof Blob&&r.blob.size>0)out.push({r,entryNo:ei+1});}
+  }
   return out;
 }
 
@@ -1230,6 +1286,35 @@ function enableRBox(box,r){
   handle.addEventListener('pointerup',async e=>{if(!rz)return;try{handle.releasePointerCapture(e.pointerId);}catch(_){}rz=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
 }
 
+/* ---------------- PDF preview pages (โชว์บนจอเท่านั้น — ตอน Export ใช้ vector จริง) ---------------- */
+const _pdfPrevCache=new Map();               // rid+size -> [dataURL,...]
+async function pdfPrevImgs(r){
+  const key=r.id+':'+((r.blob&&r.blob.size)||0);
+  if(_pdfPrevCache.has(key))return _pdfPrevCache.get(key);
+  let imgs=[];
+  try{const blobs=await pdfToBlobs(r.blob);imgs=await Promise.all(blobs.map(b=>blobToDataUrl(b.blob)));}catch(_){imgs=[];}
+  _pdfPrevCache.set(key,imgs);return imgs;
+}
+async function buildPdfPreviewPages(m){
+  const list=await pdfReceipts(m);const nodes=[];
+  for(const {r,entryNo} of list){
+    const imgs=await pdfPrevImgs(r);
+    if(!imgs.length){
+      const pg=document.createElement('div');pg.className='rpage';
+      pg.style.cssText+=';display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#555';
+      pg.innerHTML=`<div style="font-size:40px">📄</div><div style="font-weight:700">${(r.name||'PDF').replace(/</g,'&lt;')}</div><div style="font-size:12px;color:#888">ไฟล์ PDF จะถูกแนบจริง (vector) ตอน Export</div>`;
+      nodes.push(pg);continue;
+    }
+    imgs.forEach((src,j)=>{
+      const pg=document.createElement('div');pg.className='rpage';
+      pg.innerHTML=`<div style="position:absolute;left:0;top:0;background:rgba(216,31,42,.92);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;z-index:2">📄 #${entryNo} PDF${imgs.length>1?(' '+(j+1)+'/'+imgs.length):''} · vector จริงตอน Export</div>`+
+        `<img src="${src}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%">`;
+      nodes.push(pg);
+    });
+  }
+  return nodes;
+}
+
 /* ---------------- Preview & Export ---------------- */
 let userZoom=1, baseScale=1;
 async function buildAll(interactive){
@@ -1243,6 +1328,7 @@ async function refreshPreview(){
   const wrap=$('previewWrap');wrap.innerHTML='';
   const inner=document.createElement('div');inner.id='previewInner';
   inner.appendChild(await buildAll(true));
+  (await buildPdfPreviewPages(cur)).forEach(n=>inner.appendChild(n));   // PDF ต่อท้าย (โชว์บนจอ)
   wrap.appendChild(inner);
   const items=await receiptItems(cur);
   $('prevHint').style.display=items.length?'flex':'none';
@@ -1282,20 +1368,73 @@ function waitForImages(root,timeout){
     :new Promise(r=>{im.addEventListener('load',r,{once:true});im.addEventListener('error',r,{once:true});}));
   return Promise.race([Promise.all(ps),new Promise(r=>setTimeout(r,timeout||6000))]);
 }
-$('btnExport').addEventListener('click',async()=>{
-  toast('กำลังเตรียมไฟล์...');
+// พิมพ์ผ่านเบราว์เซอร์ (fallback: ใช้ตอนโหลด pdf-lib/html2canvas ไม่ได้ เช่นออฟไลน์) — PDF ที่แนบจะไม่ถูกฝัง
+async function exportViaPrint(){
   const root=$('printRoot');root.innerHTML='';
-  // เผยหน้าไว้นอกจอชั่วคราว → รูป blob ถูก decode จริง และหน้ามีขนาดให้ auto-fit ทำงาน (กัน iOS พิมพ์ก่อนรูปขึ้น/บิลหาย)
   root.style.cssText='display:block;position:fixed;left:-10000px;top:0;width:210mm;background:#fff;z-index:-1';
   root.appendChild(await buildAll(false));
   root.querySelectorAll('.a4,.rpage').forEach(el=>{el.style.transform='';el.style.margin='';el.style.marginBottom='';});
   const prevTitle=document.title;
-  document.title=exportTitle();                 // ตั้งชื่อไฟล์ก่อน เพื่อให้ iOS ใช้ทันตอนเปิดแผ่นพิมพ์
-  await waitForImages(root,7000);               // รอใบเสร็จโหลดครบ
-  await new Promise(r=>setTimeout(r,150));       // ให้ auto-fit/เลย์เอาต์นิ่ง
-  root.style.cssText='';                         // คืนค่า → @media print จะแสดงเอง
+  document.title=exportTitle();
+  await waitForImages(root,7000);
+  await new Promise(r=>setTimeout(r,150));
+  root.style.cssText='';
   window.print();
   setTimeout(()=>{document.title=prevTitle;},1500);
+}
+// Export เป็นไฟล์ PDF จริงด้วย pdf-lib: ledger + หน้าใบเสร็จ (html2canvas) แล้ว merge ไฟล์ PDF ที่แนบแบบ vector ต่อท้าย
+// สร้างไฟล์ PDF รวม (ledger + ใบเสร็จ) ของ "เดือนที่เปิดอยู่" — ใช้ร่วมกันทั้งปุ่ม Export และปุ่มส่งเข้า Power Automate
+async function buildExportPdfBlob(){
+  await Promise.all([ensurePdfLib(),ensureHtml2canvas()]);
+  const {PDFDocument}=window.PDFLib;
+  const root=$('printRoot');root.innerHTML='';
+  root.style.cssText='display:block;position:fixed;left:-10000px;top:0;width:210mm;background:#fff;z-index:-1';
+  root.appendChild(await buildAll(false));            // ledger + หน้าใบเสร็จรูป (PDF ถูกกรองออก จะ merge vector ทีหลัง)
+  root.querySelectorAll('.a4,.rpage').forEach(el=>{el.style.transform='';el.style.margin='';el.style.marginBottom='';});
+  await waitForImages(root,7000);
+  await new Promise(r=>setTimeout(r,150));            // ให้ auto-fit/เลย์เอาต์นิ่งก่อนแคป
+  const out=await PDFDocument.create();
+  const pages=[...root.querySelectorAll('.a4,.rpage')];
+  for(const el of pages){
+    const isLedger=el.classList.contains('a4');
+    const canvas=await html2canvas(el,{scale:isLedger?3:2,useCORS:true,backgroundColor:'#fff'}); // ledger คมชัด (PNG), ใบเสร็จรูป JPEG เบากว่า
+    const imgData=isLedger?canvas.toDataURL('image/png'):canvas.toDataURL('image/jpeg',0.92);
+    await drawImagePage(out,imgData);
+  }
+  const pdfs=await pdfReceipts(cur);                  // ต่อท้ายไฟล์ PDF จริงแบบ vector
+  for(const {r} of pdfs){
+    try{await mergePdfBlob(out,r.blob);}
+    catch(err){console.error('merge pdf failed → raster',err);
+      try{const imgs=await pdfToBlobs(r.blob);for(const im of imgs){await drawImagePage(out,await blobToDataUrl(im.blob));}}catch(_){}}
+  }
+  const bytes=await out.save();
+  const blob=new Blob([bytes],{type:'application/pdf'});
+  root.style.cssText='';root.innerHTML='';
+  const fname=exportTitle()+'.pdf';
+  return {blob,fname};
+}
+async function exportViaPdfLib(){
+  const {blob,fname}=await buildExportPdfBlob();
+  const file=new File([blob],fname,{type:'application/pdf'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){          // มือถือ: เปิด Share sheet ให้เซฟ/ส่งได้เลย
+    try{await navigator.share({files:[file],title:fname});return;}
+    catch(e){if(e&&e.name==='AbortError')return;}                      // ผู้ใช้กดยกเลิกเอง
+  }
+  const url=URL.createObjectURL(blob);                                 // เดสก์ท็อป/ไม่รองรับ share → ดาวน์โหลด
+  const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+$('btnExport').addEventListener('click',async()=>{
+  const btn=$('btnExport');const orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ กำลังสร้าง PDF…';
+  toast('กำลังสร้างไฟล์ PDF...');
+  try{
+    await exportViaPdfLib();
+    toast('✓ สร้างไฟล์ PDF แล้ว');
+  }catch(err){
+    console.error(err);
+    toast('สร้างไฟล์ไม่ได้ ('+(err.message||err)+') · ใช้การพิมพ์ผ่านเบราว์เซอร์แทน');
+    try{await exportViaPrint();}catch(e2){console.error(e2);toast('Export ไม่สำเร็จ: '+(e2.message||e2));}
+  }finally{btn.disabled=false;btn.textContent=orig;}
 });
 
 /* ---------------- Export to Google Sheet (one-way) ---------------- */
@@ -1334,6 +1473,58 @@ async function gsExport(){
   finally{ if(btn){btn.disabled=false;btn.textContent='📤 ส่งออกพนักงานนี้ขึ้น Google Sheet';} }
 }
 $('btnExportSheet').addEventListener('click',gsExport);
+
+/* ---------------- Power Automate: ส่ง "เดือนที่เปิดอยู่" เข้า Teams/SharePoint (ทางเดียว) ----------------
+   สัญญา payload (แอพเป็นตัวกำหนด — ตั้ง trigger schema ของ Flow ให้ตรงตามนี้):
+   {
+     action:"gasoline-submit", source:"gasoline-app", sentAt:<ISO>, title:<ชื่อไฟล์/หัวเรื่อง>,
+     employee:{company,name,code,zone,plate,currency,approve,verify},
+     month:{label,monthName,year,folderName,totalSpent,finalBalance,summary[],entries[]},
+     receiptCount:<n>, receipts:[{name,mime,entryNo,entryDate,b64}]
+   }
+   ส่งด้วย no-cors + text/plain กัน CORS preflight → ฝั่ง Flow ใช้ json(triggerBody()) แปลงกลับเป็น object */
+function flowReady(){const u=(profile.flowUrl||gset.flowUrl||'');return u.indexOf('http')===0;}
+function monthMeta(m){
+  const lbl=m.label||'';let mName='',year='';
+  const mm=lbl.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i);
+  if(mm)mName=MONTHS[MM3.indexOf(mm[1].toLowerCase())];
+  const digits=lbl.match(/\d+/g)||[];
+  for(const d of digits){if(d.length===4){year=d;break;}}
+  if(!year)for(const d of digits){if(d.length===2){year='20'+d;break;}}
+  if(!mName||!year){const e=(m.entries||[]).find(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.date||''));
+    if(e){const mt=e.date.match(/^(\d{4})-(\d{2})-/);if(!year)year=mt[1];if(!mName)mName=MONTHS[+mt[2]-1];}}
+  return {monthName:mName,year:year};
+}
+// ส่ง PDF รวมไฟล์เดียว (ledger + ใบเสร็จ) ของเดือนที่เปิดอยู่ — Flow เอาไปวางใน SharePoint แล้วขออนุมัติต่อ
+async function buildFlowPayload(){
+  const meta=monthMeta(cur);
+  const {blob,fname}=await buildExportPdfBlob();
+  const b64=await blobToB64(blob);
+  return {
+    action:'gasoline-submit',source:'gasoline-app',sentAt:new Date().toISOString(),title:exportTitle(),
+    employee:{company:profile.company||gset.company||'',name:profile.name||'',firstName:firstName(),code:profile.code||'',
+      zone:profile.zone||'',plate:profile.plate||'',currency:profile.currency||gset.currency||'THB',
+      approve:profile.approve||gset.approve||'',approveEmail:profile.approveEmail||gset.approveEmail||'',
+      verify:profile.verify||gset.verify||''},
+    month:{label:cur.label||'',monthName:meta.monthName,year:meta.year,
+      folderName:(meta.monthName&&meta.year)?(meta.monthName+' '+meta.year):(cur.label||''),
+      totalSpent:Number(totalSpent(cur))||0,finalBalance:Number(startBalance(cur)-totalSpent(cur))||0},
+    fileName:fname,mime:'application/pdf',b64:b64
+  };
+}
+async function sendToFlow(){
+  const url=(profile.flowUrl||gset.flowUrl||'').trim();
+  if(!url||url.indexOf('http')!==0){toast('⚠️ ใส่ลิงก์ Power Automate ในตั้งค่า (⚙︎) ก่อน');openProfile();return;}
+  const btn=$('btnSendFlow');const orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ กำลังสร้าง PDF…';
+  toast('กำลังสร้าง PDF และส่งเข้า Teams/SharePoint…');
+  try{
+    const payload=await buildFlowPayload();
+    await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    toast('✓ ส่งเข้า Power Automate แล้ว · ไฟล์ "'+payload.fileName+'"');
+  }catch(err){console.error(err);toast('⚠️ ส่งไม่สำเร็จ: '+(err.message||err));}
+  finally{btn.disabled=false;btn.textContent=orig;}
+}
+$('btnSendFlow').addEventListener('click',sendToFlow);
 
 /* ---------------- Cloud sync (two-way, auto · last-write-wins per employee) ---------------- */
 function gsReady(){return (profile.exportUrl||'').indexOf('http')===0;}
