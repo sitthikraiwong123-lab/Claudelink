@@ -1523,7 +1523,10 @@ async function sendToFlow(){
   try{
     const payload=await buildFlowPayload();
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-    toast('✓ ส่งเข้า Power Automate แล้ว · ไฟล์ "'+payload.fileName+'"');
+    // คัดลอกข้อความขออนุมัติใส่คลิปบอร์ด — ไปวาง (Ctrl+V) ในช่อง Message ตอนกด Request approval บน SharePoint ได้ทันที
+    const approveMsg='Cloud you please approve '+payload.title;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(approveMsg);}catch(_){}
+    toast('✓ ส่งเข้า Power Automate แล้ว · ไฟล์ "'+payload.fileName+'" · คัดลอกข้อความขออนุมัติไว้ในคลิปบอร์ดแล้ว (Ctrl+V ได้เลย)');
   }catch(err){console.error(err);toast('⚠️ ส่งไม่สำเร็จ: '+(err.message||err));}
   finally{btn.disabled=false;btn.textContent=orig;}
 }
