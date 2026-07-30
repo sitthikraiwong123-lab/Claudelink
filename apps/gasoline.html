@@ -160,19 +160,31 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
   box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:nwse-resize;touch-action:none}
 .rbox.dragging{outline:2px solid var(--red);z-index:5}
 .fab{position:fixed;right:18px;bottom:calc(18px + var(--safe-bot));width:58px;height:58px;border-radius:50%;
-  background:var(--red);color:#fff;font-size:32px;line-height:1;border:none;box-shadow:0 6px 20px rgba(0,0,0,.3);
+  background:var(--red);color:#fff;font-size:32px;line-height:1;border:none;box-shadow:0 6px 20px rgba(0,0,0,.25);
   z-index:300;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;
-  opacity:.82;transition:opacity .15s ease,transform .18s ease}
-.fab:active{transform:scale(.93)}
+  opacity:.55;transition:opacity .15s ease,transform .18s ease}
+.fab:active{transform:scale(.93);opacity:1}
 .fab.fab-pub{bottom:calc(158px + var(--safe-bot));background:var(--blue);font-size:25px}
 .fab.fab-exp{bottom:calc(88px + var(--safe-bot));background:var(--green);font-size:25px}
 .fab.fab-appr{bottom:calc(228px + var(--safe-bot));background:#7c3aed;font-size:25px}
 .fab.fab-appr2{bottom:calc(298px + var(--safe-bot));background:#0891b2;font-size:25px}
 .fab.fab-entry{bottom:calc(368px + var(--safe-bot));background:var(--red);font-size:25px}
-/* ปุ่มลอยย่อย — ซ่อนไว้หลังปุ่ม ＋ จนกว่าจะเปิดเมนู */
-.fab-sub{opacity:0!important;transform:translateY(14px) scale(.55);pointer-events:none}
-body.fab-menu-open .fab-sub{opacity:.82!important;transform:translateY(0) scale(1);pointer-events:auto}
-#fabAdd.fab-open{transform:rotate(45deg);opacity:.9}
+/* ปุ่มลอยย่อย — ซ่อนไว้หลังปุ่ม ＋ จนกว่าจะเปิดเมนู (ไม่รวม .fab-label ที่มีความทึบของตัวเองแยกต่างหาก) */
+.fab-sub:not(.fab-label){opacity:0!important;transform:translateY(14px) scale(.55);pointer-events:none}
+body.fab-menu-open .fab-sub:not(.fab-label){opacity:.55!important;transform:translateY(0) scale(1);pointer-events:auto}
+body.fab-menu-open .fab-sub:not(.fab-label):active{opacity:1!important}
+.fab-label.fab-sub{opacity:0;transform:translateX(10px) scale(.92);pointer-events:none}
+#fabAdd.fab-open{transform:rotate(45deg);opacity:.7}
+/* ป้ายคำอธิบายปุ่มลอย — โผล่คู่กับปุ่มย่อยตอนกางเมนู */
+.fab-label{position:fixed;right:84px;z-index:300;background:rgba(17,17,17,.68);color:#fff;font-size:12px;font-weight:700;
+  padding:7px 12px;border-radius:10px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.2);
+  opacity:0;transform:translateX(10px) scale(.92);pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+body.fab-menu-open .fab-label{opacity:.92;transform:translateX(0) scale(1)}
+.fab-label.lbl-entry{bottom:calc(382px + var(--safe-bot))}
+.fab-label.lbl-appr2{bottom:calc(312px + var(--safe-bot))}
+.fab-label.lbl-appr{bottom:calc(242px + var(--safe-bot))}
+.fab-label.lbl-pub{bottom:calc(172px + var(--safe-bot))}
+.fab-label.lbl-exp{bottom:calc(102px + var(--safe-bot))}
 /* รายการ (เรียบ อ่านง่าย: วันที่ · ประเภท · ยอด) */
 .elist-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-left:4px solid var(--line);
   border-radius:12px;padding:11px 12px;background:var(--white);margin-bottom:9px;cursor:pointer;transition:background .12s}
@@ -422,10 +434,15 @@ body.fab-menu-open .fab-sub{opacity:.82!important;transform:translateY(0) scale(
 </div>
 
 <div class="zoom" id="zoom"><img id="zoomImg" alt=""></div>
+<span class="fab-label lbl-pub fab-sub no-print">ซิงค์ตอนนี้ (ดึง+ส่ง)</span>
 <button id="fabSync" class="fab fab-pub fab-sub no-print" title="ซิงค์ตอนนี้ (ดึง+ส่ง)" aria-label="ซิงค์ตอนนี้">🔄</button>
+<span class="fab-label lbl-exp fab-sub no-print">ส่งออกขึ้น Google Sheet</span>
 <button id="fabExport" class="fab fab-exp fab-sub no-print" title="ส่งออกพนักงานนี้ขึ้น Google Sheet" aria-label="ส่งออกขึ้น Google Sheet">📤</button>
+<span class="fab-label lbl-appr fab-sub no-print">ส่งขออนุมัติ (Flow เดิม)</span>
 <button id="fabApprove" class="fab fab-appr fab-sub no-print" title="ส่งขออนุมัติ (ผ่าน Flow เดิม)" aria-label="ส่งขออนุมัติผ่าน Flow เดิม">📨</button>
+<span class="fab-label lbl-appr2 fab-sub no-print">ส่งขออนุมัติ (SharePoint ใหม่)</span>
 <button id="fabApproveNew" class="fab fab-appr2 fab-sub no-print" title="ส่งขออนุมัติ (SharePoint ใหม่)" aria-label="ส่งขออนุมัติผ่าน SharePoint ใหม่">✅</button>
+<span class="fab-label lbl-entry fab-sub no-print">เพิ่มรายการ</span>
 <button id="fabAddEntry" class="fab fab-entry fab-sub no-print" title="เพิ่มรายการ" aria-label="เพิ่มรายการ">📝</button>
 <button id="fabAdd" class="fab no-print" title="เมนู" aria-label="เปิด/ปิดเมนูปุ่มลอย" aria-expanded="false">＋</button>
 <div class="toast" id="toast"></div>
