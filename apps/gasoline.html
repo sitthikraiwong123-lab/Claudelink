@@ -161,12 +161,18 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 .rbox.dragging{outline:2px solid var(--red);z-index:5}
 .fab{position:fixed;right:18px;bottom:calc(18px + var(--safe-bot));width:58px;height:58px;border-radius:50%;
   background:var(--red);color:#fff;font-size:32px;line-height:1;border:none;box-shadow:0 6px 20px rgba(0,0,0,.3);
-  z-index:300;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  z-index:300;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;
+  opacity:.82;transition:opacity .15s ease,transform .18s ease}
 .fab:active{transform:scale(.93)}
 .fab.fab-pub{bottom:calc(158px + var(--safe-bot));background:var(--blue);font-size:25px}
 .fab.fab-exp{bottom:calc(88px + var(--safe-bot));background:var(--green);font-size:25px}
 .fab.fab-appr{bottom:calc(228px + var(--safe-bot));background:#7c3aed;font-size:25px}
 .fab.fab-appr2{bottom:calc(298px + var(--safe-bot));background:#0891b2;font-size:25px}
+.fab.fab-entry{bottom:calc(368px + var(--safe-bot));background:var(--red);font-size:25px}
+/* ปุ่มลอยย่อย — ซ่อนไว้หลังปุ่ม ＋ จนกว่าจะเปิดเมนู */
+.fab-sub{opacity:0!important;transform:translateY(14px) scale(.55);pointer-events:none}
+body.fab-menu-open .fab-sub{opacity:.82!important;transform:translateY(0) scale(1);pointer-events:auto}
+#fabAdd.fab-open{transform:rotate(45deg);opacity:.9}
 /* รายการ (เรียบ อ่านง่าย: วันที่ · ประเภท · ยอด) */
 .elist-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-left:4px solid var(--line);
   border-radius:12px;padding:11px 12px;background:var(--white);margin-bottom:9px;cursor:pointer;transition:background .12s}
@@ -416,11 +422,12 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 </div>
 
 <div class="zoom" id="zoom"><img id="zoomImg" alt=""></div>
-<button id="fabSync" class="fab fab-pub no-print" title="ซิงค์ตอนนี้ (ดึง+ส่ง)" aria-label="ซิงค์ตอนนี้">🔄</button>
-<button id="fabExport" class="fab fab-exp no-print" title="ส่งออกพนักงานนี้ขึ้น Google Sheet" aria-label="ส่งออกขึ้น Google Sheet">📤</button>
-<button id="fabApprove" class="fab fab-appr no-print" title="ส่งขออนุมัติ (ผ่าน Flow เดิม)" aria-label="ส่งขออนุมัติผ่าน Flow เดิม">📨</button>
-<button id="fabApproveNew" class="fab fab-appr2 no-print" title="ส่งขออนุมัติ (SharePoint ใหม่)" aria-label="ส่งขออนุมัติผ่าน SharePoint ใหม่">✅</button>
-<button id="fabAdd" class="fab no-print" title="เพิ่มรายการ" aria-label="เพิ่มรายการ">＋</button>
+<button id="fabSync" class="fab fab-pub fab-sub no-print" title="ซิงค์ตอนนี้ (ดึง+ส่ง)" aria-label="ซิงค์ตอนนี้">🔄</button>
+<button id="fabExport" class="fab fab-exp fab-sub no-print" title="ส่งออกพนักงานนี้ขึ้น Google Sheet" aria-label="ส่งออกขึ้น Google Sheet">📤</button>
+<button id="fabApprove" class="fab fab-appr fab-sub no-print" title="ส่งขออนุมัติ (ผ่าน Flow เดิม)" aria-label="ส่งขออนุมัติผ่าน Flow เดิม">📨</button>
+<button id="fabApproveNew" class="fab fab-appr2 fab-sub no-print" title="ส่งขออนุมัติ (SharePoint ใหม่)" aria-label="ส่งขออนุมัติผ่าน SharePoint ใหม่">✅</button>
+<button id="fabAddEntry" class="fab fab-entry fab-sub no-print" title="เพิ่มรายการ" aria-label="เพิ่มรายการ">📝</button>
+<button id="fabAdd" class="fab no-print" title="เมนู" aria-label="เปิด/ปิดเมนูปุ่มลอย" aria-expanded="false">＋</button>
 <div class="toast" id="toast"></div>
 <div id="printRoot"></div>
 
@@ -947,11 +954,18 @@ $('emSave').addEventListener('click',async()=>{
   await saveMonths();$('entryModal').classList.remove('open');render();toast('บันทึกรายการแล้ว');
 });
 $('btnAddEntry').addEventListener('click',()=>openEntry(null));
-$('fabAdd').addEventListener('click',()=>openEntry(null));
-$('fabSync').addEventListener('click',gsSyncNow);
-$('fabExport').addEventListener('click',gsExport);
-$('fabApprove').addEventListener('click',sendToFlow);
-$('fabApproveNew').addEventListener('click',sendToFlowNative);
+// ปุ่ม ＋ ทำหน้าที่เปิด/ปิดเมนูปุ่มลอยที่ซ่อนไว้ (Sync/Export/ขออนุมัติ/เพิ่มรายการ)
+$('fabAdd').addEventListener('click',()=>{
+  const open=document.body.classList.toggle('fab-menu-open');
+  $('fabAdd').classList.toggle('fab-open',open);
+  $('fabAdd').setAttribute('aria-expanded',open?'true':'false');
+});
+function closeFabMenu(){document.body.classList.remove('fab-menu-open');$('fabAdd').classList.remove('fab-open');$('fabAdd').setAttribute('aria-expanded','false');}
+$('fabAddEntry').addEventListener('click',()=>{closeFabMenu();openEntry(null);});
+$('fabSync').addEventListener('click',()=>{closeFabMenu();gsSyncNow();});
+$('fabExport').addEventListener('click',()=>{closeFabMenu();gsExport();});
+$('fabApprove').addEventListener('click',()=>{closeFabMenu();sendToFlow();});
+$('fabApproveNew').addEventListener('click',()=>{closeFabMenu();sendToFlowNative();});
 $('emClose').addEventListener('click',()=>$('entryModal').classList.remove('open'));
 
 /* ---------------- Month management ---------------- */
