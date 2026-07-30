@@ -1165,13 +1165,18 @@ function seed(){
 
 /* ═══════ MONTHS ═══════ */
 function getActiveMonth(){ return state.months.find(m=>m.id===state.activeMonthId); }
+/* เดือนล่าสุด — เทียบจาก id "YYYY-MM" ตรง ๆ ไม่พึ่งลำดับใน array */
+function latestMonthId(){ return (state.months||[]).reduce((a,m)=>(!a||m.id>a)?m.id:a,null); }
+/* true จนกว่าผู้ใช้จะเลือกเดือนเอง — ให้ pull ครั้งแรกตอนเปิดแอป snap ไปเดือนล่าสุดบนชีตได้
+   (เดือนใหม่อาจถูกสร้างจากอีกเครื่อง ยังไม่มีใน localStorage) */
+let _bootMonthSnap=true;
 function recalcBalances(m){ let bal=TOTAL_IN_HAND; m.entries.forEach(en=>{ bal-=(parseFloat(en.amount)||0); en.balance=bal; }); }
 function renderMonthTabs(){
   const c=document.getElementById("monthScroll");
   c.innerHTML = state.months.map(m=>`<button class="month-tab ${m.id===state.activeMonthId?'active':''}" onclick="switchMonth('${m.id}')">${esc(m.label)}</button>`).join("")
     + `<button class="btn-addmonth" onclick="addMonth()">＋ Month</button>`;
 }
-function switchMonth(id){ state.activeMonthId=id; saveState(); renderAll(); }
+function switchMonth(id){ _bootMonthSnap=false; state.activeMonthId=id; saveState(); renderAll(); }
 /* สร้าง header เดือนใหม่โดยดึงค่าจากเดือนก่อนตามกฎ:
    - Balance Fix CA: date = วันที่รายการสุดท้ายเดือนก่อน, เงิน = Cash Balance คงเหลือเดือนก่อน
    - Reimbursement: เงิน = Total Spent เดือนก่อน, date = เว้นว่าง (กรอกเอง)
@@ -2322,7 +2327,8 @@ function renderAll(){ renderMonthTabs(); loadHeader(); updateSummary(); renderTa
 document.addEventListener("DOMContentLoaded",()=>{
   populateCustomers();
   if(!loadState()) seed();
-  if(!state.activeMonthId && state.months.length) state.activeMonthId=state.months[state.months.length-1].id;
+  // เปิดแอปมาให้ active เดือนล่าสุดเสมอ (ไม่จำเดือนที่เลือกค้างไว้จากครั้งก่อน)
+  if(state.months.length) state.activeMonthId=latestMonthId();
   setupTaxUpload(); setupTaxbUpload(); setupV6Upload(); initPasteBoxes();
   renderAll();
 });
@@ -2498,7 +2504,9 @@ async function gsPullAll(showToast){
     const localOnly=(state.months||[]).filter(m=>!serverIds.has(m.id));
     state.months=months.concat(localOnly).sort((a,b)=>a.id<b.id?-1:1);
     if(state.months.length){
-      if(!state.months.find(m=>m.id===state.activeMonthId)) state.activeMonthId=state.months[state.months.length-1].id;
+      // pull แรกตอนเปิดแอป (ผู้ใช้ยังไม่ได้เลือกเดือนเอง) -> snap ไปเดือนล่าสุดที่ได้จากชีต
+      if(_bootMonthSnap){ _bootMonthSnap=false; state.activeMonthId=latestMonthId(); }
+      else if(!state.months.find(m=>m.id===state.activeMonthId)) state.activeMonthId=latestMonthId();
       autoDeriveAllHeaders();                                  // เติม Balance/วันที่/Total Spent จากเดือนก่อนอัตโนมัติ (ไม่แตะ Reimbursement date)
       saveState(); renderAll(); }
     if(_pendingPurgeMonthId){ const mid=_pendingPurgeMonthId; _pendingPurgeMonthId=null; purgeConfirmedLocal(mid); }
