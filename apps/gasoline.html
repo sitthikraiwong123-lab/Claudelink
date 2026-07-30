@@ -166,6 +166,7 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 .fab.fab-pub{bottom:calc(158px + var(--safe-bot));background:var(--blue);font-size:25px}
 .fab.fab-exp{bottom:calc(88px + var(--safe-bot));background:var(--green);font-size:25px}
 .fab.fab-appr{bottom:calc(228px + var(--safe-bot));background:#7c3aed;font-size:25px}
+.fab.fab-appr2{bottom:calc(298px + var(--safe-bot));background:#0891b2;font-size:25px}
 /* รายการ (เรียบ อ่านง่าย: วันที่ · ประเภท · ยอด) */
 .elist-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-left:4px solid var(--line);
   border-radius:12px;padding:11px 12px;background:var(--white);margin-bottom:9px;cursor:pointer;transition:background .12s}
@@ -280,9 +281,10 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
   <section class="card">
     <div class="card-h"><h3>ส่งเข้า Teams / SharePoint (Power Automate)</h3></div>
     <div class="card-b">
-      <div class="hint" style="margin-top:0">ส่ง "เดือนที่เปิดอยู่" ของพนักงานคนนี้ (ข้อมูล + ใบเสร็จ) เข้า Power Automate เพื่อสร้างโฟลเดอร์ตาม Zone/เดือน แล้วโพสต์การ์ดแจ้งเข้า Teams · ส่งทางเดียว</div>
-      <button class="btn btn-blue btn-sm" id="btnSendFlow" style="margin-top:11px">📨 ส่งเข้า Teams/SharePoint</button>
-      <div class="hint" id="flowHint" style="margin-top:8px">ใส่ลิงก์ Power Automate (HTTP trigger URL) ได้ในปุ่ม ⚙︎ ตั้งค่า</div>
+      <div class="hint" style="margin-top:0">ส่ง PDF ของ "เดือนที่เปิดอยู่" เข้า SharePoint โฟลเดอร์ของพนักงานคนนี้ (สร้างโฟลเดอร์ตามรหัส/ชื่อ/ปีให้อัตโนมัติ) แล้วเปิดโฟลเดอร์ให้กดขออนุมัติต่อเอง · ส่งทางเดียว</div>
+      <button class="btn btn-blue btn-sm" id="btnSendFlow" style="margin-top:11px">📨 ส่งขออนุมัติ (ผ่าน Flow เดิม)</button>
+      <button class="btn btn-out btn-sm" id="btnSendFlowNative" style="margin-top:8px">✅ ส่งขออนุมัติ (SharePoint ใหม่)</button>
+      <div class="hint" id="flowHint" style="margin-top:8px">ใส่ลิงก์ Power Automate (HTTP trigger URL) ได้ในปุ่ม ⚙︎ ตั้งค่า · ปุ่มแรกใช้ฟลว์ "Request approval" เดิม (คัดลอกข้อความ Message ให้) · ปุ่มที่สองใช้ฟีเจอร์ Request approval ของ SharePoint เอง (คัดลอกอีเมลผู้อนุมัติให้)</div>
     </div>
   </section>
 
@@ -416,7 +418,8 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 <div class="zoom" id="zoom"><img id="zoomImg" alt=""></div>
 <button id="fabSync" class="fab fab-pub no-print" title="ซิงค์ตอนนี้ (ดึง+ส่ง)" aria-label="ซิงค์ตอนนี้">🔄</button>
 <button id="fabExport" class="fab fab-exp no-print" title="ส่งออกพนักงานนี้ขึ้น Google Sheet" aria-label="ส่งออกขึ้น Google Sheet">📤</button>
-<button id="fabApprove" class="fab fab-appr no-print" title="ส่งขออนุมัติ (Teams/SharePoint)" aria-label="ส่งขออนุมัติ">📨</button>
+<button id="fabApprove" class="fab fab-appr no-print" title="ส่งขออนุมัติ (ผ่าน Flow เดิม)" aria-label="ส่งขออนุมัติผ่าน Flow เดิม">📨</button>
+<button id="fabApproveNew" class="fab fab-appr2 no-print" title="ส่งขออนุมัติ (SharePoint ใหม่)" aria-label="ส่งขออนุมัติผ่าน SharePoint ใหม่">✅</button>
 <button id="fabAdd" class="fab no-print" title="เพิ่มรายการ" aria-label="เพิ่มรายการ">＋</button>
 <div class="toast" id="toast"></div>
 <div id="printRoot"></div>
@@ -948,6 +951,7 @@ $('fabAdd').addEventListener('click',()=>openEntry(null));
 $('fabSync').addEventListener('click',gsSyncNow);
 $('fabExport').addEventListener('click',gsExport);
 $('fabApprove').addEventListener('click',sendToFlow);
+$('fabApproveNew').addEventListener('click',sendToFlowNative);
 $('emClose').addEventListener('click',()=>$('entryModal').classList.remove('open'));
 
 /* ---------------- Month management ---------------- */
@@ -1441,25 +1445,46 @@ function sharepointFolderUrl(code,name,year){
   const idPath='/sites/ThailandHub/Engineers Reimbursements/Petty cash/'+code+' - '+name+'/'+year;
   return 'https://schmollgroup.sharepoint.com/sites/ThailandHub/Engineers%20Reimbursements/Forms/AllItems.aspx?id='+encodeURIComponent(idPath);
 }
-async function sendToFlow(){
+async function copyClipboard(text){try{if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(text);}catch(_){}}
+// อัปโหลด PDF เข้า Power Automate (Gasoline Claim Intake) — ใช้ร่วมกันทั้ง 2 ปุ่มขออนุมัติ คืน payload หรือ null ถ้ายังไม่ตั้งลิงก์
+async function uploadClaimPdf(){
   const url=(profile.flowUrl||gset.flowUrl||'').trim();
-  if(!url||url.indexOf('http')!==0){toast('⚠️ ใส่ลิงก์ Power Automate ในตั้งค่า (⚙︎) ก่อน');openProfile();return;}
+  if(!url||url.indexOf('http')!==0){toast('⚠️ ใส่ลิงก์ Power Automate ในตั้งค่า (⚙︎) ก่อน');openProfile();return null;}
+  const payload=await buildFlowPayload();
+  await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  return payload;
+}
+// แบบเดิม — ผ่านฟลว์ Power Automate "Request approval" (Sathit): คลิกขวาไฟล์ → Integrate → Flows → Request approval → วาง Message → Run flow
+async function sendToFlow(){
   const btn=$('btnSendFlow');const orig=btn.textContent;btn.disabled=true;btn.textContent='⏳ กำลังสร้าง PDF…';
   toast('กำลังสร้าง PDF และส่งเข้า Teams/SharePoint…');
   try{
-    const payload=await buildFlowPayload();
-    await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    const payload=await uploadClaimPdf();
+    if(!payload)return;
     // คัดลอกข้อความขออนุมัติใส่คลิปบอร์ด — ไปวาง (Ctrl+V) ในช่อง Message ตอนกด Request approval บน SharePoint ได้ทันที
-    const approveMsg='Cloud you please approve '+payload.title;
-    try{if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(approveMsg);}catch(_){}
+    await copyClipboard('Cloud you please approve '+payload.title);
     // เปิดโฟลเดอร์ปลายทางในแท็บใหม่ทันที — เดี๋ยวเห็นไฟล์ (Flow ใช้เวลาสร้างไม่กี่วินาที) → คลิกขวา → Request approval → Ctrl+V → Run flow
-    const folderUrl=sharepointFolderUrl(payload.employee.code,payload.employee.name,payload.month.year);
-    window.open(folderUrl,'_blank');
-    toast('✓ ส่งเข้า Power Automate แล้ว · ไฟล์ "'+payload.fileName+'" · เปิดโฟลเดอร์ SharePoint ให้แล้ว (รอสักครู่ให้ไฟล์ขึ้น) · คัดลอกข้อความขออนุมัติไว้ในคลิปบอร์ดแล้ว');
+    window.open(sharepointFolderUrl(payload.employee.code,payload.employee.name,payload.month.year),'_blank');
+    toast('✓ ส่งไฟล์แล้ว · "'+payload.fileName+'" · เปิดโฟลเดอร์ SharePoint ให้แล้ว (รอสักครู่ให้ไฟล์ขึ้น) · คัดลอกข้อความขออนุมัติไว้ในคลิปบอร์ดแล้ว (Ctrl+V ตอนกด Integrate → Flows → Request approval)');
   }catch(err){console.error(err);toast('⚠️ ส่งไม่สำเร็จ: '+(err.message||err));}
   finally{btn.disabled=false;btn.textContent=orig;}
 }
+// แบบใหม่ — ผ่านฟีเจอร์ Request approval ในตัว SharePoint เอง: คลิกไฟล์ → กด Request approval → วางอีเมลผู้อนุมัติ → Submit
+async function sendToFlowNative(){
+  const btn=$('btnSendFlowNative');const orig=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='⏳ กำลังสร้าง PDF…';}
+  toast('กำลังสร้าง PDF และส่งเข้า SharePoint…');
+  try{
+    const payload=await uploadClaimPdf();
+    if(!payload)return;
+    // คัดลอกอีเมลผู้อนุมัติใส่คลิปบอร์ด — ไปวาง (Ctrl+V) ในช่อง Approver(s) ตอนกด Request approval แบบ native ของ SharePoint
+    await copyClipboard(payload.employee.approveEmail||'');
+    window.open(sharepointFolderUrl(payload.employee.code,payload.employee.name,payload.month.year),'_blank');
+    toast('✓ ส่งไฟล์แล้ว · "'+payload.fileName+'" · เปิดโฟลเดอร์ SharePoint ให้แล้ว (รอสักครู่ให้ไฟล์ขึ้น) · คัดลอกอีเมลผู้อนุมัติไว้ในคลิปบอร์ดแล้ว (เลือกไฟล์ → กด Request approval → Ctrl+V ในช่อง Approver(s) → Submit)');
+  }catch(err){console.error(err);toast('⚠️ ส่งไม่สำเร็จ: '+(err.message||err));}
+  finally{if(btn){btn.disabled=false;btn.textContent=orig;}}
+}
 $('btnSendFlow').addEventListener('click',sendToFlow);
+$('btnSendFlowNative').addEventListener('click',sendToFlowNative);
 
 /* ---------------- Cloud sync (two-way, auto · last-write-wins per employee) ---------------- */
 function gsReady(){return (profile.exportUrl||'').indexOf('http')===0;}
