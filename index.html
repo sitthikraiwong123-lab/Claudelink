@@ -625,7 +625,7 @@ function activateEmp(id){
   if(profile.fix==null)profile.fix=10000;
   profile.totalAmount=Number(profile.fix)||0; profile.totalDate=profile.totalDate||'';
   months=e.months||{}; monthOrder=e.order||[];
-  cur=months[e.curMonth]||months[monthOrder[monthOrder.length-1]]||null;
+  cur=months[e.curMonth]||months[latestMonthId()]||null;
 }
 function saveDB(){ syncActiveBack(); const r=kvSet('db',{v:2,employees,activeEmpId,gset}); if(_ready&&gsReady())scheduleSyncPush(); return r; }
 // legacy save points → all route to the single DB record
@@ -650,6 +650,12 @@ function monthKey(m){
   let yr=(lbl.match(/\d{4}/)||[])[0]; if(!yr){const y2=lbl.match(/\d{2}/);yr=y2?('20'+y2[0]):'2026';}
   if(mm)return yr+'-'+String(MM3.indexOf(mm[1].toLowerCase())+1).padStart(2,'0');
   return '9999-99';
+}
+// หา id เดือนที่ล่าสุดตามปฏิทินจริง (เทียบ monthKey "YYYY-MM") — ใช้เป็นเดือน default แทนเดือนที่ถูกเพิ่มเข้าลิสต์ล่าสุด
+function latestMonthId(){
+  let best=null,bestK='';
+  monthOrder.forEach(id=>{const m=months[id];if(!m)return;const k=monthKey(m);if(k>bestK){bestK=k;best=id;}});
+  return best;
 }
 function chronPrevMonth(m){
   const k=monthKey(m); let best=null,bestK='';
@@ -730,7 +736,7 @@ async function load(){
     profile.excelSeeded=true;migrated=true;await saveProfile();
   }
   if(migrated)await kvSet('months',{byId:months,order:monthOrder});
-  cur=months[cm]||months[monthOrder[monthOrder.length-1]];
+  cur=months[cm]||months[latestMonthId()];
   if(seededMayId)cur=months[seededMayId];
   // ห่อข้อมูลเดิมทั้งหมดเป็น "พนักงานคนแรก" แล้วเก็บเป็น db รูปแบบใหม่
   gset={}; GSET_FIELDS.forEach(f=>gset[f]=profile[f]);
