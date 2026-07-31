@@ -966,43 +966,35 @@ function rteHideToolbar(){
   document.getElementById("rteToolbar").classList.remove("show");
   document.getElementById("rteColors").classList.remove("show");
 }
-/* มือถือ (pointer หยาบ): ใช้ docked bar ที่โผล่ตอนโฟกัสช่องแทน floating popup —
-   selection popup บนมือถือชนกับ native callout (Copy/Paste) และ fixed position เพี้ยนตอนคีย์บอร์ดเปิด */
+/* มือถือ (pointer หยาบ): วาง bar แบบ dock ใต้ช่องแทน floating popup —
+   popup ลอยบนมือถือชนกับ native callout (Copy/Paste) และ fixed position เพี้ยนตอนคีย์บอร์ดเปิด */
 const RTE_TOUCH=window.matchMedia && matchMedia("(pointer: coarse)").matches;
 function rteDock(field){
   const tb=document.getElementById("rteToolbar");
-  field.parentNode.insertBefore(tb,field.nextSibling);
-  tb.classList.remove("below"); tb.style.left=""; tb.style.top="";
-  tb.classList.add("docked","show");
+  if(tb.previousSibling!==field){                      // ย้าย DOM เฉพาะตอนยังไม่ได้อยู่ใต้ช่องนี้ (selectionchange ยิงถี่)
+    field.parentNode.insertBefore(tb,field.nextSibling);
+    tb.classList.remove("below"); tb.style.left=""; tb.style.top="";
+    tb.classList.add("docked");
+  }
+  tb.classList.add("show");
 }
 function rteUndock(){
   const tb=document.getElementById("rteToolbar"), colors=document.getElementById("rteColors");
   tb.classList.remove("docked","show"); colors.classList.remove("docked","show");
   document.body.appendChild(tb); document.body.appendChild(colors);
 }
-document.addEventListener("focusin",e=>{
-  if(!RTE_TOUCH) return;
-  const f=e.target.closest && e.target.closest(".rich-field");
-  if(f){ rteTarget=f; rteDock(f); }
-});
-document.addEventListener("focusout",e=>{
-  if(!RTE_TOUCH) return;
-  if(e.target.closest && e.target.closest(".rich-field")){
-    setTimeout(()=>{ const ae=document.activeElement;
-      if(!ae || !ae.closest || (!ae.closest(".rich-field") && !ae.closest("#rteColors"))) rteUndock(); },80);
-  }
-});
+/* toolbar โผล่เมื่อ "มีการเลือก (ลากคลุม) ตัวอักษร" ในช่องเท่านั้น — ทั้งมือถือและเดสก์ท็อป
+   ต่างกันแค่วิธีวาง: มือถือ dock ใต้ช่อง (กัน native callout ทับ + คีย์บอร์ดดันตำแหน่ง), เดสก์ท็อปลอยเหนือ selection */
 function rteOnSelectionChange(){
-  if(RTE_TOUCH) return;                       // มือถือใช้ docked bar — ไม่ต้อง float ตาม selection
-  // debounce กันกระพริบระหว่างลากเลือก
-  clearTimeout(_rteSelTimer);
+  clearTimeout(_rteSelTimer);                 // debounce กันกระพริบระหว่างลากเลือก
   _rteSelTimer=setTimeout(()=>{
     const sel=window.getSelection();
-    if(!sel || sel.isCollapsed || !sel.rangeCount){ rteHideToolbar(); return; }
+    if(!sel || sel.isCollapsed || !sel.rangeCount){ RTE_TOUCH?rteUndock():rteHideToolbar(); return; }
     const node=sel.anchorNode; const el=node && (node.nodeType===1?node:node.parentElement);
     const field=el && el.closest && el.closest(".rich-field");
-    if(!field){ rteHideToolbar(); return; }
-    rteTarget=field; rtePositionToolbar();
+    if(!field){ RTE_TOUCH?rteUndock():rteHideToolbar(); return; }
+    rteTarget=field;
+    RTE_TOUCH?rteDock(field):rtePositionToolbar();
   },120);
 }
 document.addEventListener("selectionchange",rteOnSelectionChange);
