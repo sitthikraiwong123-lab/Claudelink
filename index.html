@@ -221,9 +221,8 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 /* receipt pages — free arrangement */
 .rpage{position:relative;width:210mm;height:297mm;background:#fff;margin:14px auto 0;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden}
 .rpage.rp-edit{outline:1.5px dashed #c2c7cf}
-.rbox{position:absolute;box-sizing:border-box;max-width:100%;max-height:100%}
-.rbox img{width:100%;height:auto;max-height:100%;display:block;object-fit:contain}
-.rbox.fit-warning{outline:2px solid var(--amber)}
+.rbox{position:absolute;box-sizing:border-box}
+.rbox img{width:100%;height:auto;display:block}
 .rbox .rbar{position:absolute;left:0;top:0;right:0;height:18px;background:rgba(216,31,42,.92);color:#fff;font-size:10px;font-weight:800;
   display:flex;align-items:center;padding:0 6px;cursor:grab;touch-action:none;user-select:none}
 .rbox .rhandle{position:absolute;right:2px;bottom:2px;width:20px;height:20px;border-radius:5px;background:var(--red);border:2px solid #fff;
@@ -437,22 +436,25 @@ input:hover,select:hover,textarea:hover{border-color:#bec8d6}
 /* ===== Large touch target for receipt resize on mobile ===== */
 .rbox .rhandle{
   right:-8px;bottom:-8px;width:48px;height:48px;border-radius:15px;
-  background:rgba(200,30,42,.94);border:3px solid #fff;
-  box-shadow:0 7px 20px rgba(15,23,42,.34),0 0 0 6px rgba(200,30,42,.16);
+  background:rgba(200,30,42,.30);border:2px solid rgba(255,255,255,.58);
+  box-shadow:0 4px 12px rgba(15,23,42,.14),0 0 0 4px rgba(200,30,42,.07);
+  opacity:.42;
   cursor:nwse-resize;touch-action:none;display:flex;align-items:center;justify-content:center;
   z-index:8;user-select:none;-webkit-user-select:none;
+  transition:opacity .16s ease,transform .16s ease,background .16s ease,box-shadow .16s ease;
 }
 .rbox .rhandle::before{
-  content:'';width:18px;height:18px;border-right:3px solid #fff;border-bottom:3px solid #fff;
-  border-radius:0 0 4px 0;transform:translate(-1px,-1px);opacity:.96;
+  content:'';width:18px;height:18px;border-right:3px solid rgba(255,255,255,.76);border-bottom:3px solid rgba(255,255,255,.76);
+  border-radius:0 0 4px 0;transform:translate(-1px,-1px);opacity:.72;
 }
 .rbox .rhandle::after{
   content:'';position:absolute;inset:-10px;border-radius:22px;
 }
-.rbox .rhandle:active{transform:scale(1.08);background:#991b1b;box-shadow:0 9px 24px rgba(15,23,42,.42),0 0 0 9px rgba(200,30,42,.20)}
-.rbox.dragging .rhandle{box-shadow:0 9px 24px rgba(15,23,42,.42),0 0 0 9px rgba(200,30,42,.22)}
+.rbox .rhandle:hover,.rbox .rhandle:focus-visible{opacity:.68;background:rgba(200,30,42,.52)}
+.rbox .rhandle:active{opacity:.90;transform:scale(1.06);background:rgba(153,27,27,.78);box-shadow:0 7px 18px rgba(15,23,42,.26),0 0 0 6px rgba(200,30,42,.12)}
+.rbox.dragging .rhandle{opacity:.78;box-shadow:0 7px 18px rgba(15,23,42,.24),0 0 0 6px rgba(200,30,42,.12)}
 @media(max-width:540px), (pointer:coarse){
-  .rbox .rhandle{right:-12px;bottom:-12px;width:58px;height:58px;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.38),0 0 0 8px rgba(200,30,42,.18)}
+  .rbox .rhandle{right:-12px;bottom:-12px;width:58px;height:58px;border-radius:18px;opacity:.34;box-shadow:0 4px 12px rgba(15,23,42,.12),0 0 0 5px rgba(200,30,42,.06)}
   .rbox .rhandle::before{width:21px;height:21px;border-right-width:4px;border-bottom-width:4px}
   .rbox .rhandle::after{inset:-12px}
 }
@@ -2048,79 +2050,20 @@ async function receiptItems(m){
   }
   return items;
 }
-function receiptAspect_(r){
-  const w=Number(r&&r.w)||1,h=Number(r&&r.h)||1;
-  return h/w;
-}
-function receiptWidthForHeight_(r,heightPercent){
-  // A4 page ratio: width 210, height 297. Convert allowed page-height % to page-width %.
-  const aspect=receiptAspect_(r);
-  return aspect>0?(Number(heightPercent)||0)*(297/210)/aspect:0;
-}
-function receiptHeightPercent_(r,widthPercent){
-  return (Number(widthPercent)||0)*receiptAspect_(r)*(210/297);
-}
-function normaliseReceiptLay_(r,lay){
-  const L=lay&&typeof lay==='object'?lay:{};
-  let pg=Math.max(0,Math.floor(Number(L.pg)||0));
-  let x=Number(L.x),y=Number(L.y),w=Number(L.w);
-  if(!Number.isFinite(x))x=5;
-  if(!Number.isFinite(y))y=5;
-  if(!Number.isFinite(w)||w<=0)w=receiptAspect_(r)>=1?60:90;
-
-  const margin=2;
-  x=Math.max(margin,Math.min(98-margin,x));
-  y=Math.max(margin,Math.min(98-margin,y));
-
-  // Never allow the width or calculated image height to extend outside the A4 page.
-  const maxByRight=Math.max(8,100-margin-x);
-  const maxByBottom=Math.max(8,receiptWidthForHeight_(r,100-margin-y));
-  const maxW=Math.max(8,Math.min(maxByRight,maxByBottom,96));
-  w=Math.max(8,Math.min(w,maxW));
-
-  // If an old layout starts too low, shift it upward before shrinking further.
-  let h=receiptHeightPercent_(r,w);
-  if(y+h>100-margin)y=Math.max(margin,100-margin-h);
-  if(x+w>100-margin)x=Math.max(margin,100-margin-w);
-  return {pg,x,y,w};
-}
-async function persistReceiptLay_(r){
-  r.lay=normaliseReceiptLay_(r,r.lay);
-  await rcptPut(r);
-  cur.rlay=cur.rlay||{};
-  cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};
-  await saveMonths();
-}
 async function ensureLay(items,m){
   const rlay=(m&&m.rlay)||{};
-  let nextPg=0,dirty=false;
-  for(const it of items){
-    const r=it.r,sv=rlay[r.id];
-    if(sv&&typeof sv.pg==='number')r.lay={pg:sv.pg,x:sv.x,y:sv.y,w:sv.w};
-    if(!r.lay){
-      const portrait=receiptAspect_(r)>=1;
-      const x=portrait?20:5,y=portrait?4:10;
-      let w=portrait?60:90;
-      w=Math.min(w,receiptWidthForHeight_(r,94-y));
-      r.lay={pg:nextPg,x,y,w};
-      dirty=true;
-    }
-    const before=JSON.stringify(r.lay);
-    r.lay=normaliseReceiptLay_(r,r.lay);
-    if(before!==JSON.stringify(r.lay))dirty=true;
-    nextPg=Math.max(nextPg,r.lay.pg+1);
-    await rcptPut(r);
+  items.forEach(it=>{const sv=rlay[it.r.id];if(sv&&typeof sv.pg==='number')it.r.lay={pg:sv.pg,x:sv.x,y:sv.y,w:sv.w};}); // ใช้ตำแหน่งที่ sync มาเป็นหลัก
+  let nextPg=0;const changed=[];
+  items.forEach(it=>{if(it.r.lay&&typeof it.r.lay.pg==='number')nextPg=Math.max(nextPg,it.r.lay.pg+1);});
+  for(const it of items){                                  // ของใหม่ที่ยังไม่จัด → ไล่หน้าตามลำดับบิล
+    if(!it.r.lay){const r=it.r;const portrait=(r.h||1)>=(r.w||1);
+      r.lay={pg:nextPg,x:portrait?20:5,y:portrait?5:16,w:portrait?60:90};nextPg++;changed.push(r);}
   }
-  if(m){
-    m.rlay=m.rlay||{};
-    items.forEach(it=>{
-      const L=it.r.lay,ex=m.rlay[it.r.id];
-      if(!ex||ex.pg!==L.pg||ex.x!==L.x||ex.y!==L.y||ex.w!==L.w){
-        m.rlay[it.r.id]={pg:L.pg,x:L.x,y:L.y,w:L.w};dirty=true;
-      }
-    });
-    if(dirty)await saveMonths();
-  }
+  for(const r of changed)await rcptPut(r);
+  if(m){m.rlay=m.rlay||{};let dirty=false;                 // บันทึกตำแหน่งลง DB เดือน เพื่อ sync
+    items.forEach(it=>{const L=it.r.lay,ex=m.rlay[it.r.id];
+      if(!ex||ex.pg!==L.pg||ex.x!==L.x||ex.y!==L.y||ex.w!==L.w){m.rlay[it.r.id]={pg:L.pg,x:L.x,y:L.y,w:L.w};dirty=true;}});
+    if(dirty)await saveMonths();}
 }
 function pageCountOf(items,m){
   let mp=0;items.forEach(it=>{mp=Math.max(mp,(it.r.lay?it.r.lay.pg:0)+1);});
@@ -2141,20 +2084,11 @@ async function buildReceiptPages(m,interactive){
   }
   return nodes;
 }
-function applyReceiptBoxStyle_(box,r){
-  r.lay=normaliseReceiptLay_(r,r.lay);
-  box.style.left=r.lay.x+'%';
-  box.style.top=r.lay.y+'%';
-  box.style.width=r.lay.w+'%';
-}
 function makeRBox(it,interactive){
   const r=it.r;const url=makeUrl(r.blob);
-  r.lay=normaliseReceiptLay_(r,r.lay);
   const box=document.createElement('div');box.className='rbox';box.dataset.id=r.id;
-  applyReceiptBoxStyle_(box,r);
-  box.innerHTML=`<img draggable="false" src="${url}">`+(interactive?`<div class="rbar">ลาก #${it.entryNo}</div><div class="rhandle" role="button" aria-label="ย่อหรือขยายรูปใบเสร็จ" title="ลากเพื่อย่อหรือขยายรูป"></div>`:'');
-  const img=box.querySelector('img');
-  img.addEventListener('load',()=>{r.lay=normaliseReceiptLay_(r,r.lay);applyReceiptBoxStyle_(box,r);},{once:true});
+  box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';box.style.width=r.lay.w+'%';
+  box.innerHTML=`<img draggable="false" src="${url}">`+(interactive?`<div class="rbar">⠿ #${it.entryNo}</div><div class="rhandle" role="button" aria-label="ย่อหรือขยายรูปใบเสร็จ" title="ลากเพื่อย่อหรือขยายรูป"></div>`:'');
   if(interactive)enableRBox(box,r);
   return box;
 }
@@ -2162,44 +2096,43 @@ function enableRBox(box,r){
   const bar=box.querySelector('.rbar'),handle=box.querySelector('.rhandle');
   let mv=null;
   bar.addEventListener('pointerdown',e=>{e.preventDefault();bar.setPointerCapture(e.pointerId);
-    mv={px:e.clientX,py:e.clientY,x:r.lay.x,y:r.lay.y,page:box.parentElement};box.classList.add('dragging');});
+    // Lock the receipt width while moving. Re-parenting a percentage-sized box on mobile
+    // can otherwise recalculate its width against the destination page and make it shrink.
+    mv={px:e.clientX,py:e.clientY,x:r.lay.x,y:r.lay.y,w:r.lay.w,
+      renderedW:box.getBoundingClientRect().width,page:box.parentElement};
+    box.style.width=mv.w+'%';box.classList.add('dragging');});
   bar.addEventListener('pointermove',e=>{if(!mv)return;e.preventDefault();
     const rc=mv.page.getBoundingClientRect();
     let nx=mv.x+((e.clientX-mv.px)/rc.width*100),ny=mv.y+((e.clientY-mv.py)/rc.height*100);
-    r.lay=normaliseReceiptLay_(r,{pg:r.lay.pg,x:nx,y:ny,w:r.lay.w});
-    applyReceiptBoxStyle_(box,r);
-  });
+    nx=Math.max(0,Math.min(96,nx));ny=Math.max(0,Math.min(98,ny));
+    r.lay.x=nx;r.lay.y=ny;box.style.left=nx+'%';box.style.top=ny+'%';});
   bar.addEventListener('pointerup',async e=>{if(!mv)return;box.classList.remove('dragging');
     try{bar.releasePointerCapture(e.pointerId);}catch(_){}
     const under=document.elementFromPoint(e.clientX,e.clientY);
     const tgt=under&&under.closest?under.closest('.rpage'):null;
-    if(tgt&&tgt!==mv.page){
-      const rc=tgt.getBoundingClientRect();
-      const pg=parseInt(tgt.dataset.pg,10)||0;
-      const nx=((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2);
-      const ny=((e.clientY-rc.top)/rc.height*100)-2;
-      r.lay=normaliseReceiptLay_(r,{pg,x:nx,y:ny,w:r.lay.w});
+    if(tgt&&tgt!==mv.page){const rc=tgt.getBoundingClientRect();
+      r.lay.pg=parseInt(tgt.dataset.pg);
+      // Preserve the original percentage width exactly when moving between A4 pages.
+      // This prevents a mobile browser reflow from writing back a smaller width.
+      r.lay.w=mv.w;
+      r.lay.x=Math.max(0,Math.min(100-r.lay.w,((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2)));
+      r.lay.y=Math.max(0,Math.min(98,((e.clientY-rc.top)/rc.height*100)-2));
       const ph=tgt.querySelector('.rpage-empty');if(ph)ph.remove();
-      tgt.appendChild(box);applyReceiptBoxStyle_(box,r);
+      tgt.appendChild(box);
+      box.style.width=r.lay.w+'%';box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';
       if(mv.page&&!mv.page.querySelector('.rbox')&&mv.page.classList.contains('rp-edit')){
         const e2=document.createElement('div');e2.className='rpage-empty';e2.textContent='ลากใบเสร็จมาวางที่นี่';mv.page.appendChild(e2);}
     }
-    mv=null;await persistReceiptLay_(r);
-  });
-
+    // Moving must never resize the receipt; resizing is handled only by .rhandle.
+    r.lay.w=mv.w;box.style.width=r.lay.w+'%';
+    mv=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
   let rz=null;
   handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture(e.pointerId);
     rz={px:e.clientX,w:r.lay.w,page:box.parentElement};box.classList.add('dragging');});
   handle.addEventListener('pointermove',e=>{if(!rz)return;e.preventDefault();
-    const rc=rz.page.getBoundingClientRect();
-    const requested=rz.w+((e.clientX-rz.px)/rc.width*100);
-    r.lay=normaliseReceiptLay_(r,{pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:requested});
-    applyReceiptBoxStyle_(box,r);
-  });
-  handle.addEventListener('pointerup',async e=>{if(!rz)return;
-    try{handle.releasePointerCapture(e.pointerId);}catch(_){}
-    box.classList.remove('dragging');rz=null;await persistReceiptLay_(r);
-  });
+    const rc=rz.page.getBoundingClientRect();let nw=rz.w+((e.clientX-rz.px)/rc.width*100);
+    nw=Math.max(12,Math.min(100-r.lay.x,nw));r.lay.w=nw;box.style.width=nw+'%';});
+  handle.addEventListener('pointerup',async e=>{if(!rz)return;try{handle.releasePointerCapture(e.pointerId);}catch(_){}box.classList.remove('dragging');rz=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
 }
 
 /* ---------------- Preview & Export ---------------- */
