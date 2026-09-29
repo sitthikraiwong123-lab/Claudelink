@@ -221,8 +221,9 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 /* receipt pages — free arrangement */
 .rpage{position:relative;width:210mm;height:297mm;background:#fff;margin:14px auto 0;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden}
 .rpage.rp-edit{outline:1.5px dashed #c2c7cf}
-.rbox{position:absolute;box-sizing:border-box}
-.rbox img{width:100%;height:auto;display:block}
+.rbox{position:absolute;box-sizing:border-box;max-width:100%;max-height:100%}
+.rbox img{width:100%;height:auto;max-height:100%;display:block;object-fit:contain}
+.rbox.fit-warning{outline:2px solid var(--amber)}
 .rbox .rbar{position:absolute;left:0;top:0;right:0;height:18px;background:rgba(216,31,42,.92);color:#fff;font-size:10px;font-weight:800;
   display:flex;align-items:center;padding:0 6px;cursor:grab;touch-action:none;user-select:none}
 .rbox .rhandle{position:absolute;right:2px;bottom:2px;width:20px;height:20px;border-radius:5px;background:var(--red);border:2px solid #fff;
@@ -729,7 +730,7 @@ table.led tr.after-total-row-2 td{
       <datalist id="descList"><option value="Gasoline"><option value="Easy pass"><option value="adjust coin"></datalist>
     </div></div>
     <div class="row two">
-      <div><label>Ref. Inv (เลขท้าย)</label><input id="emRef" placeholder="0035"></div>
+      <div><label>Ref. Inv (เลขท้าย)</label><input id="emRef" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="0035"></div>
       <div><label>Amount</label><input id="emAmt" type="number" inputmode="decimal" placeholder="0.00"></div>
     </div>
     <div class="row two">
@@ -1472,12 +1473,15 @@ async function load(){
 /* ---------------- Running balance ---------------- */
 function totalInHand(m){const h=(m&&m.head)?m.head:{};if(h.totalAmount!=null&&h.totalAmount!=='')return Number(h.totalAmount)||0;return Number(profile.fix)||Number(profile.totalAmount)||0;}
 function startBalance(m){return totalInHand(m);}
-function entryBalances(m){let b=startBalance(m);return m.entries.map(e=>{b-=Number(e.amount)||0;return b;});}
-function totalSpent(m){return m.entries.reduce((s,e)=>s+(Number(e.amount)||0),0);}
+function activeEntries(entries){
+  return (Array.isArray(entries)?entries:[]).filter(e=>!(Number(e&&e.deletedAt)>0));
+}
+function entryBalances(m){let b=startBalance(m);return activeEntries(m&&m.entries).map(e=>{b-=Number(e.amount)||0;return b;});}
+function totalSpent(m){return activeEntries(m&&m.entries).reduce((s,e)=>s+(Number(e.amount)||0),0);}
 function prevMonthOf(m){const i=monthOrder.indexOf(m.id);return i>0?months[monthOrder[i-1]]:null;}
 // earliest entry date of the cycle — used as the Total in Hand / document start date
 function firstEntryDate(m){
-  const ds=(m.entries||[]).map(e=>e.date).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d));
+  const ds=activeEntries(m&&m.entries).map(e=>e.date).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d));
   if(!ds.length)return '';
   ds.sort();return ds[0];
 }
@@ -1490,7 +1494,7 @@ function summaryLines(m){
   let balDate,balAmount,reimbAmount;
   if(prev){                                   // มีเดือนก่อนหน้า → คำนวณสด
     balAmount=totalInHand(prev)-totalSpent(prev);
-    const pe=prev.entries||[]; balDate=pe.length?pe[pe.length-1].date:'';
+    const pe=activeEntries(prev.entries); balDate=pe.length?pe[pe.length-1].date:'';
     reimbAmount=(h.reimbAmount!=null&&h.reimbAmount!=='')?Number(h.reimbAmount):totalSpent(prev);
   }else{                                       // เดือนแรกสุด → ใช้ค่าที่เก็บไว้ (seed/กรอกเอง)
     balDate=h.balDate||''; balAmount=Number(h.balAmount)||0; reimbAmount=Number(h.reimbAmount)||0;
@@ -1563,8 +1567,9 @@ function renderSummary(){
 }
 async function renderEntries(){
   const list=$('entryList');list.innerHTML='';
-  if(!cur.entries.length){list.innerHTML='<div class="empty">ยังไม่มีรายการ — กด “เพิ่มรายการ”</div>';}
-  cur.entries.forEach((e,idx)=>{
+  const entries=activeEntries(cur&&cur.entries);
+  if(!entries.length){list.innerHTML='<div class="empty">ยังไม่มีรายการ — กด “เพิ่มรายการ”</div>';}
+  entries.forEach((e,idx)=>{
     const has=e.receiptIds&&e.receiptIds.length;
     const vend=(e.vendor||'').trim();
     const div=document.createElement('div');
@@ -1734,6 +1739,10 @@ $('pSave').addEventListener('click',async()=>{
   await saveProfile();await saveMonths();$('profileModal').classList.remove('open');render();toast('บันทึกการตั้งค่าแล้ว');
 });
 
+function normalizeReceiptSuffix_(value){
+  const digits=String(value==null?'':value).replace(/\D/g,'').slice(0,4);
+  return digits?digits.padStart(4,'0'):'';
+}
 /* ---------------- Entry modal ---------------- */
 function openEntry(id){
   editingEntryId=id;
@@ -1744,7 +1753,7 @@ function openEntry(id){
     $('emTitle').textContent='เพิ่มรายการ';$('emDelete').style.display='none';}
   _emDraft=JSON.parse(JSON.stringify(e));_emDraft.receiptIds=_emDraft.receiptIds||[];
   $('emDate').value=e.date||'';$('emDoc').value=e.docNo||profile.docNo;$('emDesc').value=e.desc||'';
-  $('emRef').value=e.refInv||'';$('emCust').value=e.customer||'';
+  $('emRef').value=normalizeReceiptSuffix_(e.refInv);$('emCust').value=e.customer||'';
   $('emVendor').value=e.vendor||'';$('emAmt').value=e.amount||'';
   renderEmStrip();
   $('entryModal').classList.add('open');
@@ -1839,19 +1848,37 @@ async function storeReceipt(blob,name,w,h){
 function imgDims(blobOrFile){return new Promise((res,rej)=>{const u=URL.createObjectURL(blobOrFile);const im=new Image();
   im.onload=()=>{res({w:im.naturalWidth,h:im.naturalHeight});URL.revokeObjectURL(u);};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('image'));};im.src=u;});}
 
+$('emRef').addEventListener('input',function(){
+  const clean=String(this.value||'').replace(/\D/g,'').slice(0,4);
+  if(this.value!==clean)this.value=clean;
+});
+$('emRef').addEventListener('blur',function(){this.value=normalizeReceiptSuffix_(this.value);});
 $('emCancel').addEventListener('click',()=>{$('entryModal').classList.remove('open');});
 $('emDelete').addEventListener('click',async()=>{
   if(!editingEntryId)return;
   if(!confirm('ลบรายการนี้?'))return;
   const e=cur.entries.find(x=>x.id===editingEntryId);
-  if(e&&e.receiptIds)for(const rid of e.receiptIds)await rcptDel(rid);
-  cur.entries=cur.entries.filter(x=>x.id!==editingEntryId);
-  await saveMonths();$('entryModal').classList.remove('open');render();toast('ลบรายการแล้ว');
+  if(!e)return;
+
+  // Keep a tombstone so cloud merge knows this entry was intentionally deleted.
+  const deletedAt=Date.now();
+  if(e.receiptIds)for(const rid of e.receiptIds)await rcptDel(rid);
+  e.receiptIds=[];
+  e.deletedAt=deletedAt;
+  e.updatedAt=deletedAt;
+  cur.updatedAt=deletedAt;
+
+  await saveMonths();
+  $('entryModal').classList.remove('open');
+  render();
+  toast('ลบรายการแล้ว · กำลังซิงค์การลบ');
+  if(gsReady())await gsSyncPush(true);
 });
 $('emSave').addEventListener('click',async()=>{
   _emDraft.date=$('emDate').value;_emDraft.docNo=parseInt($('emDoc').value)||profile.docNo;_emDraft.desc=$('emDesc').value.trim();
-  _emDraft.refInv=$('emRef').value.trim();_emDraft.customer=$('emCust').value.trim();
+  _emDraft.refInv=normalizeReceiptSuffix_($('emRef').value);$('emRef').value=_emDraft.refInv;_emDraft.customer=$('emCust').value.trim();
   _emDraft.vendor=$('emVendor').value.trim();_emDraft.amount=parseFloat($('emAmt').value)||0;
+  delete _emDraft.deletedAt;
   _emDraft.updatedAt=Date.now();
   if(editingEntryId){const i=cur.entries.findIndex(x=>x.id===editingEntryId);cur.entries[i]=_emDraft;}
   else{cur.entries.push(_emDraft);}
@@ -1961,7 +1988,7 @@ function buildLedger(m){
   });
   rows.push('<tr class="thinrow after-total-compact"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>');
   const byDate={};
-  (m.entries||[]).forEach(e=>{(byDate[e.date]||(byDate[e.date]=[])).push(e);});
+  activeEntries(m&&m.entries).forEach(e=>{(byDate[e.date]||(byDate[e.date]=[])).push(e);});
   let balance=startBalance(m), docSeq=0;
   for(let day=1;day<=info.days;day++){
     const iso=`${info.year}-${String(info.month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -2014,26 +2041,86 @@ function buildLedger(m){
 /* ---------------- Receipts: free arrangement on A4 pages ---------------- */
 async function receiptItems(m){
   const items=[];
-  for(let ei=0;ei<m.entries.length;ei++){const e=m.entries[ei];
+  const liveEntries=activeEntries(m&&m.entries);
+  for(let ei=0;ei<liveEntries.length;ei++){const e=liveEntries[ei];
     if(!e.receiptIds)continue;
     for(const rid of e.receiptIds){const r=await rcptGet(rid);if(r&&r.mime!=='application/pdf')items.push({r,entryNo:ei+1});}
   }
   return items;
 }
+function receiptAspect_(r){
+  const w=Number(r&&r.w)||1,h=Number(r&&r.h)||1;
+  return h/w;
+}
+function receiptWidthForHeight_(r,heightPercent){
+  // A4 page ratio: width 210, height 297. Convert allowed page-height % to page-width %.
+  const aspect=receiptAspect_(r);
+  return aspect>0?(Number(heightPercent)||0)*(297/210)/aspect:0;
+}
+function receiptHeightPercent_(r,widthPercent){
+  return (Number(widthPercent)||0)*receiptAspect_(r)*(210/297);
+}
+function normaliseReceiptLay_(r,lay){
+  const L=lay&&typeof lay==='object'?lay:{};
+  let pg=Math.max(0,Math.floor(Number(L.pg)||0));
+  let x=Number(L.x),y=Number(L.y),w=Number(L.w);
+  if(!Number.isFinite(x))x=5;
+  if(!Number.isFinite(y))y=5;
+  if(!Number.isFinite(w)||w<=0)w=receiptAspect_(r)>=1?60:90;
+
+  const margin=2;
+  x=Math.max(margin,Math.min(98-margin,x));
+  y=Math.max(margin,Math.min(98-margin,y));
+
+  // Never allow the width or calculated image height to extend outside the A4 page.
+  const maxByRight=Math.max(8,100-margin-x);
+  const maxByBottom=Math.max(8,receiptWidthForHeight_(r,100-margin-y));
+  const maxW=Math.max(8,Math.min(maxByRight,maxByBottom,96));
+  w=Math.max(8,Math.min(w,maxW));
+
+  // If an old layout starts too low, shift it upward before shrinking further.
+  let h=receiptHeightPercent_(r,w);
+  if(y+h>100-margin)y=Math.max(margin,100-margin-h);
+  if(x+w>100-margin)x=Math.max(margin,100-margin-w);
+  return {pg,x,y,w};
+}
+async function persistReceiptLay_(r){
+  r.lay=normaliseReceiptLay_(r,r.lay);
+  await rcptPut(r);
+  cur.rlay=cur.rlay||{};
+  cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};
+  await saveMonths();
+}
 async function ensureLay(items,m){
   const rlay=(m&&m.rlay)||{};
-  items.forEach(it=>{const sv=rlay[it.r.id];if(sv&&typeof sv.pg==='number')it.r.lay={pg:sv.pg,x:sv.x,y:sv.y,w:sv.w};}); // ใช้ตำแหน่งที่ sync มาเป็นหลัก
-  let nextPg=0;const changed=[];
-  items.forEach(it=>{if(it.r.lay&&typeof it.r.lay.pg==='number')nextPg=Math.max(nextPg,it.r.lay.pg+1);});
-  for(const it of items){                                  // ของใหม่ที่ยังไม่จัด → ไล่หน้าตามลำดับบิล
-    if(!it.r.lay){const r=it.r;const portrait=(r.h||1)>=(r.w||1);
-      r.lay={pg:nextPg,x:portrait?20:5,y:portrait?5:16,w:portrait?60:90};nextPg++;changed.push(r);}
+  let nextPg=0,dirty=false;
+  for(const it of items){
+    const r=it.r,sv=rlay[r.id];
+    if(sv&&typeof sv.pg==='number')r.lay={pg:sv.pg,x:sv.x,y:sv.y,w:sv.w};
+    if(!r.lay){
+      const portrait=receiptAspect_(r)>=1;
+      const x=portrait?20:5,y=portrait?4:10;
+      let w=portrait?60:90;
+      w=Math.min(w,receiptWidthForHeight_(r,94-y));
+      r.lay={pg:nextPg,x,y,w};
+      dirty=true;
+    }
+    const before=JSON.stringify(r.lay);
+    r.lay=normaliseReceiptLay_(r,r.lay);
+    if(before!==JSON.stringify(r.lay))dirty=true;
+    nextPg=Math.max(nextPg,r.lay.pg+1);
+    await rcptPut(r);
   }
-  for(const r of changed)await rcptPut(r);
-  if(m){m.rlay=m.rlay||{};let dirty=false;                 // บันทึกตำแหน่งลง DB เดือน เพื่อ sync
-    items.forEach(it=>{const L=it.r.lay,ex=m.rlay[it.r.id];
-      if(!ex||ex.pg!==L.pg||ex.x!==L.x||ex.y!==L.y||ex.w!==L.w){m.rlay[it.r.id]={pg:L.pg,x:L.x,y:L.y,w:L.w};dirty=true;}});
-    if(dirty)await saveMonths();}
+  if(m){
+    m.rlay=m.rlay||{};
+    items.forEach(it=>{
+      const L=it.r.lay,ex=m.rlay[it.r.id];
+      if(!ex||ex.pg!==L.pg||ex.x!==L.x||ex.y!==L.y||ex.w!==L.w){
+        m.rlay[it.r.id]={pg:L.pg,x:L.x,y:L.y,w:L.w};dirty=true;
+      }
+    });
+    if(dirty)await saveMonths();
+  }
 }
 function pageCountOf(items,m){
   let mp=0;items.forEach(it=>{mp=Math.max(mp,(it.r.lay?it.r.lay.pg:0)+1);});
@@ -2054,11 +2141,20 @@ async function buildReceiptPages(m,interactive){
   }
   return nodes;
 }
+function applyReceiptBoxStyle_(box,r){
+  r.lay=normaliseReceiptLay_(r,r.lay);
+  box.style.left=r.lay.x+'%';
+  box.style.top=r.lay.y+'%';
+  box.style.width=r.lay.w+'%';
+}
 function makeRBox(it,interactive){
   const r=it.r;const url=makeUrl(r.blob);
+  r.lay=normaliseReceiptLay_(r,r.lay);
   const box=document.createElement('div');box.className='rbox';box.dataset.id=r.id;
-  box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';box.style.width=r.lay.w+'%';
-  box.innerHTML=`<img draggable="false" src="${url}">`+(interactive?`<div class="rbar">⠿ #${it.entryNo}</div><div class="rhandle" role="button" aria-label="ย่อหรือขยายรูปใบเสร็จ" title="ลากเพื่อย่อหรือขยายรูป"></div>`:'');
+  applyReceiptBoxStyle_(box,r);
+  box.innerHTML=`<img draggable="false" src="${url}">`+(interactive?`<div class="rbar">ลาก #${it.entryNo}</div><div class="rhandle" role="button" aria-label="ย่อหรือขยายรูปใบเสร็จ" title="ลากเพื่อย่อหรือขยายรูป"></div>`:'');
+  const img=box.querySelector('img');
+  img.addEventListener('load',()=>{r.lay=normaliseReceiptLay_(r,r.lay);applyReceiptBoxStyle_(box,r);},{once:true});
   if(interactive)enableRBox(box,r);
   return box;
 }
@@ -2070,29 +2166,40 @@ function enableRBox(box,r){
   bar.addEventListener('pointermove',e=>{if(!mv)return;e.preventDefault();
     const rc=mv.page.getBoundingClientRect();
     let nx=mv.x+((e.clientX-mv.px)/rc.width*100),ny=mv.y+((e.clientY-mv.py)/rc.height*100);
-    nx=Math.max(0,Math.min(96,nx));ny=Math.max(0,Math.min(98,ny));
-    r.lay.x=nx;r.lay.y=ny;box.style.left=nx+'%';box.style.top=ny+'%';});
+    r.lay=normaliseReceiptLay_(r,{pg:r.lay.pg,x:nx,y:ny,w:r.lay.w});
+    applyReceiptBoxStyle_(box,r);
+  });
   bar.addEventListener('pointerup',async e=>{if(!mv)return;box.classList.remove('dragging');
     try{bar.releasePointerCapture(e.pointerId);}catch(_){}
     const under=document.elementFromPoint(e.clientX,e.clientY);
     const tgt=under&&under.closest?under.closest('.rpage'):null;
-    if(tgt&&tgt!==mv.page){const rc=tgt.getBoundingClientRect();
-      r.lay.pg=parseInt(tgt.dataset.pg);
-      r.lay.x=Math.max(0,Math.min(80,((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2)));
-      r.lay.y=Math.max(0,Math.min(90,((e.clientY-rc.top)/rc.height*100)-2));
+    if(tgt&&tgt!==mv.page){
+      const rc=tgt.getBoundingClientRect();
+      const pg=parseInt(tgt.dataset.pg,10)||0;
+      const nx=((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2);
+      const ny=((e.clientY-rc.top)/rc.height*100)-2;
+      r.lay=normaliseReceiptLay_(r,{pg,x:nx,y:ny,w:r.lay.w});
       const ph=tgt.querySelector('.rpage-empty');if(ph)ph.remove();
-      tgt.appendChild(box);box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';
+      tgt.appendChild(box);applyReceiptBoxStyle_(box,r);
       if(mv.page&&!mv.page.querySelector('.rbox')&&mv.page.classList.contains('rp-edit')){
         const e2=document.createElement('div');e2.className='rpage-empty';e2.textContent='ลากใบเสร็จมาวางที่นี่';mv.page.appendChild(e2);}
     }
-    mv=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
+    mv=null;await persistReceiptLay_(r);
+  });
+
   let rz=null;
   handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture(e.pointerId);
     rz={px:e.clientX,w:r.lay.w,page:box.parentElement};box.classList.add('dragging');});
   handle.addEventListener('pointermove',e=>{if(!rz)return;e.preventDefault();
-    const rc=rz.page.getBoundingClientRect();let nw=rz.w+((e.clientX-rz.px)/rc.width*100);
-    nw=Math.max(12,Math.min(100-r.lay.x,nw));r.lay.w=nw;box.style.width=nw+'%';});
-  handle.addEventListener('pointerup',async e=>{if(!rz)return;try{handle.releasePointerCapture(e.pointerId);}catch(_){}box.classList.remove('dragging');rz=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
+    const rc=rz.page.getBoundingClientRect();
+    const requested=rz.w+((e.clientX-rz.px)/rc.width*100);
+    r.lay=normaliseReceiptLay_(r,{pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:requested});
+    applyReceiptBoxStyle_(box,r);
+  });
+  handle.addEventListener('pointerup',async e=>{if(!rz)return;
+    try{handle.releasePointerCapture(e.pointerId);}catch(_){}
+    box.classList.remove('dragging');rz=null;await persistReceiptLay_(r);
+  });
 }
 
 /* ---------------- Preview & Export ---------------- */
@@ -2123,7 +2230,7 @@ function visibleDistanceForDay(m,iso,entries,trip){
 }
 function totalDistanceForLayout(m){
   const info=ledgerMonthInfo(m),byDate={};
-  (m.entries||[]).forEach(e=>{(byDate[e.date]||(byDate[e.date]=[])).push(e);});
+  activeEntries(m&&m.entries).forEach(e=>{(byDate[e.date]||(byDate[e.date]=[])).push(e);});
   let total=0;
   for(let day=1;day<=info.days;day++){
     const iso=`${info.year}-${String(info.month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -2135,7 +2242,7 @@ function totalDistanceForLayout(m){
 async function checkGasolineDistancesEveryTime(m){
   _previewDistanceByDate={};
   const missingDates=[];
-  (m.entries||[]).forEach(e=>{
+  activeEntries(m&&m.entries).forEach(e=>{
     if(!isGasolineEntry(e))return;
     const trip=travelForDate(m,e.date);
     if(positiveDistance(trip&&trip.distance)!==''||positiveDistance(e.distance)!=='')return;
@@ -2227,10 +2334,17 @@ async function createPdfFileInBackground(){
 function currentGasolinePdfFile(){
   try{
     if(!_pdfShareBlob)return null;
+
+    // _pdfShareBlob is normally the File created for Share.
+    // Return that exact File so Share and Download use the same filename 100%.
+    if(_pdfShareBlob instanceof File){
+      return _pdfShareBlob;
+    }
+
     let name=String(_pdfShareFilename||'gasoline.pdf').replace(/[^\x20-\x7E]/g,'').replace(/\s+/g,'_').replace(/_{2,}/g,'_');
     if(!/\.pdf$/i.test(name))name+='.pdf';
     if(!/[A-Za-z0-9]/.test(name.slice(0,-4)))name='gasoline.pdf';
-    return new File([_pdfShareBlob],name,{type:'application/pdf'});
+    return new File([_pdfShareBlob],name,{type:'application/pdf',lastModified:Date.now()});
   }catch(_){return null;}
 }
 async function sharePreviewToOtherApp(){
@@ -2268,13 +2382,41 @@ $('btnZoomFit').addEventListener('click',()=>{userZoom=1;fitPreview();});
 window.addEventListener('resize',()=>{if($('previewCard').style.display!=='none')fitPreview();});
 
 $('btnExport').addEventListener('click',async()=>{
+  const btn=$('btnExport');
+  if(btn.disabled)return;
+
+  btn.disabled=true;
   toast('กำลังเตรียมไฟล์...');
-  if(!await checkGasolineDistancesEveryTime(cur))return;
-  _pdfExportDate=todayDisplay();
-  const root=$('printRoot');root.innerHTML='';root.appendChild(await buildAll(false));
-  root.querySelectorAll('.a4,.rpage').forEach(el=>{el.style.transform='';el.style.margin='';el.style.marginBottom='';});
-  const prevTitle=document.title;document.title=exportTitle();
-  setTimeout(()=>{window.print();setTimeout(()=>{document.title=prevTitle;},1000);},250);
+
+  try{
+    if(!await checkGasolineDistancesEveryTime(cur))return;
+    _pdfExportDate=todayDisplay();
+
+    // Generate the same File object used by Share, ensuring an identical filename.
+    const file=await createPdfFileInBackground();
+    if(!file)throw new Error('สร้างไฟล์ PDF ไม่สำเร็จ');
+
+    _pdfShareBlob=file;
+    _pdfShareFilename=file.name;
+
+    // Download the exact Share file to the device.
+    const url=URL.createObjectURL(file);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=_pdfShareFilename;
+    link.style.display='none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+
+    toast('บันทึก PDF แล้ว: '+_pdfShareFilename);
+  }catch(err){
+    console.error(err);
+    toast('ส่งออก PDF ไม่สำเร็จ: '+((err&&err.message)||err));
+  }finally{
+    btn.disabled=false;
+  }
 });
 
 /* ---------------- Export to Google Sheet (one-way) ---------------- */
@@ -2292,7 +2434,7 @@ async function gsExport(){
     return {
       label:m.label,
       summary:lines.map(l=>({key:l.key,label:l.label,date:l.date||'',amount:Number(l.amount)||0})),
-      entries:(m.entries||[]).map((e,i)=>({date:e.date||'',docNo:e.docNo||'',desc:e.desc||'',plate:e.plate||profile.plate||'',
+      entries:activeEntries(m&&m.entries).map((e,i)=>({date:e.date||'',docNo:e.docNo||'',desc:e.desc||'',plate:e.plate||profile.plate||'',
         refInv:e.refInv||'',customer:e.customer||'',vendor:e.vendor||'',amount:Number(e.amount)||0,balance:Number(bals[i])||0})),
       totalSpent:Number(totalSpent(m))||0, finalBalance:Number(startBalance(m)-totalSpent(m))||0
     };
@@ -2324,21 +2466,31 @@ function uniqueEmployeesByCode(list){const by={};(list||[]).forEach(e=>{const ke
 function reconcileEmployeesWithSheetTabs(list,tabs){const unique=uniqueEmployeesByCode(list);if(!Array.isArray(tabs)||!tabs.length)return unique;const allowed=new Set(tabs.filter(n=>String(n)!=='_sync').map(normalizedSheetName));const matched=unique.filter(e=>allowed.has(normalizedSheetName(employeeSheetName(e))));return matched.length?matched:unique;}
 // รวมระดับรายการ: จับเดือนด้วย label, จับรายการด้วย id (รายการใหม่ที่เพิ่มในเครื่องจะไม่ถูกลบ)
 // ลายนิ้วมือเนื้อหา (ตรงกันทุกช่อง = รายการเดียวกัน) ใช้ยุบรายการซ้ำข้ามเครื่อง
+function entryVersion(e){return Math.max(Number(e&&e.updatedAt)||0,Number(e&&e.deletedAt)||0);}
 function entFp(e){return [e.date||'',e.docNo||'',(e.desc||'').trim(),(e.plate||'').trim(),(e.refInv||'').trim(),(e.customer||'').trim(),(e.vendor||'').trim(),Number(e.amount)||0].join('\u0001');}
 function dedupEntries(arr){
   const by={};
   (arr||[]).forEach(e=>{const k=entFp(e);const ex=by[k];
     if(!ex){by[k]=e;return;}
-    const exR=(ex.receiptIds||[]).length,eR=(e.receiptIds||[]).length;          // เก็บอันที่มีใบเสร็จ/ใหม่กว่า
-    if(eR>exR||(eR===exR&&Number(e.updatedAt||0)>Number(ex.updatedAt||0)))by[k]=e;
+    const exDeleted=Number(ex.deletedAt)>0,eDeleted=Number(e.deletedAt)>0;
+    const exR=(ex.receiptIds||[]).length,eR=(e.receiptIds||[]).length;
+    // A newer deletion tombstone must not be replaced by an older active duplicate.
+    if(entryVersion(e)>entryVersion(ex)||(entryVersion(e)===entryVersion(ex)&&eDeleted&&!exDeleted)||
+      (entryVersion(e)===entryVersion(ex)&&eDeleted===exDeleted&&eR>exR))by[k]=e;
   });
   return Object.keys(by).map(k=>by[k]);
 }
 function dedupAllLocal(){ employees.forEach(e=>Object.keys(e.months||{}).forEach(mid=>{e.months[mid].entries=dedupEntries(e.months[mid].entries);})); }
 function mergeEntries(la,ca){
-  const by={}; (la||[]).forEach(e=>{by[e.id]=e;});
-  (ca||[]).forEach(ce=>{const le=by[ce.id]; if(!le||Number(ce.updatedAt||0)>Number(le.updatedAt||0))by[ce.id]=ce;});
-  return dedupEntries(Object.keys(by).map(k=>by[k]));   // รวมตาม id แล้วยุบซ้ำตามเนื้อหา
+  const by={};
+  (la||[]).forEach(e=>{if(e&&e.id)by[e.id]=e;});
+  (ca||[]).forEach(ce=>{
+    if(!ce||!ce.id)return;
+    const le=by[ce.id];
+    if(!le||entryVersion(ce)>entryVersion(le)||
+      (entryVersion(ce)===entryVersion(le)&&Number(ce.deletedAt)>0&&!(Number(le.deletedAt)>0)))by[ce.id]=ce;
+  });
+  return dedupEntries(Object.keys(by).map(k=>by[k]));
 }
 function mergeMonths(lm,cm,localNewer){
   const out=Object.assign({},lm,cm);            // ฟิลด์ทั่วไป
