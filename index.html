@@ -2001,7 +2001,7 @@ function buildLedger(m){
     for(let j=0;j<count;j++){
       const e=entries[j]||null;
       if(e){balance-=Number(e.amount)||0;docSeq++;}
-      rows.push(`<tr class="day-row${e?' transaction-day':''}">
+      rows.push(`<tr class="day-row${day<=2?' after-total-compact':''}${day===1?' after-total-row-2':''}${e?' transaction-day':''}">
         <td class="c">${e?fmtDate(iso):''}</td>
         <td class="c">${e?esc(e.docNo||docSeq):''}</td>
         <td class="l">${e?esc(e.desc||''):''}</td>
@@ -2022,7 +2022,7 @@ function buildLedger(m){
       <div class="led-left">
         <div class="led-logo-box"><img class="led-logo" src="${LOGO}"></div>
         <div class="led-co">${esc(profile.company)}</div>
-        <div class="led-branch">Branch : ${esc(String(profile.zone||'').trim()||'-')}</div>
+        <div class="led-branch">Branch : BKK/AY/Prachin/Chonburi</div>
         <div class="led-name">Name : ${esc(profile.name)} (${esc(profile.code)})</div>
       </div>
       <div class="led-cur">Currency : ${esc(profile.currency)}</div>
@@ -2096,7 +2096,11 @@ function enableRBox(box,r){
   const bar=box.querySelector('.rbar'),handle=box.querySelector('.rhandle');
   let mv=null;
   bar.addEventListener('pointerdown',e=>{e.preventDefault();bar.setPointerCapture(e.pointerId);
-    mv={px:e.clientX,py:e.clientY,x:r.lay.x,y:r.lay.y,page:box.parentElement};box.classList.add('dragging');});
+    // Lock the receipt width while moving. Re-parenting a percentage-sized box on mobile
+    // can otherwise recalculate its width against the destination page and make it shrink.
+    mv={px:e.clientX,py:e.clientY,x:r.lay.x,y:r.lay.y,w:r.lay.w,
+      renderedW:box.getBoundingClientRect().width,page:box.parentElement};
+    box.style.width=mv.w+'%';box.classList.add('dragging');});
   bar.addEventListener('pointermove',e=>{if(!mv)return;e.preventDefault();
     const rc=mv.page.getBoundingClientRect();
     let nx=mv.x+((e.clientX-mv.px)/rc.width*100),ny=mv.y+((e.clientY-mv.py)/rc.height*100);
@@ -2108,13 +2112,19 @@ function enableRBox(box,r){
     const tgt=under&&under.closest?under.closest('.rpage'):null;
     if(tgt&&tgt!==mv.page){const rc=tgt.getBoundingClientRect();
       r.lay.pg=parseInt(tgt.dataset.pg);
-      r.lay.x=Math.max(0,Math.min(80,((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2)));
-      r.lay.y=Math.max(0,Math.min(90,((e.clientY-rc.top)/rc.height*100)-2));
+      // Preserve the original percentage width exactly when moving between A4 pages.
+      // This prevents a mobile browser reflow from writing back a smaller width.
+      r.lay.w=mv.w;
+      r.lay.x=Math.max(0,Math.min(100-r.lay.w,((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2)));
+      r.lay.y=Math.max(0,Math.min(98,((e.clientY-rc.top)/rc.height*100)-2));
       const ph=tgt.querySelector('.rpage-empty');if(ph)ph.remove();
-      tgt.appendChild(box);box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';
+      tgt.appendChild(box);
+      box.style.width=r.lay.w+'%';box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';
       if(mv.page&&!mv.page.querySelector('.rbox')&&mv.page.classList.contains('rp-edit')){
         const e2=document.createElement('div');e2.className='rpage-empty';e2.textContent='ลากใบเสร็จมาวางที่นี่';mv.page.appendChild(e2);}
     }
+    // Moving must never resize the receipt; resizing is handled only by .rhandle.
+    r.lay.w=mv.w;box.style.width=r.lay.w+'%';
     mv=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
   let rz=null;
   handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture(e.pointerId);
@@ -3023,6 +3033,15 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
   #printArea,#printArea *{visibility:visible}
   #printArea{position:absolute;left:0;top:0;width:100%}
 }
+
+.rich-desc{min-height:64px;max-height:170px;overflow:auto;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font:14px/1.45 inherit;outline:none;white-space:pre-wrap;word-break:break-word}.rich-desc:focus{border-color:var(--red)}.rich-desc:empty:before{content:attr(data-placeholder);color:var(--mute)}
+.desc-bar{position:fixed;display:none;align-items:center;gap:1px;padding:3px 4px;background:#232323;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.28);z-index:3600;max-width:calc(100vw - 12px)}.desc-bar.show{display:flex}.desc-bar button,.desc-color{width:29px;height:28px;border:0;border-radius:6px;background:transparent;color:#fff;display:flex;align-items:center;justify-content:center;font:17px/1 Georgia,serif;cursor:pointer}.desc-bar button:hover,.desc-color:hover{background:rgba(255,255,255,.13)}.desc-color{position:relative}.desc-color span{font-weight:800;text-decoration:underline;text-decoration-color:#ef3340;text-decoration-thickness:3px;text-underline-offset:3px}.desc-color input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+@media(max-width:720px){.rich-desc{min-height:84px;font-size:16px}.desc-bar{gap:2px;padding:5px 6px;border-radius:12px}.desc-bar button,.desc-color{width:44px;height:44px;font-size:23px;border-radius:9px}}
+
+.entry-move-end-subtle{width:30px;height:30px;padding:0;border:0;border-radius:50%;background:transparent;color:#9aa1aa;font:600 15px/1 inherit;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:none;opacity:.72;transition:color .15s,background .15s,opacity .15s}
+.entry-move-end-subtle:hover,.entry-move-end-subtle:focus{color:#5f6873;background:#eef1f4;opacity:1;outline:none}
+.entry-move-end-subtle:active{background:#e4e8ed;transform:scale(.94)}
+@media(max-width:720px){.entry-move-end-subtle{width:34px;height:34px;font-size:16px}}
 </style>
 </head>
 <body>
@@ -3212,7 +3231,10 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
         <div class="field"><label>Date</label><input id="fDate" type="date" onchange="onDateChange()"></div>
         <div class="field"><label>Doc No.</label><input id="fDoc" type="text" placeholder="auto"></div>
       </div>
-      <div class="field"><label>Descriptions</label><textarea id="fDesc" placeholder="Description of expense…"></textarea></div>
+      <div class="field"><label>Descriptions</label><div id="fDesc" class="rich-desc" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Description of expense…"></div></div>
+<div id="descBar" class="desc-bar" aria-hidden="true">
+<button type="button" data-cmd="bold"><b>B</b></button><button type="button" data-cmd="italic"><i>I</i></button><button type="button" data-cmd="underline"><u>U</u></button>
+<label class="desc-color"><span>A</span><input id="descColor" type="color" value="#d81f2a"></label></div>
       <div class="row2">
         <div class="field"><label>Ref. Inv</label><input id="fRef" type="text"></div>
         <div class="field"><label>Customer</label><input id="fCustomer" list="customerList" type="text" autocomplete="off" placeholder="เลือกหรือพิมพ์ชื่อลูกค้า"><datalist id="customerList"></datalist></div>
@@ -3288,6 +3310,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
     </div>
     <div class="mfoot">
       <button class="btn btn-ghost" id="entryDelBtn" onclick="deleteEntry()" style="margin-right:auto;display:none">🗑 Delete</button>
+      <button class="entry-move-end-subtle" id="entryMoveEndBtn" onclick="moveEditingEntryToEnd()" style="display:none" title="ย้ายรายการพร้อมใบเสร็จไปท้ายรายการ" aria-label="ย้ายไปท้ายรายการ">⇩</button>
       <button class="btn btn-out" onclick="closeEntry()">Cancel</button>
       <button class="btn btn-red" onclick="saveEntry()">💾 Save Entry</button>
     </div>
@@ -3515,7 +3538,11 @@ function seed(){
 
 /* ═══════ MONTHS ═══════ */
 function getActiveMonth(){ return state.months.find(m=>m.id===state.activeMonthId); }
-function recalcBalances(m){ let bal=TOTAL_IN_HAND; m.entries.forEach(en=>{ bal-=(parseFloat(en.amount)||0); en.balance=bal; }); }
+function monthOpeningBalance(m){
+  const v=Number(m&&m.openingBalance);
+  return Number.isFinite(v)&&v>0?v:TOTAL_IN_HAND;
+}
+function recalcBalances(m){ let bal=monthOpeningBalance(m); m.entries.forEach(en=>{ bal-=(parseFloat(en.amount)||0); en.balance=bal; }); }
 function renderMonthTabs(){
   const c=document.getElementById("monthScroll");
   c.innerHTML = state.months.map(m=>`<button class="month-tab ${m.id===state.activeMonthId?'active':''}" onclick="switchMonth('${m.id}')">${esc(m.label)}</button>`).join("")
@@ -3599,7 +3626,7 @@ function entryHasRcpt(en){ return (en.rcptKind==="tax"&&((en.taxPdfs&&en.taxPdfs
 function updateSummary(){
   const m=getActiveMonth(); if(!m) return;
   const spent=m.entries.reduce((s,en)=>s+(parseFloat(en.amount)||0),0);
-  const bal=TOTAL_IN_HAND-spent;
+  const bal=monthOpeningBalance(m)-spent;
   const withR=m.entries.filter(entryHasRcpt).length;
   document.getElementById("summary").innerHTML=`
     <div class="sum-card"><div class="sum-label">Entries</div><div class="sum-val">${m.entries.length}</div></div>
@@ -3694,8 +3721,9 @@ function openAddEntry(){
   state.editingId=null; state.rcptKind="none"; state.taxPdfs=[]; state.taxImgs=[]; state.taxPage=null; state.taxMeta=null; state.receiptPage=null; state.receiptMeta=null; state._pendingDriveDel=[];
   document.getElementById("entryTitle").textContent="Add Entry";
   document.getElementById("entryDelBtn").style.display="none";
+  document.getElementById("entryMoveEndBtn").style.display="none";
   document.getElementById("fDate").value=new Date().toISOString().slice(0,10);
-  document.getElementById("fDoc").value=""; document.getElementById("fDesc").value="";
+  document.getElementById("fDoc").value=""; setDesc("");
   document.getElementById("fRef").value=""; document.getElementById("fCustomer").value=CUSTOMERS[0];
   document.getElementById("fVendor").value=""; document.getElementById("fAmount").value="";
   const fp=document.getElementById("fPayee"); if(fp) fp.value=""; closePayeeDD();
@@ -3710,13 +3738,38 @@ function openEditEntry(id){
   state.receiptPage=en.receiptPage||null; state.receiptMeta=en.receiptMeta?JSON.parse(JSON.stringify(en.receiptMeta)):null;
   document.getElementById("entryTitle").textContent="Edit Entry";
   document.getElementById("entryDelBtn").style.display="inline-flex";
+  const moveBtn=document.getElementById("entryMoveEndBtn");
+  moveBtn.style.display="inline-flex";
+  moveBtn.textContent=en._manualTail?"✓":"⇩";
+  moveBtn.title=en._manualTail?"รายการนี้อยู่ท้ายรายการแล้ว":"ย้ายรายการพร้อมใบเสร็จไปท้ายรายการ";
+  moveBtn.setAttribute("aria-label",moveBtn.title);
+  moveBtn.disabled=!!en._manualTail;
+  moveBtn.style.opacity=en._manualTail?"0.55":"1";
   document.getElementById("fDate").value=en.date||""; document.getElementById("fDoc").value=en.docNo||"";
-  document.getElementById("fDesc").value=en.desc||""; document.getElementById("fRef").value=en.refInv||"";
+  setDesc(en.desc||""); document.getElementById("fRef").value=en.refInv||"";
   document.getElementById("fCustomer").value=en.customer||"";
   document.getElementById("fVendor").value=en.vendor||""; document.getElementById("fAmount").value=en.amount||"";
   const fp2=document.getElementById("fPayee"); if(fp2) fp2.value=en.payee||""; closePayeeDD();
   setRcptKind(state.rcptKind); renderEntDrive(en);
   document.getElementById("entryModal").classList.add("open");
+}
+function moveEditingEntryToEnd(){
+  const m=getActiveMonth();
+  const id=state.editingId;
+  if(!m||!id) return;
+  const idx=m.entries.findIndex(e=>e.id===id);
+  if(idx<0) return;
+  const en=m.entries[idx];
+  // ย้าย object เดิมทั้งก้อน จึงพาใบเสร็จ, PDF, รูปภาพ, metadata และ Drive file ไปพร้อมกัน
+  en._manualTail=true;
+  en._tailOrder=Date.now();
+  m.entries.splice(idx,1);
+  m.entries.push(en);
+  recalcBalances(m);
+  saveState();
+  closeEntry();
+  renderAll();
+  toast("✓ ย้ายรายการพร้อมใบเสร็จไปบรรทัดสุดท้ายแล้ว");
 }
 function closeEntry(){ document.getElementById("entryModal").classList.remove("open"); }
 
@@ -3749,7 +3802,7 @@ function saveEntry(){
   const payee=(document.getElementById("fPayee")?document.getElementById("fPayee").value:"").trim();
   if(payee && !payeeList().includes(payee)){ state.payees.push(payee); }
   const data={ date, docNo:document.getElementById("fDoc").value.trim()||nextDocNo(m,date),
-    desc:document.getElementById("fDesc").value.trim(), refInv:document.getElementById("fRef").value.trim(),
+    desc:getDesc(), refInv:document.getElementById("fRef").value.trim(),
     customer, vendor, amount, payee, rcptKind:state.rcptKind,
     taxPdfs:state.rcptKind==="tax"?state.taxPdfs.map(x=>({...x})):[],
     taxImgs:state.rcptKind==="tax"?state.taxImgs.map(x=>({...x})):[],
@@ -3759,7 +3812,7 @@ function saveEntry(){
     receiptMeta:state.rcptKind==="receipt"?state.receiptMeta:null };
   let ent, oldKey=null, oldDrive=[];
   if(state.editingId){ ent=m.entries.find(x=>x.id===state.editingId); oldKey=gsRowKey(ent); oldDrive=(ent.driveFiles||[]).slice(); Object.assign(ent,data); ent._dirty=Date.now(); }
-  else { ent={id:uid(),createdAt:++_seq,balance:0,...data}; m.entries.push(ent); }
+  else { ent={id:uid(),createdAt:++_seq,balance:0,_localOnly:true,_dirty:Date.now(),...data}; m.entries.push(ent); }
   m.entries.sort((a,b)=> (a.date<b.date?-1:a.date>b.date?1:(parseInt(a.docNo)||0)-(parseInt(b.docNo)||0)) );
   saveState(); renderAll(); closeEntry();
   const pendDel=(state._pendingDriveDel||[]).slice(); state._pendingDriveDel=[];
@@ -4197,7 +4250,7 @@ window.addEventListener("resize",()=>{
 /* ═══════ V6 BUILDER ═══════ */
 let v6={ formType:FORM_TYPES[0], imgs:[] }; let exps=[]; let _v6seq=0;
 function openV6(){
-  const date=document.getElementById("fDate").value, desc=document.getElementById("fDesc").value.trim(), amt=document.getElementById("fAmount").value;
+  const date=document.getElementById("fDate").value, desc=getDesc(), amt=document.getElementById("fAmount").value;
   if(state.receiptMeta){
     v6.formType=state.receiptMeta.formType||FORM_TYPES[0];
     document.getElementById("vType").value=state.receiptMeta.type||"Office";
@@ -4409,13 +4462,14 @@ function clearTaxPage(){
 function buildCabSheet(m){
   const h=m.header; recalcBalances(m);
   const spent=m.entries.reduce((s,en)=>s+(parseFloat(en.amount)||0),0);
-  const finalBal=TOTAL_IN_HAND-spent;
+  const openingBal=monthOpeningBalance(m);
+  const finalBal=openingBal-spent;
   const hdr=[
     {l:`1st Fix Cash Advance as ${h.ca1Date||"—"}`, a:h.ca1},
     {l:`2nd Fix Cash Advance as ${h.ca2Date||"—"}`, a:h.ca2},
     {l:`Balance Fix Cash Advance ${h.caBalDate||"—"}`, a:h.caBal},
     {l:`Reimbursement cash advance as at ${h.caReimbDate||"—"}`, a:h.caReimbAmt},
-    {l:`Total Fix Cash Advance in Hand`, a:TOTAL_IN_HAND, bold:true},
+    {l:`Total Fix Cash Advance in Hand`, a:openingBal, bold:true},
   ];
   const hdrHtml=hdr.map(r=>`<tr class="hdr ${r.bold?'bold':''}"><td></td><td></td><td>${esc(r.l)}</td><td></td><td></td><td></td><td></td><td class="amt">${r.bold?fmt(r.a):fmtB(r.a)}</td></tr>`).join("");
   let lastDate="";
@@ -4696,11 +4750,13 @@ function closeZoom(){ document.getElementById("zoomOv").classList.remove("open")
 /* ═══════ RENDER ALL ═══════ */
 function renderAll(){ renderMonthTabs(); loadHeader(); updateSummary(); renderTable(); }
 
+
+let _descRange=null;function getDesc(){const e=document.getElementById("fDesc");return e?(e.innerText||"").trim():""}function setDesc(v){const e=document.getElementById("fDesc");if(e)e.textContent=v||"";hideDescBar()}function hideDescBar(){const b=document.getElementById("descBar");if(b){b.classList.remove("show");b.setAttribute("aria-hidden","true")}}function showDescBar(){const e=document.getElementById("fDesc"),b=document.getElementById("descBar"),s=getSelection();if(!e||!b||!s||!s.rangeCount||s.isCollapsed){hideDescBar();return}const r=s.getRangeAt(0);if(!e.contains(r.commonAncestorContainer)){hideDescBar();return}const q=r.getBoundingClientRect();if(!q.width&&!q.height)return;_descRange=r.cloneRange();b.classList.add("show");b.setAttribute("aria-hidden","false");const w=b.offsetWidth||124,h=b.offsetHeight||34,m=7,x=Math.max(w/2+m,Math.min(innerWidth-w/2-m,q.left+q.width/2)),below=q.top<h+16;b.style.left=x+"px";b.style.top=(below?q.bottom+8:q.top-7)+"px";b.style.transform=below?"translate(-50%,0)":"translate(-50%,-100%)"}function descFormat(c,v){if(!_descRange)return;const s=getSelection();s.removeAllRanges();s.addRange(_descRange);document.getElementById("fDesc").focus({preventScroll:true});document.execCommand(c,false,v||null);if(s.rangeCount)_descRange=s.getRangeAt(0).cloneRange();showDescBar()}function initDescBar(){const e=document.getElementById("fDesc"),b=document.getElementById("descBar"),c=document.getElementById("descColor");if(!e||!b)return;document.addEventListener("selectionchange",()=>requestAnimationFrame(showDescBar));b.addEventListener("pointerdown",x=>x.preventDefault());b.querySelectorAll("[data-cmd]").forEach(x=>x.onclick=()=>descFormat(x.dataset.cmd));if(c)c.oninput=x=>descFormat("foreColor",x.target.value);document.addEventListener("pointerdown",x=>{if(!b.contains(x.target)&&!e.contains(x.target))hideDescBar()});window.addEventListener("resize",hideDescBar)}
 document.addEventListener("DOMContentLoaded",()=>{
   populateCustomers();
   if(!loadState()) seed();
   if(!state.activeMonthId && state.months.length) state.activeMonthId=state.months[state.months.length-1].id;
-  setupTaxUpload(); setupTaxbUpload(); setupV6Upload(); initPasteBoxes();
+  setupTaxUpload(); setupTaxbUpload(); setupV6Upload(); initPasteBoxes(); initDescBar();
   renderAll();
 });
 <\/script>
@@ -4767,6 +4823,7 @@ function buildMonthFromServer(sm){
       rcptKind: old?old.rcptKind:"none", taxPdfs: old?old.taxPdfs:[], taxImgs: old?(old.taxImgs||[]):[], taxPage: old?old.taxPage:null, taxMeta: old?old.taxMeta:null,
       receiptPage: old?old.receiptPage:null, receiptMeta: old?old.receiptMeta:null, };
     if(fresh) base._dirty=old._dirty;    // ยังอยู่ในช่วง → คงสถานะไว้ให้ pull ครั้งถัดไปยังกันทับ
+    if(pe.sid) delete base._localOnly;   // Server คืน SID แล้ว จึงถือว่า push สำเร็จจริง
     delete recMap[k]; return base; });
   // server entries จัดทำดัชนีด้วย gsRowKey (ใช้ตัด ghost)
   const byRowKey={}; entries.forEach(e=>{ const rk=gsRowKey(e); if(!byRowKey[rk]) byRowKey[rk]=e; });
@@ -4781,7 +4838,14 @@ function buildMonthFromServer(sm){
       if((!srv.taxImgs||!srv.taxImgs.length) && o.taxImgs&&o.taxImgs.length){ srv.taxImgs=o.taxImgs; }
       if(!srv.payee && o.payee){ srv.payee=o.payee; }
       if(srv.rcptKind==="none" && o.rcptKind!=="none") srv.rcptKind=o.rcptKind;
-    } else { o._localOnly=true; entries.push(o); }
+      delete srv._localOnly;
+      if(!srv._dirty || Date.now()-srv._dirty>=60000) delete srv._dirty;
+    } else {
+      // Sheet is authoritative after pull. Retain only a recent record that is
+      // explicitly waiting for its first successful push.
+      const age=Date.now()-Number(o._dirty||0);
+      if(o._localOnly===true && o._dirty && age<120000) entries.push(o);
+    }
   });
   // นับคีย์เดิมต่อเดือน เพื่อรู้ว่า match ไฟล์เก่าได้ปลอดภัย (ไม่ชนกับรายการอื่น)
   const oldKeyCount={}; entries.forEach(e=>{ const ok=gsRowKeyOld(e); oldKeyCount[ok]=(oldKeyCount[ok]||0)+1; });
@@ -4830,7 +4894,8 @@ function buildMonthFromServer(sm){
   // ── รวมรายการซ้ำที่เหลือ (key เดียวกัน) — รวมใบเสร็จ/ไฟล์เข้าด้วยกัน ──
   const seenK={}, deduped=[];
   entries.forEach(e=>{
-    const k=entryKey(e);
+    const sid=String((e&&e.id)||"").trim();
+    const k=sid?("S|"+sid):("L|"+entryKey(e));
     if(seenK[k]){
       const keep=seenK[k];
       if(!keep.receiptPage && e.receiptPage){ keep.receiptPage=e.receiptPage; keep.receiptMeta=e.receiptMeta; }
@@ -4848,6 +4913,7 @@ function buildMonthFromServer(sm){
   deduped.sort((a,b)=> (a.date<b.date?-1:a.date>b.date?1:(parseInt(a.docNo)||0)-(parseInt(b.docNo)||0)) );
   const month={ id:sm.id, label:sm.label, year:sm.year, month:sm.month, sheetName:sm.sheetName,
     header: Object.assign({ca1:0,ca1Date:"",ca2:0,ca2Date:"",caBal:0,caBalDate:"",caReimbAmt:0,caReimbDate:""}, sm.header||{}),
+    openingBalance:(Number(sm.openingBalance)>0?Number(sm.openingBalance):TOTAL_IN_HAND),
     entries:deduped, _meta:{ startRow:(sm.meta&&sm.meta.startRow)||1 } };
   recalcBalances(month); return month;
 }
@@ -4896,7 +4962,7 @@ async function gsPushMonthCore(silent){
     const entries=m.entries.map(e=>({ date:e.date, docNo:e.docNo||"", desc:e.desc||"", refInv:e.refInv||"", customer:e.customer||"", vendor:e.vendor||"", amount:e.amount||0, payee:e.payee||"", sid:e.id, rk:e.rcptKind||"none" }));
     await fetch(GS.url,{ method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify({ action:"pushMerge", sheetName:m.sheetName, entries }) });
-    m.entries.forEach(e=>delete e._localOnly);
+    // คง _localOnly ไว้จน pull รอบถัดไปยืนยันว่า SID ถูกบันทึกบน Server แล้ว
     cbDotState("on"); if(!silent) toast("✓ ส่งขึ้น Google Sheet แล้ว (merge) — กำลัง sync กลับ…");
     clearTimeout(_upPullTimer); _upPullTimer=setTimeout(()=>gsPullAll(false), 3000);
     return true;
