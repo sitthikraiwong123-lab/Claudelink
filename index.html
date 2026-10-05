@@ -2022,7 +2022,7 @@ function buildLedger(m){
       <div class="led-left">
         <div class="led-logo-box"><img class="led-logo" src="${LOGO}"></div>
         <div class="led-co">${esc(profile.company)}</div>
-        <div class="led-branch">Branch : BKK/AY/Prachin/Chonburi</div>
+        <div class="led-branch">Branch : ${esc(String(profile.zone||'').trim()||'-')}</div>
         <div class="led-name">Name : ${esc(profile.name)} (${esc(profile.code)})</div>
       </div>
       <div class="led-cur">Currency : ${esc(profile.currency)}</div>
