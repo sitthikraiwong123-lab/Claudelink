@@ -2001,7 +2001,7 @@ function buildLedger(m){
     for(let j=0;j<count;j++){
       const e=entries[j]||null;
       if(e){balance-=Number(e.amount)||0;docSeq++;}
-      rows.push(`<tr class="day-row${day<=2?' after-total-compact':''}${day===1?' after-total-row-2':''}${e?' transaction-day':''}">
+      rows.push(`<tr class="day-row${e?' transaction-day':''}">
         <td class="c">${e?fmtDate(iso):''}</td>
         <td class="c">${e?esc(e.docNo||docSeq):''}</td>
         <td class="l">${e?esc(e.desc||''):''}</td>
@@ -2096,11 +2096,7 @@ function enableRBox(box,r){
   const bar=box.querySelector('.rbar'),handle=box.querySelector('.rhandle');
   let mv=null;
   bar.addEventListener('pointerdown',e=>{e.preventDefault();bar.setPointerCapture(e.pointerId);
-    // Lock the receipt width while moving. Re-parenting a percentage-sized box on mobile
-    // can otherwise recalculate its width against the destination page and make it shrink.
-    mv={px:e.clientX,py:e.clientY,x:r.lay.x,y:r.lay.y,w:r.lay.w,
-      renderedW:box.getBoundingClientRect().width,page:box.parentElement};
-    box.style.width=mv.w+'%';box.classList.add('dragging');});
+    mv={px:e.clientX,py:e.clientY,x:r.lay.x,y:r.lay.y,page:box.parentElement};box.classList.add('dragging');});
   bar.addEventListener('pointermove',e=>{if(!mv)return;e.preventDefault();
     const rc=mv.page.getBoundingClientRect();
     let nx=mv.x+((e.clientX-mv.px)/rc.width*100),ny=mv.y+((e.clientY-mv.py)/rc.height*100);
@@ -2112,19 +2108,13 @@ function enableRBox(box,r){
     const tgt=under&&under.closest?under.closest('.rpage'):null;
     if(tgt&&tgt!==mv.page){const rc=tgt.getBoundingClientRect();
       r.lay.pg=parseInt(tgt.dataset.pg);
-      // Preserve the original percentage width exactly when moving between A4 pages.
-      // This prevents a mobile browser reflow from writing back a smaller width.
-      r.lay.w=mv.w;
-      r.lay.x=Math.max(0,Math.min(100-r.lay.w,((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2)));
-      r.lay.y=Math.max(0,Math.min(98,((e.clientY-rc.top)/rc.height*100)-2));
+      r.lay.x=Math.max(0,Math.min(80,((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2)));
+      r.lay.y=Math.max(0,Math.min(90,((e.clientY-rc.top)/rc.height*100)-2));
       const ph=tgt.querySelector('.rpage-empty');if(ph)ph.remove();
-      tgt.appendChild(box);
-      box.style.width=r.lay.w+'%';box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';
+      tgt.appendChild(box);box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';
       if(mv.page&&!mv.page.querySelector('.rbox')&&mv.page.classList.contains('rp-edit')){
         const e2=document.createElement('div');e2.className='rpage-empty';e2.textContent='ลากใบเสร็จมาวางที่นี่';mv.page.appendChild(e2);}
     }
-    // Moving must never resize the receipt; resizing is handled only by .rhandle.
-    r.lay.w=mv.w;box.style.width=r.lay.w+'%';
     mv=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
   let rz=null;
   handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture(e.pointerId);
