@@ -3076,6 +3076,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55
           <button class="btn btn-out" id="cbPull" onclick="gsPullAll(true)">⤓ ดึงจาก Google Sheet</button>
           <button class="btn btn-out" id="cbPush" onclick="gsPushMonth()">⤒ Push เดือนนี้</button>
           <button class="btn btn-out" id="cbUpload" onclick="gsUploadMonth()">☁️ อัปไฟล์ขึ้น Drive</button>
+          <button class="btn btn-out" id="cbCleanup" onclick="cleanupOldLocalAttachmentsNow()">🧹 ล้างไฟล์ชั่วคราวเดือนเก่า</button>
         </div>
         <label class="cb-auto" id="cbAutoWrap" style="margin-top:14px;display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="cbAuto" onchange="gsToggleAuto()"> auto-sync (ดึงอัตโนมัติทุก 20 วิ)</label>
         <div class="section-title" style="margin-top:16px">🔍 ตรวจใบเสร็จ (Sync)</div>
@@ -3459,7 +3460,17 @@ const STORAGE_KEY = "fix_ca_receipt_mgr_v1";
 
 function saveState(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({months:state.months, vendors:state.vendors, customers:state.customers, hiddenCustomers:state.hiddenCustomers, hiddenVendors:state.hiddenVendors, activeMonthId:state.activeMonthId, payees:state.payees||[], trash:state.trash||[], _upq:state._upq||[], _moved:(state._moved||[]).filter(t=>Date.now()-t.ts<15*60*1000), transfers:state.transfers||[], lang:state.lang||"th"})); }
-  catch(e){ console.warn("save failed",e); toast("⚠️ พื้นที่จัดเก็บเต็ม — ลองลบรูปเก่าออกบ้าง"); }
+  catch(e){
+    console.warn("save failed",e);
+    if(!saveState._retrying && typeof cleanupOldLocalAttachments==="function"){
+      saveState._retrying=true;
+      try{
+        const r=cleanupOldLocalAttachments({save:false,quiet:true});
+        if(r.removed){ saveState(); toast(`🧹 คืนพื้นที่แล้ว ${r.removed} ไฟล์จากเดือนเก่า`); return; }
+      } finally { saveState._retrying=false; }
+    }
+    toast("⚠️ พื้นที่จัดเก็บเต็ม — กด ⚙️ Google Sync → 🧹 ล้างไฟล์ชั่วคราวเดือนเก่า");
+  }
 }
 function loadState(){
   try{ const r=localStorage.getItem(STORAGE_KEY); if(!r) return false; const p=JSON.parse(r);
@@ -4938,7 +4949,8 @@ async function gsPullAll(showToast){
     _lastSync=new Date(); cbDotState("on");
     state.transfers=(data.transfers||[]);   // เช็คลิสต์โอนเงินจากชีต _transfers
     updateTransferBadge();
-    if(showToast) toast(`✓ ดึงจาก Google Sheet แล้ว (${months.length} เดือน)`);
+    const _cl=cleanupOldLocalAttachments({save:true,quiet:true});
+    if(showToast) toast(`✓ ดึงจาก Google Sheet แล้ว (${months.length} เดือน)`+(_cl.removed?` · ล้างไฟล์เก่า ${_cl.removed}`:""));
     if(showToast) setTimeout(scanLatestMonthDates, 350);   // ตรวจวันที่เดือนล่าสุดเมื่อกด refresh เอง
   }catch(e){ console.error(e); cbDotState("err"); if(showToast) toast("⚠️ ดึงไม่สำเร็จ: "+(e.message||e)); }
   finally{ _gsBusy=false; updateCloudUI(); const fr=document.getElementById("fabPull"); if(fr) fr.classList.remove("spin"); }
@@ -5185,6 +5197,37 @@ async function gsAutoUploadEntry(m, e, silent){
   clearTimeout(_upPullTimer); _upPullTimer=setTimeout(()=>gsPullAll(false), 3000);
   return jobs.length;
 }
+/* ล้างรูป/PDF ที่เก็บในเครื่องของเดือนเก่า — เก็บไว้เฉพาะเดือนล่าสุดและเดือนก่อนหน้า
+   ล้างเฉพาะไฟล์ที่ยืนยันแล้วว่ามีสำเนาบน Google Drive (มี fileId) ไฟล์ที่ยังไม่อัปจะไม่ถูกลบ */
+function cleanupOldLocalAttachments(opts){
+  opts=opts||{};
+  const months=(state.months||[]).slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+  const keepIds=new Set(months.slice(-2).map(m=>m.id));
+  let removed=0;
+  months.forEach(m=>{
+    if(keepIds.has(m.id)) return;
+    (m.entries||[]).forEach(e=>{
+      const files=e.driveFiles||[];
+      const has=(kind,name)=>files.some(f=>f.kind===kind&&f.fileId&&(!name||f.name===name));
+      if(e.receiptPage&&has("receipt")){ e.receiptPage=null; removed++; }
+      if(e.receiptMeta&&has("receipt")){ e.receiptMeta=null; removed++; }
+      if(e.taxPage&&has("tax")){ e.taxPage=null; removed++; }
+      if(e.taxMeta&&has("tax")){ e.taxMeta=null; removed++; }
+      (e.taxPdfs||[]).forEach(p=>{ if(p&&p.src&&has("taxpdf",p.name)){ p.src=null; removed++; } });
+      (e.taxImgs||[]).forEach(p=>{ if(p&&p.src&&has("taximg",p.name)){ p.src=null; removed++; } });
+    });
+  });
+  if(opts.save!==false&&removed){ try{ saveState(); }catch(err){ console.warn("cleanup save",err); } }
+  if(!opts.quiet){
+    const kept=[...keepIds].join(", ")||"-";
+    toast(removed?`🧹 ล้างไฟล์เดือนเก่าแล้ว ${removed} รายการ · เก็บ ${kept}`:"✓ ไม่มีไฟล์เดือนเก่าที่ล้างได้อย่างปลอดภัย");
+  }
+  return {removed, kept:[...keepIds]};
+}
+function cleanupOldLocalAttachmentsNow(){
+  const r=cleanupOldLocalAttachments({save:true,quiet:false});
+  if(r.removed){ renderAll(); updateCloudUI(); }
+}
 function purgeConfirmedLocal(mid){
   const m=state.months.find(x=>x.id===mid); if(!m) return; let n=0;
   m.entries.forEach(e=>{ const df=e.driveFiles||[]; const has=(k,nm)=>df.some(x=>x.kind===k&&(!nm||x.name===nm));
@@ -5276,7 +5319,7 @@ function monthGuardConfirm(){
   if(diff===-1){
     // บิลตกค้างจากเดือนที่แล้ว -> เก็บไว้เดือนนี้ + เติมหมายเหตุท้าย description
     const fd=document.getElementById("fDesc");
-    if(fd && !/lacking bill/i.test(fd.value)) fd.value=(fd.value.trim()+" (Lacking bill from last month)").trim();
+    if(fd && !/lacking bill/i.test(getDesc())) setDesc((getDesc()+" (Lacking bill from last month)").trim());
     state._monthGuardOk=true; saveEntry(); return;
   }
   if(diff===1){
@@ -5459,7 +5502,7 @@ const I18N = {
   "ดึงจาก Google Sheet":"Pull from Google Sheet","ดึงจาก Sheet":"Pull from Sheet",
   "Push เดือนนี้ + อัปไฟล์ขึ้น Drive":"Push this month + upload to Drive",
   "Push + อัปไฟล์":"Push + upload files","อัปไฟล์":"upload files",
-  "Push เดือนนี้":"Push this month","อัปไฟล์ขึ้น Drive":"Upload files to Drive",
+  "Push เดือนนี้":"Push this month","อัปไฟล์ขึ้น Drive":"Upload files to Drive","ล้างไฟล์ชั่วคราวเดือนเก่า":"Clear old months' local files",
   "ดาวน์โหลด .pdf":"Download .pdf","Save ใบเสร็จ (เป็นหน้า A4)":"Save receipt (as A4 page)",
   "Save หน้า A4":"Save A4 page","แก้ไขการจัดวาง":"Edit layout","แก้ไขใบเสร็จ":"Edit receipt",
   "ลบใบเสร็จ":"Delete receipt","ลบรูป A4":"Delete A4 image","ลบถาวร":"Delete permanently",
@@ -5615,6 +5658,7 @@ document.addEventListener("DOMContentLoaded",()=>{ updateCloudUI(); setLang(stat
 
 </body>
 </html>
+
 </script>
 <script type="text/plain" id="src-warranty"><!DOCTYPE html>
 <html lang="th">
