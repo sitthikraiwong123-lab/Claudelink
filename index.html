@@ -222,7 +222,8 @@ table.led td.blankrow td,table.led tr.blankrow td{height:3mm}
 .rpage{position:relative;width:210mm;height:297mm;background:#fff;margin:14px auto 0;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden}
 .rpage.rp-edit{outline:1.5px dashed #c2c7cf}
 .rbox{position:absolute;box-sizing:border-box}
-.rbox img{width:100%;height:auto;display:block}
+.rbox{max-width:100%}
+.rbox img{display:block;width:auto;height:auto;max-width:100%;max-height:297mm}
 .rbox .rbar{position:absolute;left:0;top:0;right:0;height:18px;background:rgba(216,31,42,.92);color:#fff;font-size:10px;font-weight:800;
   display:flex;align-items:center;padding:0 6px;cursor:grab;touch-action:none;user-select:none}
 .rbox .rhandle{position:absolute;right:2px;bottom:2px;width:20px;height:20px;border-radius:5px;background:var(--red);border:2px solid #fff;
@@ -452,9 +453,13 @@ input:hover,select:hover,textarea:hover{border-color:#bec8d6}
 }
 .rbox .rhandle:hover,.rbox .rhandle:focus-visible{opacity:.68;background:rgba(200,30,42,.52)}
 .rbox .rhandle:active{opacity:.90;transform:scale(1.06);background:rgba(153,27,27,.78);box-shadow:0 7px 18px rgba(15,23,42,.26),0 0 0 6px rgba(200,30,42,.12)}
-.rbox.dragging .rhandle{opacity:.78;box-shadow:0 7px 18px rgba(15,23,42,.24),0 0 0 6px rgba(200,30,42,.12)}
+.rbox.dragging .rhandle{opacity:.6;box-shadow:0 7px 18px rgba(15,23,42,.24),0 0 0 6px rgba(200,30,42,.12)}
+/* faded resize handle */
+.rbox .rhandle{opacity:.18;background:rgba(200,30,42,.16);border-color:rgba(255,255,255,.35);box-shadow:none}
+.rbox .rhandle::before{opacity:.55}
+.rbox:hover .rhandle{opacity:.3}
 @media(max-width:540px), (pointer:coarse){
-  .rbox .rhandle{right:-12px;bottom:-12px;width:58px;height:58px;border-radius:18px;opacity:.34;box-shadow:0 4px 12px rgba(15,23,42,.12),0 0 0 5px rgba(200,30,42,.06)}
+  .rbox .rhandle{right:-12px;bottom:-12px;width:58px;height:58px;border-radius:18px;opacity:.2;box-shadow:none}
   .rbox .rhandle::before{width:21px;height:21px;border-right-width:4px;border-bottom-width:4px}
   .rbox .rhandle::after{inset:-12px}
 }
@@ -530,6 +535,18 @@ table.led tr.after-total-row-2 td{
   .customer-distance-row .cd-remove{width:40px;height:42px}
   .cd-panel-title{font-size:13px}
 }
+
+/* receipt-fit: resize handle must stay inside the image, never outside the page */
+.rbox .rhandle,.rbox.dragging .rhandle{right:3px!important;bottom:3px!important;left:auto!important;top:auto!important;transform:none!important}
+.rbox .rhandle::after{inset:0!important}
+@media(max-width:540px), (pointer:coarse){.rbox .rhandle{width:44px!important;height:44px!important;right:3px!important;bottom:3px!important}}
+
+/* HARD HANDLE BOUNDARY: the outer edge of resize control is the image/page limit */
+.rpage{contain:layout paint}
+.rbox{max-width:100%;max-height:100%}
+.rbox .rhandle,.rbox.dragging .rhandle{box-sizing:border-box;right:4px!important;bottom:4px!important;left:auto!important;top:auto!important;margin:0!important;transform:none!important}
+.rbox .rhandle::after{inset:0!important}
+
 </style>
 </head>
 <body>
@@ -2062,7 +2079,77 @@ async function receiptItems(m){
   }
   return items;
 }
+// BUILD receipt-fit-a4-2026-11-01f-handle-lock
+const RP_AR=297/210;
+function rAspect(r){const w=Number(r&&r.w)||0,h=Number(r&&r.h)||0;return w>0&&h>0?h/w:0;}
+function rHeightPct(r,w){const a=rAspect(r);return a?w*a/RP_AR:0;}
+function rMaxW(r){const a=rAspect(r);return a?Math.min(100,100*RP_AR/a):100;}
+function fitLay(L,r){
+  if(!L)return L;L.w=Math.max(12,Math.min(Number(L.w)||60,rMaxW(r)));
+  L.x=Math.max(0,Math.min(100-L.w,Number(L.x)||0));
+  const hp=rHeightPct(r,L.w);L.y=Math.max(0,Math.min(hp?100-hp:98,Number(L.y)||0));return L;}
+const _rDimChecked=new Set();
+async function ensureDims(r){
+  if(!r||!r.blob||_rDimChecked.has(r.id))return false;
+  try{const d=await imgDims(r.blob);_rDimChecked.add(r.id);
+    if(d.w>0&&d.h>0&&(d.w!==r.w||d.h!==r.h)){r.w=d.w;r.h=d.h;return true;}}catch(_){}
+  return false;}
+function styleRBox(box,r){ // HARD LIMIT: image bottom never passes page bottom
+  const L=r.lay;L.y=Math.max(0,Math.min(98,Number(L.y)||0));L.x=Math.max(0,Math.min(95,Number(L.x)||0));
+  L.w=Math.max(5,Math.min(100-L.x,Number(L.w)||60));
+  box.style.left=L.x+'%';box.style.top=L.y+'%';box.style.width=L.w+'%';
+  const capMM=(297*(100-L.y)/100).toFixed(2)+'mm';
+  box.style.maxHeight=capMM;const im=box.querySelector('img');if(im)im.style.maxHeight=capMM;}
+function maxWidthByHandle(box,r){
+  const pg=box.parentElement,im=box.querySelector('img'),handle=box.querySelector('.rhandle');
+  if(!pg||!im)return Math.max(5,100-r.lay.x);
+  const PW=pg.clientWidth,PH=pg.clientHeight;
+  if(!(PW>0&&PH>0))return Math.max(5,100-r.lay.x);
+  const iw=im.naturalWidth||Number(r.w)||0,ih=im.naturalHeight||Number(r.h)||0;
+  const aspect=iw>0&&ih>0?ih/iw:rAspect(r);
+  const handleGap=handle?Math.max(3,handle.offsetWidth*0.08):3;
+  const xPx=PW*Math.max(0,Number(r.lay.x)||0)/100;
+  const yPx=PH*Math.max(0,Number(r.lay.y)||0)/100;
+  const capRight=(PW-xPx-handleGap)/PW*100;
+  const capBottom=aspect>0?(PH-yPx-handleGap)/(PW*aspect)*100:capRight;
+  return Math.max(5,Math.min(capRight,capBottom));
+}
+function lockHandleInsidePage(box,r){
+  const pg=box.parentElement,handle=box.querySelector('.rhandle');
+  if(!pg||!handle)return false;
+  const cap=maxWidthByHandle(box,r),old=Number(r.lay.w)||60;
+  r.lay.x=Math.max(0,Math.min(100-5,Number(r.lay.x)||0));
+  r.lay.y=Math.max(0,Math.min(99,Number(r.lay.y)||0));
+  r.lay.w=Math.max(5,Math.min(old,cap,100-r.lay.x));
+  styleRBox(box,r);
+  const P=pg.getBoundingClientRect(),H=handle.getBoundingClientRect();
+  if(H.right>P.right){r.lay.w=Math.max(5,r.lay.w-(H.right-P.right)/P.width*100);styleRBox(box,r);}
+  if(H.bottom>P.bottom){const a=(box.querySelector('img').naturalHeight||r.h)/(box.querySelector('img').naturalWidth||r.w||1);r.lay.w=Math.max(5,r.lay.w-(H.bottom-P.bottom)/(P.width*Math.max(a,.001))*100);styleRBox(box,r);}
+  return Math.abs(old-r.lay.w)>.01;
+}
+function clampBoxToPage(box,r,mode){
+  const pg=box.parentElement,im=box.querySelector('img');
+  if(!pg||!im||!pg.classList||!pg.classList.contains('rpage'))return false;
+  const PH=pg.clientHeight,PW=pg.clientWidth,bh=im.offsetHeight,bw=im.offsetWidth;
+  if(!(PH>0&&PW>0&&bh>0&&bw>0))return false;
+  let changed=false;
+  const room=PH*(100-r.lay.y)/100;
+  if(mode==='resize'&&bh>room+0.5){r.lay.w=Math.max(5,r.lay.w*room/bh);changed=true;}
+  else if(bh>PH+0.5){r.lay.w=Math.max(5,r.lay.w*PH/bh);r.lay.y=0;changed=true;}
+  else{const maxY=(PH-bh)/PH*100;if(r.lay.y>maxY+0.05){r.lay.y=Math.max(0,maxY);changed=true;}}
+  if(im.complete&&bw>0&&box.offsetWidth-bw>1&&mode!=='resize'){r.lay.w=Math.max(5,bw/PW*100);changed=true;}
+  const maxX=100-r.lay.w;if(r.lay.x>maxX+0.05){r.lay.x=Math.max(0,maxX);changed=true;}
+  styleRBox(box,r);
+  if(lockHandleInsidePage(box,r))changed=true;
+  return changed;}
+async function saveRLay(r){try{await rcptPut(r);if(cur){cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();}}catch(_){}}
+function watchRBox(box,r,save){
+  let t=null;const go=()=>{if(clampBoxToPage(box,r)&&save){clearTimeout(t);t=setTimeout(()=>saveRLay(r),300);}};
+  const im=box.querySelector('img');if(im)im.addEventListener('load',()=>requestAnimationFrame(go));
+  if(window.ResizeObserver){const ro=new ResizeObserver(()=>go());ro.observe(box);}
+  requestAnimationFrame(()=>requestAnimationFrame(go));}
 async function ensureLay(items,m){
+  for(const it of items){if(await ensureDims(it.r))await rcptPut(it.r);}
   const rlay=(m&&m.rlay)||{};
   items.forEach(it=>{const sv=rlay[it.r.id];if(sv&&typeof sv.pg==='number')it.r.lay={pg:sv.pg,x:sv.x,y:sv.y,w:sv.w};}); // ใช้ตำแหน่งที่ sync มาเป็นหลัก
   let nextPg=0;const changed=[];
@@ -2071,6 +2158,7 @@ async function ensureLay(items,m){
     if(!it.r.lay){const r=it.r;const portrait=(r.h||1)>=(r.w||1);
       r.lay={pg:nextPg,x:portrait?20:5,y:portrait?5:16,w:portrait?60:90};nextPg++;changed.push(r);}
   }
+  for(const it of items){const L=it.r.lay,o=JSON.stringify(L);fitLay(L,it.r);if(JSON.stringify(L)!==o&&!changed.includes(it.r))changed.push(it.r);}
   for(const r of changed)await rcptPut(r);
   if(m){m.rlay=m.rlay||{};let dirty=false;                 // บันทึกตำแหน่งลง DB เดือน เพื่อ sync
     items.forEach(it=>{const L=it.r.lay,ex=m.rlay[it.r.id];
@@ -2099,9 +2187,10 @@ async function buildReceiptPages(m,interactive){
 function makeRBox(it,interactive){
   const r=it.r;const url=makeUrl(r.blob);
   const box=document.createElement('div');box.className='rbox';box.dataset.id=r.id;
-  box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';box.style.width=r.lay.w+'%';
   box.innerHTML=`<img draggable="false" src="${url}">`+(interactive?`<div class="rbar">⠿ #${it.entryNo}</div><div class="rhandle" role="button" aria-label="ย่อหรือขยายรูปใบเสร็จ" title="ลากเพื่อย่อหรือขยายรูป"></div>`:'');
+  styleRBox(box,r);
   if(interactive)enableRBox(box,r);
+  watchRBox(box,r,interactive);
   return box;
 }
 function enableRBox(box,r){
@@ -2112,29 +2201,32 @@ function enableRBox(box,r){
   bar.addEventListener('pointermove',e=>{if(!mv)return;e.preventDefault();
     const rc=mv.page.getBoundingClientRect();
     let nx=mv.x+((e.clientX-mv.px)/rc.width*100),ny=mv.y+((e.clientY-mv.py)/rc.height*100);
-    nx=Math.max(0,Math.min(96,nx));ny=Math.max(0,Math.min(98,ny));
-    r.lay.x=nx;r.lay.y=ny;box.style.left=nx+'%';box.style.top=ny+'%';});
+    const hp=rHeightPct(r,r.lay.w);
+    nx=Math.max(0,Math.min(100-r.lay.w,nx));ny=Math.max(0,Math.min(hp?100-hp:98,ny));
+    r.lay.x=nx;r.lay.y=ny;styleRBox(box,r);clampBoxToPage(box,r);});
   bar.addEventListener('pointerup',async e=>{if(!mv)return;box.classList.remove('dragging');
     try{bar.releasePointerCapture(e.pointerId);}catch(_){}
     const under=document.elementFromPoint(e.clientX,e.clientY);
     const tgt=under&&under.closest?under.closest('.rpage'):null;
     if(tgt&&tgt!==mv.page){const rc=tgt.getBoundingClientRect();
       r.lay.pg=parseInt(tgt.dataset.pg);
-      r.lay.x=Math.max(0,Math.min(80,((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2)));
-      r.lay.y=Math.max(0,Math.min(90,((e.clientY-rc.top)/rc.height*100)-2));
+      r.lay.x=((e.clientX-rc.left)/rc.width*100)-(r.lay.w/2);
+      r.lay.y=((e.clientY-rc.top)/rc.height*100)-2;
+      fitLay(r.lay,r);
       const ph=tgt.querySelector('.rpage-empty');if(ph)ph.remove();
-      tgt.appendChild(box);box.style.left=r.lay.x+'%';box.style.top=r.lay.y+'%';
+      tgt.appendChild(box);styleRBox(box,r);
       if(mv.page&&!mv.page.querySelector('.rbox')&&mv.page.classList.contains('rp-edit')){
         const e2=document.createElement('div');e2.className='rpage-empty';e2.textContent='ลากใบเสร็จมาวางที่นี่';mv.page.appendChild(e2);}
     }
-    mv=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
+    mv=null;clampBoxToPage(box,r);await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
   let rz=null;
   handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture(e.pointerId);
     rz={px:e.clientX,w:r.lay.w,page:box.parentElement};box.classList.add('dragging');});
   handle.addEventListener('pointermove',e=>{if(!rz)return;e.preventDefault();
     const rc=rz.page.getBoundingClientRect();let nw=rz.w+((e.clientX-rz.px)/rc.width*100);
-    nw=Math.max(12,Math.min(100-r.lay.x,nw));r.lay.w=nw;box.style.width=nw+'%';});
-  handle.addEventListener('pointerup',async e=>{if(!rz)return;try{handle.releasePointerCapture(e.pointerId);}catch(_){}box.classList.remove('dragging');rz=null;await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
+    const cap=maxWidthByHandle(box,r);
+    nw=Math.max(Math.min(12,cap),Math.min(cap,nw));r.lay.w=nw;styleRBox(box,r);lockHandleInsidePage(box,r);});
+  handle.addEventListener('pointerup',async e=>{if(!rz)return;try{handle.releasePointerCapture(e.pointerId);}catch(_){}box.classList.remove('dragging');rz=null;lockHandleInsidePage(box,r);await rcptPut(r);cur.rlay=cur.rlay||{};cur.rlay[r.id]={pg:r.lay.pg,x:r.lay.x,y:r.lay.y,w:r.lay.w};await saveMonths();});
 }
 
 /* ---------------- Preview & Export ---------------- */
