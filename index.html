@@ -1595,22 +1595,30 @@ async function renderStoreInfo(){
   $('storeInfo').textContent=`ใบเสร็จเดือนนี้: ${n} ไฟล์ · ~${(bytes/1048576).toFixed(2)} MB`;
 }
 
-function cKey(v){return String(v||'').trim().replace(/\s*,\s*/g,',').toLowerCase()}
-function cList(){
-  if(!Array.isArray(profile.customerDistances))profile.customerDistances=[];
-  // Recover missing customer-distance master data from saved monthly Travel Plans.
-  Object.keys(months||{}).forEach(mid=>{
-    ((months[mid]&&months[mid].travelPlan)||[]).forEach(t=>{
-      const customer=String(t.customer||'').trim(),distance=Number(t.distance);
-      if(!customer||!Number.isFinite(distance)||distance<=0)return;
-      const existing=profile.customerDistances.find(x=>cKey(x.customer)===cKey(customer));
-      if(existing){if(!(Number(existing.distance)>0))existing.distance=distance;}
-      else profile.customerDistances.push({customer,distance});
-    });
-  });
-  return profile.customerDistances;
+// BUILD distance-sheet-2026-11-01
+function cKey(v){return String(v||'').trim().replace(/\s*,\s*/g,',').replace(/\s+/g,' ').toLowerCase();}
+function cList(){return Array.isArray(profile.customerDistances)?profile.customerDistances:[];}
+function cDist(n){const x=cList().find(x=>cKey(x.customer)===cKey(n));return x&&Number(x.distance)>0?Number(x.distance):0;}
+const CD_PENDING_KEY='gasoline_cd_pending';
+function cdPendingGet(){try{return JSON.parse(localStorage.getItem(CD_PENDING_KEY)||'{}');}catch(_){return {};}}
+function cdPendingSet(p){localStorage.setItem(CD_PENDING_KEY,JSON.stringify(p));}
+function cleanCDRows(rows){const m=new Map();(rows||[]).forEach(x=>{if(x.customer&&Number(x.distance)>0)m.set(cKey(x.customer),{customer:String(x.customer).trim(),distance:Math.round(Number(x.distance)*100)/100});});return [...m.values()];}
+async function gsSaveDistances(code,rows,retry){
+ code=String(code||'').trim().toUpperCase();if(!code)return false;
+ const p=cdPendingGet(),item=retry||{rows:cleanCDRows(rows),ts:Date.now()};p[code]=item;cdPendingSet(p);
+ if(!gsReady())return false;
+ try{
+ await fetch(validatedAppsScriptExecUrl(profile.exportUrl).toString(),{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'savedistances',token:syncToken_(),code,rows:item.rows,device:'Web app'})});
+ for(let i=0;i<3;i++){
+ await new Promise(r=>setTimeout(r,800));
+ const v=await jsonpSync({action:'getdistances',code,t:Date.now()});
+ if(v&&v.ok&&Array.isArray(v.rows)&&v.rows.length===item.rows.length&&item.rows.every(x=>v.rows.some(y=>cKey(x.customer)===cKey(y.customer)&&Number(x.distance)===Number(y.distance)))){
+ const q=cdPendingGet();if(q[code]&&q[code].ts===item.ts){delete q[code];cdPendingSet(q);}return true;
+ }
+ }
+ }catch(_){}return false;
 }
-function cDist(n){const x=cList().find(v=>cKey(v.customer)===cKey(n));return x?Number(x.distance)||0:0}
+async function flushPendingDistances(){const p=cdPendingGet();for(const code of Object.keys(p))await gsSaveDistances(code,p[code].rows,p[code]);}
 function addCD(x={}){
   const host=$('customerDistanceRows'),row=document.createElement('div');
   row.className='customer-distance-row';
@@ -1675,6 +1683,7 @@ async function bulkCustomers(){
   }
   cur.travelPlan.sort((a,b)=>Number(a.day)-Number(b.day));
   await saveProfile();await saveMonths();
+  if(profile.code)await gsSaveDistances(profile.code,cList());
   $('pBulkCustomers').value='';$('bulkCustomerModal').classList.remove('open');
   invalidatePreparedPreviewPdf();render();
   if($('previewCard').style.display!=='none')await refreshPreview();
@@ -1732,6 +1741,8 @@ $('pSave').addEventListener('click',async()=>{
   profile.fix=parseFloat($('pFix').value)||0;profile.fixDate=$('pFixDate').value||'';profile.docNo=parseInt($('pDoc').value)||1;
   profile.approve=$('pApprove').value.trim();profile.verify=$('pVerify').value.trim();
   profile.exportUrl=$('pExportUrl').value.trim();localStorage.setItem('gasoline_sync_token',$('pSyncToken').value.trim());profile.customerDistances=collectCD();
+  const distanceCode=profile.code,distanceRows=cleanCDRows(profile.customerDistances);
+  if(distanceCode){const q=cdPendingGet();q[distanceCode]={rows:distanceRows,ts:Date.now()};cdPendingSet(q);}
   // Balance belongs to the current month's stored head (Reimbursement is edited on the main page; Total date is auto)
   if(!cur.head)cur.head={};
   cur.head.balDate=$('pBalDate').value||'';cur.head.balAmount=parseFloat($('pBalAmount').value)||0;
@@ -1739,6 +1750,7 @@ $('pSave').addEventListener('click',async()=>{
   const _ra=$('pReimbAmount').value.trim();cur.head.reimbAmount=(_ra==='')?null:(parseFloat(_ra)||0);
   const _ta=$('pTotalAmount').value.trim();cur.head.totalAmount=(_ta==='')?null:(parseFloat(_ta)||0);
   await saveProfile();await saveMonths();$('profileModal').classList.remove('open');render();toast('บันทึกการตั้งค่าแล้ว');
+  if(distanceCode){const ok=await gsSaveDistances(distanceCode,distanceRows);toast(ok?'บันทึกระยะทางลงชีตแล้ว':'บันทึกในเครื่องแล้ว รอซิงค์ระยะทาง');}
 });
 
 function normalizeReceiptSuffix_(value){
@@ -2138,11 +2150,11 @@ function travelForDate(m,date){
   const z=/^\d{4}-\d{2}-(\d{2})$/.exec(String(date||''));
   return z?(m.travelPlan||[]).find(x=>Number(x.day)===Number(z[1])):null;
 }
-function pdfDistanceFor(m,e){
-  if(!e)return '';
-  const trip=travelForDate(m,e.date),fromTrip=positiveDistance(trip&&trip.distance),fromEntry=positiveDistance(e.distance);
-  return fromTrip!==''?fromTrip:(fromEntry!==''?fromEntry:(_previewDistanceByDate[e.date]||''));
+function resolvedDistanceFor(m,e){
+ if(!e)return '';const trip=travelForDate(m,e.date);
+ for(const v of [trip&&trip.distance,e.distance,trip&&cDist(trip.customer),cDist(e.customer)]){const d=positiveDistance(v);if(d!=='')return d;}return '';
 }
+function pdfDistanceFor(m,e){if(!e)return '';const d=resolvedDistanceFor(m,e);return d!==''?d:(_previewDistanceByDate[e.date]||'');}
 function visibleDistanceForDay(m,iso,entries,trip){
   const tripDistance=positiveDistance(trip&&trip.distance);
   if(tripDistance!=='')return tripDistance;
@@ -2168,7 +2180,7 @@ async function checkGasolineDistancesEveryTime(m){
   activeEntries(m&&m.entries).forEach(e=>{
     if(!isGasolineEntry(e))return;
     const trip=travelForDate(m,e.date);
-    if(positiveDistance(trip&&trip.distance)!==''||positiveDistance(e.distance)!=='')return;
+    if(resolvedDistanceFor(m,e)!=='')return;
     if(e.date&&!missingDates.includes(e.date))missingDates.push(e.date);
   });
   missingDates.sort();
@@ -2518,6 +2530,7 @@ async function gsSyncPull(silent,mode){
   if(!gsReady())return;if(!silent)syncStatus(mode==='replace'?'กำลังดึงข้อมูลมาแทนที่…':'กำลังดึงข้อมูลจากคลาวด์…');
   try{
     syncActiveBack();
+    await flushPendingDistances();
     const data=await jsonpSync({action:'syncpull',t:Date.now()});
     if(!data||!data.ok||!Array.isArray(data.employees)){if(!silent)syncStatus((data&&data.error)?('คลาวด์แจ้ง: '+data.error):'ยังไม่มีข้อมูลบนคลาวด์ — ไปกด 🔄 บนเครื่องที่มีข้อมูล (เช่นมือถือ) ก่อน');return;}
     // จับคู่ด้วยรหัสพนักงาน · ปกติ "รวมระดับรายการ" (ไม่ลบของใหม่) · mode replace = เอาคลาวด์แทนที่
@@ -2525,6 +2538,12 @@ async function gsSyncPull(silent,mode){
     const byKey={};employees.forEach(e=>{byKey[empKey(e)]=e;});
     data.employees.forEach(ce=>{const k=empKey(ce);byKey[k]=(mode==='replace')?ce:(byKey[k]?mergeEmployee(byKey[k],ce):ce);});
     employees=reconcileEmployeesWithSheetTabs(Object.keys(byKey).map(k=>byKey[k]),data.employeeSheets);
+    if(data.customerDistances){const pending=cdPendingGet();employees.forEach(e=>{
+      const code=String(e.prof&&e.prof.code||'').trim().toUpperCase();e.prof=e.prof||{};
+      if(pending[code])e.prof.customerDistances=pending[code].rows;
+      else if(Array.isArray(data.customerDistances[code]))e.prof.customerDistances=cleanCDRows(data.customerDistances[code]);
+    });}
+
     const url=gset.exportUrl;gset=Object.assign(gset,data.gset||{});gset.exportUrl=url||gset.exportUrl||DEFAULT_EXPORT_URL;
     const actEmp=employees.find(e=>empKey(e)===actKey);
     activeEmpId=(actEmp&&actEmp.id)||(employees[0]&&employees[0].id);
