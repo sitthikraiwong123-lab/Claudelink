@@ -1457,13 +1457,14 @@ function saveMonths(){return saveDB();}
 function saveCur(){return saveDB();}
 
 async function switchEmp(id){ if(id===activeEmpId)return; syncActiveBack(); activateEmp(id); await saveDB(); render(); }
-async function addEmp(){
+function addEmp(){ openProfile(true); }
+function createEmployee(){
   syncActiveBack();
   const prof={name:'พนักงานใหม่',code:'',zone:(employees[0]&&employees[0].prof.zone)||'',plate:'',fix:10000,fixDate:'',docNo:1};
   const nm={id:uid(),label:defaultMonthLabel(),createdAt:Date.now(),archived:false,
     head:{balDate:'',balAmount:0,reimbDate:'',reimbAmount:0},entries:[]};
   const emp={id:uid(),prof,months:{[nm.id]:nm},order:[nm.id],curMonth:nm.id};
-  employees.push(emp); activateEmp(emp.id); await saveDB(); render(); openProfile();
+  employees.push(emp); activateEmp(emp.id);
 }
 
 /* ---- chronological month order (for live reconciliation chain) ---- */
@@ -1752,9 +1753,9 @@ function updateCDCount(){
   const count=[...document.querySelectorAll('#customerDistanceRows .customer-distance-row')].filter(row=>row.querySelector('.cdc').value.trim()).length;
   el.textContent=count+' รายการ';
 }
-function renderCD(){
+function renderCD(rows=cList()){
   const host=$('customerDistanceRows');host.innerHTML='';
-  const rows=cList();(rows.length?rows:[{}]).forEach(addCD);updateCDCount();
+  (rows.length?rows:[{}]).forEach(addCD);updateCDCount();
 }
 function collectCD(){
   const rows=[...document.querySelectorAll('#customerDistanceRows>div')];
@@ -1808,18 +1809,24 @@ async function bulkCustomers(){
 }
 $('btnAddCustomerDistance').onclick=()=>addCD();$('fabImportCustomers').onclick=()=>{closeFabMenu();$('pBulkCustomers').value='';$('bulkCustomerModal').classList.add('open');setTimeout(()=>$('pBulkCustomers').focus(),50)};$('bulkClose').onclick=()=> $('bulkCustomerModal').classList.remove('open');$('btnApplyBulkCustomers').onclick=bulkCustomers;
 /* ---------------- Profile modal ---------------- */
-function openProfile(){
+let profileFormAdding=false;
+function openProfile(adding=false){
+  profileFormAdding=adding===true;
   profileFormOwner=activeEmpId;profileFormMonth=cur&&cur.id;
   $('pCompany').value=profile.company;$('pName').value=profile.name;$('pCode').value=profile.code;
   $('pZone').value=profile.zone;$('pPlate').value=profile.plate;$('pCur').value=profile.currency;
   $('pFix').value=profile.fix;$('pFixDate').value=profile.fixDate||'';$('pDoc').value=profile.docNo;
   $('pApprove').value=profile.approve;$('pVerify').value=profile.verify;
-  $('pExportUrl').value=profile.exportUrl||'';$('pSyncToken').value=localStorage.getItem('gasoline_sync_token')||'';cList();renderCD();
-  const h=cur.head||{};
+  $('pExportUrl').value=profile.exportUrl||'';$('pSyncToken').value=localStorage.getItem('gasoline_sync_token')||'';renderCD(profileFormAdding?[]:undefined);
+  const h=profileFormAdding?{}:((cur&&cur.head)||{});
   $('pBalDate').value=h.balDate||'';$('pBalAmount').value=(h.balAmount||h.balAmount===0)?h.balAmount:'';
   $('pReimbDate').value=h.reimbDate||'';
   $('pReimbAmount').value=(h.reimbAmount!=null&&h.reimbAmount!=='')?h.reimbAmount:'';
   $('pTotalAmount').value=(h.totalAmount!=null&&h.totalAmount!=='')?h.totalAmount:'';
+  if(profileFormAdding){
+    for(const id of ['pName','pCode','pPlate','pFixDate'])$(id).value='';
+    $('pFix').value=10000;$('pDoc').value=1;
+  }
   $('profileModal').classList.add('open');
 }
 $('btnProfile').addEventListener('click',()=>{closeFabMenu();openProfile();});
@@ -1854,15 +1861,18 @@ $('restoreInput').addEventListener('change',async e=>{
   }catch(err){alert('กู้คืนไม่สำเร็จ: '+(err.message||err));}
 });
 $('pSave').addEventListener('click',async()=>{
+  if(!$('profileModal').classList.contains('open')||$('pSave').disabled)return;
   if(profileFormOwner!==activeEmpId||profileFormMonth!==(cur&&cur.id)){toast('โปรไฟล์หรือเดือนเปลี่ยนระหว่างซิงค์ กรุณาปิดแล้วเปิดหน้าตั้งค่าใหม่');return;}
   const nextCode=String($('pCode').value||'').trim().toUpperCase();
   const savedEmp=employees.find(e=>e.id===activeEmpId);
   const savedCode=String(savedEmp&&savedEmp.prof&&savedEmp.prof.code||'').trim().toUpperCase();
   if(workingEmpId!==activeEmpId||!savedEmp||!nextCode){toast('กรุณาตรวจโปรไฟล์และกรอกรหัสพนักงานก่อนบันทึก');return;}
-  if(savedCode&&savedCode!==nextCode){toast('ไม่สามารถเปลี่ยนรหัสของโปรไฟล์เดิมได้ กรุณาใช้โปรไฟล์แยกเพื่อป้องกันข้อมูลปนกัน');return;}
-  if(employees.some(e=>e!==savedEmp&&String(e.prof&&e.prof.code||'').trim().toUpperCase()===nextCode)){
+  if(!profileFormAdding&&savedCode&&savedCode!==nextCode){toast('ไม่สามารถเปลี่ยนรหัสของโปรไฟล์เดิมได้ กรุณาใช้โปรไฟล์แยกเพื่อป้องกันข้อมูลปนกัน');return;}
+  if(employees.some(e=>(profileFormAdding||e!==savedEmp)&&String(e.prof&&e.prof.code||'').trim().toUpperCase()===nextCode)){
     toast('รหัสนี้มีโปรไฟล์อยู่แล้ว กรุณาเลือกโปรไฟล์เดิม');return;
   }
+  if(profileFormAdding&&!$('pName').value.trim()){toast(appLang==='en'?'Enter an employee name.':'\u0e01\u0e23\u0e38\u0e13\u0e32\u0e01\u0e23\u0e2d\u0e01\u0e0a\u0e37\u0e48\u0e2d\u0e1e\u0e19\u0e31\u0e01\u0e07\u0e32\u0e19');return;}
+  if(profileFormAdding){createEmployee();profileFormAdding=false;}
   profile.company=$('pCompany').value.trim();profile.name=$('pName').value.trim();profile.code=String($('pCode').value||'').trim().toUpperCase();$('pCode').value=profile.code;
   profile.zone=$('pZone').value.trim();profile.plate=$('pPlate').value.trim();profile.currency=$('pCur').value.trim()||'THB';
   profile.fix=parseFloat($('pFix').value)||0;profile.fixDate=$('pFixDate').value||'';profile.docNo=parseInt($('pDoc').value)||1;
@@ -1874,7 +1884,9 @@ $('pSave').addEventListener('click',async()=>{
   cur.head.reimbDate=$('pReimbDate').value||'';
   const _ra=$('pReimbAmount').value.trim();cur.head.reimbAmount=(_ra==='')?null:(parseFloat(_ra)||0);
   const _ta=$('pTotalAmount').value.trim();cur.head.totalAmount=(_ta==='')?null:(parseFloat(_ta)||0);
-  await saveProfile();await saveMonths();$('profileModal').classList.remove('open');render();toast('บันทึกการตั้งค่าแล้ว');
+  $('pSave').disabled=true;
+  try { await saveProfile(); } finally { $('pSave').disabled=false; }
+  $('profileModal').classList.remove('open');render();toast('บันทึกการตั้งค่าแล้ว');
 });
 
 function normalizeReceiptSuffix_(value){
