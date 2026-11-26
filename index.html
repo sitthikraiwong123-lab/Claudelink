@@ -576,11 +576,11 @@ table.led tr.tot td{border-top-width:.63pt!important;border-bottom-width:.63pt!i
 table.led tr.thin2 td{border-bottom-width:.57pt!important}
 table.led tr.after-total-row-2 td{border-top-width:.13px!important;border-bottom-width:.13px!important}
 /* 3) ตัวอักษรในตารางใหญ่ขึ้นอีก ~10% · ความกว้างตารางเท่าเดิม */
-.a4.ledger-excel table.led{font-size:8.4pt!important}
-.a4.ledger-excel table.led th{font-size:8pt!important}
-.a4.ledger-excel table.led td{font-size:8.3pt!important;line-height:1.02!important;padding-left:.45mm!important;padding-right:.45mm!important}
-.a4.ledger-excel table.led td.sum-c,.a4.ledger-excel table.led td.sum-bal{font-size:8.2pt!important}
-.a4.ledger-excel table.led td.plate{font-size:8.1pt!important}
+.a4.ledger-excel table.led{font-size:7.56pt!important}
+.a4.ledger-excel table.led th{font-size:7.2pt!important}
+.a4.ledger-excel table.led td{font-size:7.47pt!important;line-height:1.02!important;padding-left:.45mm!important;padding-right:.45mm!important}
+.a4.ledger-excel table.led td.sum-c,.a4.ledger-excel table.led td.sum-bal{font-size:7.38pt!important}
+.a4.ledger-excel table.led td.plate{font-size:7.29pt!important}
 
 /* ===== TOT-NORMAL: แถวสุดท้าย (Total) ตัวหนังสือปกติ ===== */
 .a4.ledger-excel table.led tr.tot td,table.led tr.tot td{font-weight:400!important}
@@ -1391,7 +1391,42 @@ function makeUrl(blob){const u=URL.createObjectURL(blob);_objUrls.push(u);return
    gset        : global settings shared by all employees (company,currency,approve,verify,exportUrl,flags)
    profile/months/monthOrder/cur = working view of the ACTIVE employee (โค้ดเดิมใช้ตัวแปรเหล่านี้ต่อได้) */
 let employees=[];
-let activeEmpId=null;
+let activeEmpId=null, workingEmpId=null, profileFormOwner=null, profileFormMonth=null, _pullBusy=false;
+const OWNER_SYNC_PROTOCOL=3;
+function ownershipScan(list, includeCandidates){
+  var seen=Object.create(null), issues=[], keys=Object.create(null);
+  function add(type,id,code,month){
+    if(!id||!code)return;
+    var k=type+'|'+id,bucket=seen[k]||(seen[k]=Object.create(null));
+    Object.keys(bucket).forEach(function(other){
+      if(other===code)return;
+      var pair=[code,other].sort(),issueKey=JSON.stringify([type,id,pair]);
+      if(keys[issueKey])return;keys[issueKey]=true;
+      issues.push({type:type,codes:pair,month:month||bucket[other]||''});
+    });
+    bucket[code]=month||'';
+  }
+  function norm(v){return String(v==null?'':v).trim().toUpperCase();}
+  (list||[]).forEach(function(emp){
+    if(!emp)return;
+    var code=norm(emp.prof&&emp.prof.code);if(!code)return;
+    add('employee-id',emp.id,code,'');
+    Object.keys(emp.months||{}).forEach(function(mid){
+      var m=emp.months[mid];if(!m)return;
+      add('month-id',mid,code,m.label);
+      if(m.id&&m.id!==mid)add('month-id',m.id,code,m.label);
+      (Array.isArray(m.entries)?m.entries:[]).forEach(function(e){
+        if(!e)return;
+        if(!/^may26-\d+$/.test(String(e.id||'')))add('entry-id',e.id,code,m.label);
+        (Array.isArray(e.receiptIds)?e.receiptIds:[]).forEach(function(r){add('receipt-id',r,code,m.label);});
+        if(!includeCandidates||Number(e.deletedAt)>0)return;
+        var date=norm(e.date), ref=norm(e.refInv).replace(/\s+/g,''), plate=norm(e.plate).replace(/\s+/g,''), vendor=norm(e.vendor), amount=Number(e.amount);
+        if(date&&ref&&plate&&vendor&&isFinite(amount)&&amount>0)add('receipt-match',JSON.stringify([date,ref,plate,vendor,amount]),code,m.label);
+      });
+    });
+  });
+  return issues;
+}
 let _ready=false,_syncBusy=false,_syncPushTimer=null;
 let gset={company:'Schmoll Asia Pacific (Thailand) Limited',currency:'THB',approve:'Carlos B',verify:'Somruethai',
   exportUrl:DEFAULT_EXPORT_URL,excelSeeded:false,may26Seeded:false};
@@ -1399,7 +1434,7 @@ const EMP_FIELDS=['name','code','zone','plate','fix','fixDate','docNo','customer
 const GSET_FIELDS=['company','currency','approve','verify','exportUrl','excelSeeded','may26Seeded'];
 
 function syncActiveBack(){
-  const e=employees.find(x=>x.id===activeEmpId); if(!e)return;
+  const e=employees.find(x=>x.id===activeEmpId); if(!e||workingEmpId!==activeEmpId)return;
   e.prof=e.prof||{}; EMP_FIELDS.forEach(f=>e.prof[f]=profile[f]);
   GSET_FIELDS.forEach(f=>gset[f]=profile[f]);
   e.months=months; e.order=monthOrder; e.curMonth=cur?cur.id:null;
@@ -1407,7 +1442,7 @@ function syncActiveBack(){
 }
 function activateEmp(id){
   const e=employees.find(x=>x.id===id)||employees[0]; if(!e)return;
-  activeEmpId=e.id; e.prof=e.prof||{};
+  activeEmpId=e.id; workingEmpId=e.id; e.prof=e.prof||{};
   if(e.prof.code)e.prof.code=String(e.prof.code).trim().toUpperCase();
   profile=Object.assign({},gset); EMP_FIELDS.forEach(f=>profile[f]=e.prof[f]);
   if(profile.fix==null)profile.fix=10000;
@@ -1774,6 +1809,7 @@ async function bulkCustomers(){
 $('btnAddCustomerDistance').onclick=()=>addCD();$('fabImportCustomers').onclick=()=>{closeFabMenu();$('pBulkCustomers').value='';$('bulkCustomerModal').classList.add('open');setTimeout(()=>$('pBulkCustomers').focus(),50)};$('bulkClose').onclick=()=> $('bulkCustomerModal').classList.remove('open');$('btnApplyBulkCustomers').onclick=bulkCustomers;
 /* ---------------- Profile modal ---------------- */
 function openProfile(){
+  profileFormOwner=activeEmpId;profileFormMonth=cur&&cur.id;
   $('pCompany').value=profile.company;$('pName').value=profile.name;$('pCode').value=profile.code;
   $('pZone').value=profile.zone;$('pPlate').value=profile.plate;$('pCur').value=profile.currency;
   $('pFix').value=profile.fix;$('pFixDate').value=profile.fixDate||'';$('pDoc').value=profile.docNo;
@@ -1818,6 +1854,15 @@ $('restoreInput').addEventListener('change',async e=>{
   }catch(err){alert('กู้คืนไม่สำเร็จ: '+(err.message||err));}
 });
 $('pSave').addEventListener('click',async()=>{
+  if(profileFormOwner!==activeEmpId||profileFormMonth!==(cur&&cur.id)){toast('โปรไฟล์หรือเดือนเปลี่ยนระหว่างซิงค์ กรุณาปิดแล้วเปิดหน้าตั้งค่าใหม่');return;}
+  const nextCode=String($('pCode').value||'').trim().toUpperCase();
+  const savedEmp=employees.find(e=>e.id===activeEmpId);
+  const savedCode=String(savedEmp&&savedEmp.prof&&savedEmp.prof.code||'').trim().toUpperCase();
+  if(workingEmpId!==activeEmpId||!savedEmp||!nextCode){toast('กรุณาตรวจโปรไฟล์และกรอกรหัสพนักงานก่อนบันทึก');return;}
+  if(savedCode&&savedCode!==nextCode){toast('ไม่สามารถเปลี่ยนรหัสของโปรไฟล์เดิมได้ กรุณาใช้โปรไฟล์แยกเพื่อป้องกันข้อมูลปนกัน');return;}
+  if(employees.some(e=>e!==savedEmp&&String(e.prof&&e.prof.code||'').trim().toUpperCase()===nextCode)){
+    toast('รหัสนี้มีโปรไฟล์อยู่แล้ว กรุณาเลือกโปรไฟล์เดิม');return;
+  }
   profile.company=$('pCompany').value.trim();profile.name=$('pName').value.trim();profile.code=String($('pCode').value||'').trim().toUpperCase();$('pCode').value=profile.code;
   profile.zone=$('pZone').value.trim();profile.plate=$('pPlate').value.trim();profile.currency=$('pCur').value.trim()||'THB';
   profile.fix=parseFloat($('pFix').value)||0;profile.fixDate=$('pFixDate').value||'';profile.docNo=parseInt($('pDoc').value)||1;
@@ -2450,6 +2495,9 @@ function empTabName(){
   return code?(nm+' ('+code+')'):nm;
 }
 async function gsExport(){
+  const code=String(profile.code||'').trim().toUpperCase();
+  if(!code||workingEmpId!==activeEmpId){toast('กรุณาตรวจรหัสและโปรไฟล์พนักงานก่อน Export');return;}
+  if(ownershipScan(employees,true).some(x=>x.codes.includes(code))){toast('พบข้อมูลอ้างอิงซ้ำข้ามพนักงาน ระงับ Export เพื่อรอตรวจสอบ');return;}
   const url=(profile.exportUrl||'').trim();
   if(!url || url.indexOf('http')!==0){ toast('⚠️ ใส่ลิงก์ Apps Script ในตั้งค่า (⚙︎) ก่อน'); openProfile(); return; }
   // ส่งทุกเดือนของพนักงานคนนี้ เรียงตามปฏิทิน (ชีตจะเขียนทับทั้งแท็บ → สะท้อนค่าคำนวณสดเสมอ)
@@ -2474,8 +2522,8 @@ async function gsExport(){
   toast('กำลังส่งขึ้น Google Sheet…');
   try{
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'exportemployee',token:syncToken_(),data:payload})});
-    toast('✓ ส่งขึ้น Google Sheet แล้ว — แท็บ “'+payload.sheetName+'” ('+monthsOut.length+' เดือน)');
+      body:JSON.stringify({action:'exportemployee',token:syncToken_(),ownerProtocol:OWNER_SYNC_PROTOCOL,data:payload})});
+    toast('ส่งคำขอ Export แล้ว กรุณาตรวจแท็บใน Google Sheet เพื่อยืนยันผล');
   }catch(err){ console.error(err); toast('⚠️ ส่งไม่สำเร็จ: '+(err.message||err)); }
   finally{ if(btn){btn.disabled=false;btn.textContent='📤 ส่งออกพนักงานนี้ขึ้น Google Sheet';} }
 }
@@ -2484,11 +2532,11 @@ $('btnExportSheet').addEventListener('click',gsExport);
 /* ---------------- Cloud sync (two-way, auto · last-write-wins per employee) ---------------- */
 function gsReady(){return (profile.exportUrl||'').indexOf('http')===0;}
 // จับคู่พนักงานข้ามเครื่องด้วย "รหัสพนักงาน" (ถ้าไม่มีรหัส ใช้ id) — กัน id สุ่มไม่ตรงกัน
-function empKey(e){const p=(e&&e.prof)||{};const c=String(p.code||'').trim().toLowerCase();if(c)return 'code:'+c;const nm=String(p.name||'').trim().toLowerCase();if(nm)return 'name:'+nm;return 'id:'+((e&&e.id)||'');}
+function empKey(e){const p=(e&&e.prof)||{};const c=String(p.code||'').trim().toLowerCase();return c?'code:'+c:'id:'+String(e&&e.id||'');}
 function employeeSheetName(e){const p=(e&&e.prof)||{},name=String(p.name||'').trim(),code=String(p.code||'').trim().toUpperCase();return code?(name+' ('+code+')'):name;}
 function normalizedSheetName(v){return String(v||'').trim().replace(/\s+/g,' ').toLowerCase();}
 function uniqueEmployeesByCode(list){const by={};(list||[]).forEach(e=>{const key=empKey(e),existing=by[key];by[key]=existing?mergeEmployee(existing,e):e;});return Object.keys(by).map(k=>by[k]);}
-function reconcileEmployeesWithSheetTabs(list,tabs){const unique=uniqueEmployeesByCode(list);if(!Array.isArray(tabs)||!tabs.length)return unique;const allowed=new Set(tabs.filter(n=>String(n)!=='_sync').map(normalizedSheetName));const matched=unique.filter(e=>allowed.has(normalizedSheetName(employeeSheetName(e))));return matched.length?matched:unique;}
+
 // รวมระดับรายการ: จับเดือนด้วย label, จับรายการด้วย id (รายการใหม่ที่เพิ่มในเครื่องจะไม่ถูกลบ)
 // ลายนิ้วมือเนื้อหา (ตรงกันทุกช่อง = รายการเดียวกัน) ใช้ยุบรายการซ้ำข้ามเครื่อง
 function entryVersion(e){return Math.max(Number(e&&e.updatedAt)||0,Number(e&&e.deletedAt)||0);}
@@ -2584,16 +2632,19 @@ function b64ToBlob(b64,mime){const bin=atob(b64);const u8=new Uint8Array(bin.len
 function scheduleSyncPush(){clearTimeout(_syncPushTimer);_syncPushTimer=setTimeout(()=>{gsSyncPush(true);},2500);}
 
 async function gsSyncPush(silent,replace){
-  if(!gsReady()||_syncBusy)return;_syncBusy=true;if(!silent)syncStatus(replace?'กำลังเขียนทับคลาวด์ด้วยข้อมูลเครื่องนี้…':'กำลังส่งข้อมูลขึ้นคลาวด์…');
+  if(!gsReady()||_syncBusy||_pullBusy)return;_syncBusy=true;if(!silent)syncStatus(replace?'กำลังเขียนทับคลาวด์ด้วยข้อมูลเครื่องนี้…':'กำลังส่งข้อมูลขึ้นคลาวด์…');
   try{
     syncActiveBack();
     // map: monthId → โฟลเดอร์ของพนักงาน (ชื่อ-รหัส) เพื่อเก็บใบเสร็จแยกคน
-    const folderOfMonth={};
-    employees.forEach(e=>{const f=empFolderName(e);Object.keys(e.months||{}).forEach(mid=>{folderOfMonth[mid]=f;});});
+    const outgoing=JSON.parse(JSON.stringify(employees.filter(e=>String(e.prof&&e.prof.code||'').trim())));
+    if(!outgoing.length)return;
+    if(ownershipScan(outgoing,false).length)throw syncError('owner-conflict','พบรหัสอ้างอิงซ้ำข้ามพนักงาน หยุดส่งข้อมูลเพื่อป้องกันข้อมูลปนกัน');
+    const folderOfMonth=Object.create(null);
+    outgoing.forEach(e=>{const f=empFolderName(e);Object.keys(e.months||{}).forEach(mid=>{folderOfMonth[mid]=f;});});
     // 1) อัปใบเสร็จที่ยังไม่ได้ซิงค์ เข้าโฟลเดอร์ของคนนั้น
     const all=await rcptAll();
     for(const r of all){
-      if(r.synced||!r.blob)continue;
+      if(r.synced||!r.blob||!folderOfMonth[r.monthId])continue;
       const b64=await blobToB64(r.blob);
       await fetch(profile.exportUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
         body:JSON.stringify({action:'uploadrcpt',token:syncToken_(),id:r.id,folder:folderOfMonth[r.monthId]||'',mime:r.mime||'image/jpeg',name:r.name||r.id,b64})});
@@ -2601,13 +2652,17 @@ async function gsSyncPush(silent,replace){
       await new Promise(res=>setTimeout(res,180));
     }
     // 2) ส่งฐานข้อมูล (พนักงาน/เดือน/รายการ/หัวตาราง) — ไม่รวม blob
+    const writeId=uid();
     await fetch(validatedAppsScriptExecUrl(profile.exportUrl).toString(),{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'syncpush',token:syncToken_(),replace:!!replace,gset,employees})});
+      body:JSON.stringify({action:'syncpush',token:syncToken_(),replace:!!replace,gset,employees:outgoing,ownerProtocol:OWNER_SYNC_PROTOCOL,writeId})});
     if(!silent)syncStatus('ส่งคำขอแล้ว · กำลังตรวจสอบผล…');
     await new Promise(resolve=>setTimeout(resolve,900));
     const verify=await jsonpSync({action:'syncpull',t:Date.now()});
     if(!verify||verify.ok!==true||!Array.isArray(verify.employees))throw syncError('invalid-response','ยืนยันผลหลัง Push ไม่สำเร็จ');
-    const localKeys=new Set(employees.map(empKey));
+    if(Number(verify.ownerProtocol)!==OWNER_SYNC_PROTOCOL)throw syncError('upgrade-required','กรุณา Deploy Apps Script เวอร์ชันใหม่');
+    if(ownershipScan(verify.employees,false).length)throw syncError('owner-conflict','พบรหัสอ้างอิงซ้ำข้ามพนักงานในคลาวด์');
+    if(verify.lastOwnerWrite!==writeId)throw syncError('verification-failed','ยังยืนยันการบันทึกรอบนี้ไม่ได้');
+    const localKeys=new Set(outgoing.map(empKey));
     const verifiedKeys=new Set(verify.employees.map(empKey));
     const missing=[...localKeys].filter(k=>!verifiedKeys.has(k));
     if(missing.length)throw syncError('verification-failed','ข้อมูลบนคลาวด์ยังไม่ครบหลัง Push');
@@ -2617,19 +2672,29 @@ async function gsSyncPush(silent,replace){
 }
 
 async function gsSyncPull(silent,mode){
-  if(!gsReady())return;if(!silent)syncStatus(mode==='replace'?'กำลังดึงข้อมูลมาแทนที่…':'กำลังดึงข้อมูลจากคลาวด์…');
+  if(!gsReady()||_pullBusy||_syncBusy||document.querySelector(silent?'.modal.open':'.modal.open:not(#profileModal)'))return;
+  _pullBusy=true;
+  if(!silent)syncStatus(mode==='replace'?'กำลังดึงข้อมูลมาแทนที่…':'กำลังดึงข้อมูลจากคลาวด์…');
   try{
     syncActiveBack();
     const data=await jsonpSync({action:'syncpull',t:Date.now()});
     if(!data||!data.ok||!Array.isArray(data.employees)){if(!silent)syncStatus((data&&data.error)?('คลาวด์แจ้ง: '+data.error):'ยังไม่มีข้อมูลบนคลาวด์ — ไปกด 🔄 บนเครื่องที่มีข้อมูล (เช่นมือถือ) ก่อน');return;}
     // จับคู่ด้วยรหัสพนักงาน · ปกติ "รวมระดับรายการ" (ไม่ลบของใหม่) · mode replace = เอาคลาวด์แทนที่
+    if(document.querySelector(silent?'.modal.open':'.modal.open:not(#profileModal)'))return;
+    syncActiveBack();
     const actKey=empKey(employees.find(e=>e.id===activeEmpId)||employees[0]||{});
     const byKey={};employees.forEach(e=>{byKey[empKey(e)]=e;});
     data.employees.forEach(ce=>{const k=empKey(ce);byKey[k]=(mode==='replace')?ce:(byKey[k]?mergeEmployee(byKey[k],ce):ce);});
-    employees=reconcileEmployeesWithSheetTabs(Object.keys(byKey).map(k=>byKey[k]),data.employeeSheets);
+    const merged=Object.values(byKey);
+    if(ownershipScan(merged,false).some(x=>x.type==='employee-id')){
+      syncStatus('พบ ID โปรไฟล์ซ้ำข้ามรหัสพนักงาน ไม่ได้นำข้อมูลคลาวด์มาแทนข้อมูลในเครื่อง',silent);return;
+    }
+    employees=merged;
     const url=gset.exportUrl;gset=Object.assign(gset,data.gset||{});gset.exportUrl=url||gset.exportUrl||DEFAULT_EXPORT_URL;
     const actEmp=employees.find(e=>empKey(e)===actKey);
-    activeEmpId=(actEmp&&actEmp.id)||(employees[0]&&employees[0].id);
+    if(employees.length)activateEmp((actEmp&&actEmp.id)||employees[0].id);
+    else{activeEmpId=null;workingEmpId=null;months={};monthOrder=[];cur=null;}
+    render();
     await kvSet('db',{v:2,employees,activeEmpId,gset});
     // ดึงใบเสร็จที่ยังไม่มีในเครื่อง (ตามโฟลเดอร์ของพนักงานคนนั้น)
     const rmap={};
@@ -2642,7 +2707,7 @@ async function gsSyncPull(silent,mode){
       if(rd&&rd.ok&&rd.b64){const blob=b64ToBlob(rd.b64,rd.mime);let dim={w:0,h:0};try{dim=await imgDims(blob);}catch(_){}
         await rcptPut({id,monthId:rmap[id].monthId,entryId:rmap[id].entryId,name:rd.name||id,mime:rd.mime||'image/jpeg',blob,w:dim.w,h:dim.h,mode:'auto',synced:true,addedAt:Date.now()});dl++;}
     }
-    activateEmp(activeEmpId);render();
+    render();
     syncStatus('ซิงค์สำเร็จ · พนักงาน '+employees.length+' คน'+(dl?(' · ใบเสร็จใหม่ '+dl):'')+' · '+new Date().toLocaleTimeString(),silent);
   }catch(e){console.error('syncpull',e&&e.code?e.code:'error');
     if(!silent){
@@ -2651,6 +2716,7 @@ async function gsSyncPull(silent,mode){
       alert('ดึงข้อมูลจากคลาวด์ไม่สำเร็จ\n\nสาเหตุที่พบบ่อย:\n• ยังไม่ได้ Deploy Code.gs เวอร์ชันใหม่ (ที่มีระบบซิงค์)\n   → Apps Script: Deploy → Manage deployments → ✏️ แก้ไข → Version = New version → Deploy\n   (ต้องเป็น New version ของอันเดิม ไม่ใช่ New deployment ที่ได้ URL ใหม่)\n• สิทธิ์ Web app ไม่ใช่ "Anyone"\n\nตรวจให้ชัด: เปิดลิงก์นี้ในเบราว์เซอร์\n'+profile.exportUrl+'?action=syncpull\n→ ต้องทดสอบด้วย Token จริง จึงจะเห็น {"ok":true,...}\n→ เห็น "Gasoline endpoint OK" = Code.gs ยังเป็นเวอร์ชันเก่า\n→ เจอหน้า login/ขอสิทธิ์ = สิทธิ์ไม่ใช่ Anyone');
     }
   }
+  finally{_pullBusy=false;}
 }
 async function gsSyncNow(){ await gsSyncPull(false); await gsSyncPush(false); }
 async function gsForcePull(){ if(!confirm('ดึงข้อมูลจากคลาวด์มา "แทนที่" ข้อมูลในเครื่องนี้?\n(ใช้ตอนต้องการให้เครื่องนี้ตรงกับคลาวด์ — ข้อมูลในเครื่องที่ยังไม่ได้ส่งจะถูกแทนที่)'))return; await gsSyncPull(false,'replace'); }
@@ -2681,7 +2747,6 @@ i18nRemember(); applyLanguage(appLang);
 <\/script>
 </body>
 </html>
-
 </script>
 <script type="text/plain" id="src-claim"><!DOCTYPE html>
 <html lang="th">
